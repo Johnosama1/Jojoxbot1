@@ -7,6 +7,10 @@ localPort = 8080
 externalPort = 80
 
 [[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
 localPort = 18635
 externalPort = 3002
 
@@ -19,3 +23,7 @@ externalPort = 3000
 [userenv.shared]
 DISABLE_BOT = "true"
 PORT = "8080"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 180000
