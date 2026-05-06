@@ -4,6 +4,8 @@ import compression from "compression";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import pinoHttp from "pino-http";
+import path from "node:path";
+import { existsSync } from "node:fs";
 import router from "./routes";
 import { logger } from "./lib/logger";
 const app: Express = express();
@@ -89,10 +91,22 @@ if (process.env.NODE_ENV === "production") {
 // ── Routes ────────────────────────────────────────────────────────────
 app.use("/api", router);
 
-// ── 404 catch-all ─────────────────────────────────────────────────────
-app.use((_req: Request, res: Response) => {
-  res.status(404).json({ error: "Not found" });
-});
+// ── Serve frontend static files in production ─────────────────────────
+const frontendDist = path.resolve(process.cwd(), "artifacts/app/dist/public");
+if (process.env.NODE_ENV === "production" && existsSync(frontendDist)) {
+  app.use(express.static(frontendDist, { index: false }));
+  app.use("/api", (_req: Request, res: Response) => {
+    res.status(404).json({ error: "Not found" });
+  });
+  app.get("*", (_req: Request, res: Response) => {
+    res.sendFile(path.join(frontendDist, "index.html"));
+  });
+} else {
+  // ── 404 catch-all (dev / no static build) ───────────────────────────
+  app.use((_req: Request, res: Response) => {
+    res.status(404).json({ error: "Not found" });
+  });
+}
 
 // ── Global error handler — never leak stack traces ────────────────────
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

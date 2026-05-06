@@ -26,3 +26,8 @@ PORT = "8080"
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 180000
+
+[deployment]
+deploymentTarget = "vm"
+run = ["bash", "-c", "NODE_ENV=production node artifacts/api-server/dist/index.mjs"]
+build = ["bash", "-c", "pnpm install --frozen-lockfile && pnpm --filter @workspace/api-server run build && BASE_PATH=/ pnpm --filter @workspace/app run build"]

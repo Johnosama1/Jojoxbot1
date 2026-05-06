@@ -47,7 +47,8 @@ Schema: `lib/db/src/schema/index.ts`
 
 - Monorepo with pnpm workspaces; all packages share a catalog for version pinning
 - API server builds to `dist/index.mjs` via esbuild before starting (no ts-node in prod)
-- Vercel deployment uses `api/index.js` (esbuild serverless entry) + static SPA output from `artifacts/app/dist/public`
+- **Replit deployment**: `vm` target (always-on); single process serves both API (`/api/*`) and the built React SPA (static files from `artifacts/app/dist/public`). See `.replit` `[deployment]` section.
+- Vercel deployment also supported: `vercel.json` uses serverless `api/index.js` entry + static SPA output
 - Bot runs in polling mode in dev (`DISABLE_BOT=true` until token is set); webhook mode in prod via `BOT_WEBHOOK_URL`
 - Frontend proxies `/api` to `localhost:8080` in dev via Vite proxy
 
@@ -70,6 +71,7 @@ Schema: `lib/db/src/schema/index.ts`
 - `DISABLE_BOT=true` prevents bot polling errors when no `BOT_TOKEN` is present
 - Sticker pre-cache warnings on startup are harmless (no bot token = no Telegram API access)
 - Do not run `drizzle-kit push --force` unless intentionally resetting schema
+- In production, the API server serves the frontend SPA — `artifacts/app/dist/public` must exist (built during deploy). Set `BOT_WEBHOOK_URL=https://<domain>/api/bot-webhook` for reliable bot operation
 
 ## Pointers
 
