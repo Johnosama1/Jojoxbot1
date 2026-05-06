@@ -1,0 +1,449 @@
+import { useRef, useEffect, useState } from "react";
+import { WheelSlot } from "../lib/api";
+
+interface WheelCanvasProps {
+  slots: WheelSlot[];
+  spinning: boolean;
+  winnerIndex: number | null;
+  onSpinEnd: () => void;
+}
+
+export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }: WheelCanvasProps) {
+  const canvasRef    = useRef<HTMLCanvasElement>(null);
+  const rotationRef  = useRef(0);
+  const animFrameRef = useRef<number>(0);
+  const glowFrameRef = useRef(0);
+  const winFlashRef  = useRef<number | null>(null);
+  const usdtImgRef   = useRef<HTMLImageElement | null>(null);
+  const botImgRef    = useRef<HTMLImageElement | null>(null);
+
+  const [arrowState, setArrowState] = useState<"idle" | "thrown" | "landing">("idle");
+
+  // Preload USDT image once
+  useEffect(() => {
+    const img = new Image();
+    img.src = "/usdt.png";
+    img.onload = () => { usdtImgRef.current = img; };
+  }, []);
+
+  // Preload bot logo image once
+  useEffect(() => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = "https://i.ibb.co/gZgFjFmZ/cropped-circle-image-1.png";
+    img.onload = () => { botImgRef.current = img; };
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────────────
+  // DRAW
+  // ─────────────────────────────────────────────────────────────────────
+  const drawWheel = (rotation: number, frame: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const size = canvas.width;
+    const cx = size / 2, cy = size / 2;
+    const outerR = Math.min(cx, cy) - 8;
+    const n = slots.length;
+    if (n === 0) return;
+
+    ctx.clearRect(0, 0, size, size);
+
+    // ── Outer glow ring ──
+    const glowPulse = 0.55 + 0.08 * Math.sin(frame * 0.04);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR + 10, 0, Math.PI * 2);
+    const outerGlow = ctx.createRadialGradient(cx, cy, outerR - 4, cx, cy, outerR + 14);
+    outerGlow.addColorStop(0,   `rgba(255,190,40,${glowPulse * 0.5})`);
+    outerGlow.addColorStop(0.5, `rgba(255,140,20,${glowPulse * 0.25})`);
+    outerGlow.addColorStop(1,   "rgba(0,0,0,0)");
+    ctx.fillStyle = outerGlow;
+    ctx.fill();
+    ctx.restore();
+
+    // ── Clip to wheel circle ──
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR + 1, 0, Math.PI * 2);
+    ctx.clip();
+
+    const segAngle = (2 * Math.PI) / n;
+
+    // ── Dark disc background ──
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
+    ctx.fillStyle = "#0b1530";
+    ctx.fill();
+
+    // ── Segments ──
+    for (let i = 0; i < n; i++) {
+      const startAngle = rotation + i * segAngle - Math.PI / 2;
+      const endAngle   = startAngle + segAngle;
+      const isEven     = i % 2 === 0;
+
+      // Subtle alternating fill
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, outerR, startAngle, endAngle);
+      ctx.closePath();
+      ctx.fillStyle = isEven ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0)";
+      ctx.fill();
+
+      // Divider lines
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(startAngle) * (outerR * 0.30), cy + Math.sin(startAngle) * (outerR * 0.30));
+      ctx.lineTo(cx + Math.cos(startAngle) * outerR, cy + Math.sin(startAngle) * outerR);
+      ctx.strokeStyle = "rgba(255,255,255,0.55)";
+      ctx.lineWidth   = 1.5;
+      ctx.stroke();
+
+      // ── Icon + text in each segment ──
+      const midAngle = startAngle + segAngle / 2;
+      const labelR   = outerR * 0.63;
+      const lrx      = cx + Math.cos(midAngle) * labelR;
+      const lry      = cy + Math.sin(midAngle) * labelR;
+
+      ctx.save();
+      ctx.translate(lrx, lry);
+      ctx.rotate(midAngle + Math.PI / 2);
+      ctx.textAlign    = "center";
+      ctx.textBaseline = "middle";
+
+      const iconR  = outerR < 120 ? 11 : 16; // radius of USDT circle icon
+      const fontSize = outerR < 110 ? 9 : 12;
+
+      // ── USDT circular icon ──
+      ctx.save();
+      // Clip to circle
+      ctx.beginPath();
+      ctx.arc(0, -iconR * 0.1, iconR, 0, Math.PI * 2);
+      ctx.clip();
+
+      if (usdtImgRef.current) {
+        // Draw the USDT logo image
+        ctx.drawImage(usdtImgRef.current, -iconR, -iconR - iconR * 0.1, iconR * 2, iconR * 2);
+      } else {
+        // Fallback: green circle with "₮"
+        const fbGrad = ctx.createRadialGradient(-iconR * 0.25, -iconR * 0.25, 0, 0, 0, iconR);
+        fbGrad.addColorStop(0, "#3ecfa3");
+        fbGrad.addColorStop(1, "#1a8c6a");
+        ctx.fillStyle = fbGrad;
+        ctx.fillRect(-iconR, -iconR, iconR * 2, iconR * 2);
+        ctx.fillStyle = "#fff";
+        ctx.font = `900 ${Math.round(iconR * 1.1)}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("₮", 0, 0);
+      }
+      ctx.restore();
+
+      // Thin glow ring around icon
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, -iconR * 0.1, iconR, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(38,200,150,0.55)";
+      ctx.lineWidth   = 1.5;
+      ctx.shadowColor = "rgba(38,200,150,0.60)";
+      ctx.shadowBlur  = 6;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+
+      // ── Amount ──
+      const amount = parseFloat(slots[i].amount);
+      const label  = amount < 1 ? amount.toString() : amount.toFixed(0);
+
+      ctx.font      = `900 ${fontSize}px 'Inter', sans-serif`;
+      ctx.fillStyle = "#ffffff";
+      ctx.shadowColor = "rgba(255,255,255,0.4)";
+      ctx.shadowBlur  = 4;
+      ctx.fillText(label, 0, iconR * 1.6 + fontSize * 0.6);
+      ctx.shadowBlur = 0;
+
+      // "USDT" sub-label
+      ctx.font      = `600 ${Math.max(6, fontSize * 0.72)}px 'Inter', sans-serif`;
+      ctx.fillStyle = "rgba(255,255,255,0.50)";
+      ctx.fillText("USDT", 0, iconR * 1.6 + fontSize * 1.65);
+
+      ctx.restore();
+    }
+
+    // ── Winner flash ──
+    if (winFlashRef.current !== null) {
+      const fl = (frame - winFlashRef.current) * 0.05;
+      const flashOpacity = Math.max(0, Math.sin(fl) * 0.38);
+      if (flashOpacity > 0 && winnerIndex !== null) {
+        const ws = rotation + winnerIndex * segAngle - Math.PI / 2;
+        const we = ws + segAngle;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, outerR, ws, we);
+        ctx.closePath();
+        ctx.fillStyle = `rgba(255,215,60,${flashOpacity})`;
+        ctx.fill();
+      }
+    }
+
+    // End clip
+    ctx.restore();
+
+    // ── Outer gold ring ──
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255,185,30,0.85)";
+    ctx.lineWidth   = 4;
+    ctx.stroke();
+    // Bright thin inner edge
+    ctx.beginPath();
+    ctx.arc(cx, cy, outerR - 3, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255,255,180,0.25)";
+    ctx.lineWidth   = 1;
+    ctx.stroke();
+    ctx.restore();
+
+    // ── White studs at segment joins ──
+    for (let i = 0; i < n; i++) {
+      const angle = rotation + i * segAngle - Math.PI / 2;
+      const sx = cx + Math.cos(angle) * (outerR - 2);
+      const sy = cy + Math.sin(angle) * (outerR - 2);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(sx, sy, 4.5, 0, Math.PI * 2);
+      ctx.fillStyle   = "#ffffff";
+      ctx.shadowColor = "rgba(255,255,255,0.95)";
+      ctx.shadowBlur  = 8;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
+    }
+
+    // ── Center red button ──
+    const centerR = outerR * 0.265;
+    ctx.save();
+    // Outer glow
+    ctx.shadowColor = "rgba(220,40,70,0.7)";
+    ctx.shadowBlur  = 22;
+    // Gradient fill
+    const cGrad = ctx.createRadialGradient(cx - centerR * 0.3, cy - centerR * 0.35, centerR * 0.05, cx, cy, centerR);
+    cGrad.addColorStop(0,   "#ff7096");
+    cGrad.addColorStop(0.45, "#e8314e");
+    cGrad.addColorStop(1,   "#a81235");
+    ctx.beginPath();
+    ctx.arc(cx, cy, centerR, 0, Math.PI * 2);
+    ctx.fillStyle = cGrad;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    // Border
+    ctx.strokeStyle = "rgba(255,255,255,0.45)";
+    ctx.lineWidth   = 2;
+    ctx.stroke();
+    // Bot logo image in center (clip to circle)
+    if (botImgRef.current) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, centerR - 2, 0, Math.PI * 2);
+      ctx.clip();
+      const imgSize = (centerR - 2) * 2;
+      ctx.drawImage(botImgRef.current, cx - centerR + 2, cy - centerR + 2, imgSize, imgSize);
+      ctx.restore();
+    }
+    ctx.restore();
+  };
+
+  // ─────────────────────────────────────────────────────────────────────
+  // ANIMATION LOOPS (unchanged logic)
+  // ─────────────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (spinning) return;
+    setArrowState("idle");
+    let frame = glowFrameRef.current;
+    const idle = () => {
+      frame++;
+      glowFrameRef.current = frame;
+      drawWheel(rotationRef.current, frame);
+      animFrameRef.current = requestAnimationFrame(idle);
+    };
+    animFrameRef.current = requestAnimationFrame(idle);
+    return () => cancelAnimationFrame(animFrameRef.current);
+  }, [slots, spinning]);
+
+  useEffect(() => {
+    if (!spinning || winnerIndex !== null || slots.length === 0) return;
+    cancelAnimationFrame(animFrameRef.current);
+    setArrowState("thrown");
+    const SPEED = (2 * Math.PI * 3.5) / 1000;
+    let last  = performance.now();
+    let frame = glowFrameRef.current;
+    const animate = (now: number) => {
+      const delta = Math.min(now - last, 50);
+      last = now; frame++;
+      glowFrameRef.current = frame;
+      rotationRef.current  = (rotationRef.current + SPEED * delta) % (2 * Math.PI);
+      drawWheel(rotationRef.current, frame);
+      animFrameRef.current = requestAnimationFrame(animate);
+    };
+    animFrameRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animFrameRef.current);
+  }, [spinning, winnerIndex, slots]);
+
+  useEffect(() => {
+    if (!spinning || winnerIndex === null || slots.length === 0) return;
+    cancelAnimationFrame(animFrameRef.current);
+    winFlashRef.current = null;
+    setArrowState("landing");
+
+    const SETTLE_MS  = 2800;
+    const segAngle   = (2 * Math.PI) / slots.length;
+    const finalAngle = (2 * Math.PI - winnerIndex * segAngle) - segAngle / 2;
+    const SPIN_SPEED = (2 * Math.PI * 3.5) / 1000;
+
+    const startTime     = performance.now();
+    const startRotation = rotationRef.current;
+    let settled         = false;
+    let settleStartRot  = 0;
+    let settleStartTime = 0;
+    let frame           = glowFrameRef.current;
+
+    const animate = (now: number) => {
+      const elapsed = now - startTime;
+      frame++;
+      glowFrameRef.current = frame;
+
+      if (elapsed < 600) {
+        rotationRef.current = (startRotation + SPIN_SPEED * elapsed) % (2 * Math.PI);
+        drawWheel(rotationRef.current, frame);
+      } else if (elapsed < 600 + SETTLE_MS) {
+        if (!settled) {
+          settled         = true;
+          settleStartRot  = rotationRef.current;
+          settleStartTime = now;
+        }
+        const se    = now - settleStartTime;
+        const t     = se / SETTLE_MS;
+        const eased = 1 - Math.pow(1 - t, 4);
+        let diff = finalAngle - (settleStartRot % (2 * Math.PI));
+        if (diff < 0) diff += 2 * Math.PI;
+        const totalTravel   = 2 * Math.PI * 3 + diff;
+        rotationRef.current = settleStartRot + eased * totalTravel;
+        drawWheel(rotationRef.current, frame);
+      } else {
+        rotationRef.current = finalAngle;
+        winFlashRef.current = frame;
+        drawWheel(finalAngle, frame);
+        setArrowState("idle");
+        onSpinEnd();
+        return;
+      }
+      animFrameRef.current = requestAnimationFrame(animate);
+    };
+    animFrameRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animFrameRef.current);
+  }, [spinning, winnerIndex, slots]);
+
+  // ─────────────────────────────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────────────────────────────
+  const size    = 390;
+  const ARROW_H = 36;
+
+  return (
+    <>
+      <style>{`
+        @keyframes arrowBounce {
+          0%, 100% { transform: translateX(-50%) translateY(0px);   }
+          50%       { transform: translateX(-50%) translateY(-5px);  }
+        }
+        @keyframes arrowThrown {
+          0%   { transform: translateX(-50%) translateY(-5px) rotate(-3deg); }
+          100% { transform: translateX(-50%) translateY(2px)  rotate(3deg);  }
+        }
+        @keyframes arrowLand {
+          0%   { transform: translateX(-50%) translateY(-14px) scaleY(0.85); }
+          65%  { transform: translateX(-50%) translateY(3px)   scaleY(1.05); }
+          85%  { transform: translateX(-50%) translateY(-2px)  scaleY(0.98); }
+          100% { transform: translateX(-50%) translateY(0px)   scaleY(1);    }
+        }
+      `}</style>
+
+      {/* ── Loading placeholder when no slots ── */}
+      {slots.length === 0 && (
+        <div style={{
+          width: size,
+          height: size + ARROW_H,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}>
+          <div style={{
+            width: 60,
+            height: 60,
+            borderRadius: "50%",
+            border: "4px solid rgba(251,191,36,0.15)",
+            borderTopColor: "#fbbf24",
+            animation: "spin 0.9s linear infinite",
+          }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+
+      <div style={{ position: "relative", width: size, display: slots.length === 0 ? "none" : undefined }}>
+
+        {/* ── Red triangle pointer ── */}
+        <div style={{ height: ARROW_H, position: "relative" }}>
+          <div style={{
+            position: "absolute",
+            bottom: -4,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 20,
+            pointerEvents: "none",
+            filter: "drop-shadow(0 2px 10px rgba(220,40,70,0.8))",
+            animation:
+              arrowState === "thrown"
+                ? "arrowThrown 0.35s ease-in-out infinite alternate"
+                : arrowState === "landing"
+                ? "arrowLand 0.4s cubic-bezier(0.22,1,0.36,1) forwards"
+                : "arrowBounce 1.6s ease-in-out infinite",
+          }}>
+            <svg width="28" height="32" viewBox="0 0 28 32" fill="none">
+              <defs>
+                <linearGradient id="triGrad" x1="14" y1="0" x2="14" y2="32" gradientUnits="userSpaceOnUse">
+                  <stop offset="0%"   stopColor="#ff6b8a" />
+                  <stop offset="100%" stopColor="#b91c3c" />
+                </linearGradient>
+              </defs>
+              {/* Main triangle pointing down */}
+              <polygon points="14,32 0,0 28,0" fill="url(#triGrad)" />
+              {/* Inner highlight */}
+              <polygon points="14,26 4,4 24,4" fill="rgba(255,150,170,0.35)" />
+              {/* Top nock cap */}
+              <rect x="6" y="0" width="16" height="5" rx="2.5" fill="#ff8fa3" />
+            </svg>
+          </div>
+        </div>
+
+        {/* ── Wheel canvas ── */}
+        <div style={{ position: "relative", width: size, height: size, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {/* Outer glow ring behind canvas */}
+          <div style={{
+            position: "absolute",
+            inset: -6,
+            borderRadius: "50%",
+            background: "radial-gradient(ellipse, rgba(255,185,30,0.12) 60%, transparent 100%)",
+            pointerEvents: "none",
+          }} />
+          <canvas
+            ref={canvasRef}
+            width={size}
+            height={size}
+            style={{ position: "relative", zIndex: 1, width: size, height: size, display: "block" }}
+          />
+        </div>
+      </div>
+    </>
+  );
+}

@@ -1,0 +1,144 @@
+Project Description (Telegram-Style Animated Mini App + Custom Emoji UI + Verification Flow):
+
+I need to build a professional Telegram Mini App that looks exactly like a native Telegram premium interface, with smooth animations and support for custom emoji IDs, and use it as a verification screen before الدخول إلى البوت.
+
+---
+
+🎯 Main Goal
+
+- Show a beautiful animated verification screen inside Telegram Mini App
+- Use Telegram custom emojis (by emoji_id)
+- Provide a smooth verification flow
+- Make the UI feel exactly like Telegram (not a normal website)
+
+---
+
+🎨 UI Design
+
+- Dark background (Telegram style)
+- Centered card with rounded corners
+- Soft shadows + modern gradient
+- Fully optimized for mobile
+
+---
+
+✨ Animation
+
+- Card loads with:
+  - fade-in
+  - slight scale-up
+- Elements appear تدريجياً (stagger animation)
+- Button has press animation
+- Emojis have subtle motion (pulse)
+
+---
+
+😍 Custom Emojis (MUST USE IDs)
+
+Use these exact Telegram custom emoji IDs:
+
+- 🎡 (5226711870492126219) → فوق الاسم
+- ✅ (6132003286141637383) → "حساب واحد لكل جهاز"
+- 🔒 (5296369303661067030) → "لا يتم مشاركة بياناتك"
+- ☄️ (5224607267797606837) → "التحقق يستغرق ثانية واحدة"
+- 🔒 (5296369303661067030) → داخل زر التحقق
+
+IMPORTANT:
+
+- These must render as Telegram custom emojis, not normal emojis
+- Use Telegram WebApp compatibility
+
+---
+
+🧩 Content Layout
+
+- Top emoji (🎡) above username
+
+- Title:
+  "مرحباً {username}!"
+
+- Subtitle:
+  "خطوة سريعة للتحقق من حسابك وضمان أمان منصة Jo-jokes"
+
+- Info box:
+  ✅ حساب واحد لكل جهاز
+  🔒 لا يتم مشاركة بياناتك
+  ☄️ التحقق يستغرق ثانية واحدة
+
+---
+
+🔘 Button
+
+Text:
+"تحقق والدخول الآن"
+
+- Gradient style
+- Includes lock emoji
+- On click:
+  - Start verification process
+
+---
+
+🔐 Verification Logic
+
+- On button click:
+  - Generate device fingerprint (device_id)
+  - Send it to backend
+  - Check if device already used
+
+If device is NEW:
+
+- Mark user as verified
+- Close Mini App automatically
+- Return to bot
+- Show message:
+  "تم فحص البوت بنجاح"
+- Then show full welcome message
+
+If device is ALREADY USED:
+
+- Inside Mini App show:
+  "تم اكتشاف تعدد حسابات"
+- Close Mini App
+- Return to bot
+- Show:
+  "تم اكتشاف تعدد الحسابات وتم حظر الحساب"
+- Mark user as blocked or not eligible
+
+---
+
+⚠️ Important Rules
+
+- One device = one account only
+- Do NOT rely on IP alone
+- Allow multiple users on same WiFi if devices are different
+
+---
+
+🔄 Reset Behavior (Testing Mode)
+
+- Add admin ability to reset users:
+  - Clear verification
+  - Clear device_id
+- So users appear as first-time users again
+
+---
+
+🖼️ Telegram Link Preview
+
+- Ensure when sharing bot link:
+  - Bot image appears
+  - Title + description visible
+- Configure via BotFather + proper metadata
+
+---
+
+🎯 Final Goal
+
+Create a high-quality, animated, Telegram-like Mini App that:
+
+- Feels native
+- Uses custom emoji IDs
+- Verifies users securely
+- Prevents multi-account abuse
+- Provides smooth and professional user experience

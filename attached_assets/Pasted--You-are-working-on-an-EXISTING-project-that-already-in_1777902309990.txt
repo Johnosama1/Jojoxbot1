@@ -1,0 +1,103 @@
+.You are working on an EXISTING project that already includes smart contract files and a Telegram bot.
+
+DO NOT create a new project from scratch.
+DO NOT overwrite existing logic.
+Instead, MODIFY and EXTEND the current codebase.
+
+Goal:
+Add a wallet binding system and a manual withdrawal request system integrated with the existing smart contract and bot.
+
+1. Wallet Binding (Add to existing bot)
+
+- Add a button: "🔗 Bind Wallet"
+- When clicked:
+  - Ask user to send their wallet address (TON format)
+  - Validate the address format
+  - Save it in the existing database (or create one if missing):
+    user_id, username, wallet_address
+- After saving:
+  - Display masked wallet (e.g. EQC...9xA)
+- Add option: "✏️ Change Wallet" with confirmation
+
+2. Modify Withdraw Flow (IMPORTANT)
+
+- Remove any requirement to manually paste wallet address
+- Use the stored wallet address instead
+- Update UI to show:
+  - Saved wallet (masked)
+  - Input field for amount only
+
+3. Withdrawal Requests (NO auto transfer)
+
+- When user requests withdrawal:
+  - DO NOT directly call the smart contract transfer
+  - Create a withdrawal request instead
+  - Store it in database:
+    user_id, amount, wallet_address, status=pending
+
+4. Admin Approval System
+
+- Send each withdrawal request to admin inside Telegram
+
+Admin message:
+🚨 New Withdraw Request
+User: @username
+User ID: 123456
+Wallet: saved wallet
+Amount: X TON
+
+Buttons:
+[✅ Approve] [❌ Reject]
+
+5. On Admin Action
+
+- If Approve:
+  
+  - THEN call the existing smart contract transfer function
+  - Update request status to approved
+  - Deduct user balance
+  - Notify user
+
+- If Reject:
+  
+  - Update status to rejected
+  - Notify user
+
+6. Smart Contract Integration
+
+- Reuse existing contract functions for transfers
+- Do NOT rewrite the contract unless necessary
+- Only connect bot logic to trigger contract after admin approval
+
+7. Security
+
+- Check user balance before creating request
+- Prevent spam (cooldown)
+- Prevent duplicate pending requests
+- Log all actions
+
+8. Database Update
+   Ensure these tables exist:
+
+users:
+
+- user_id
+- username
+- wallet_address
+- balance
+
+withdraw_requests:
+
+- id
+- user_id
+- amount
+- wallet_address
+- status
+- created_at
+
+Important:
+
+- Keep existing project structure
+- Do not break current features
+- Write clean, modular code
+- Keep it lightweight and efficient

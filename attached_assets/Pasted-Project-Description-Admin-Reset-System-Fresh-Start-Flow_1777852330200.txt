@@ -1,0 +1,100 @@
+Project Description (Admin Reset System + Fresh Start Flow + Telegram Link Preview Fix):
+
+I need to update my Telegram bot with two main features: a full reset system and fixing the bot link preview image.
+
+---
+
+👑 Admin Control (Owner Only)
+
+- Define a specific owner/admin user_id.
+- Only the owner can trigger reset actions.
+
+---
+
+🔄 Full Reset System (VERY IMPORTANT)
+
+I need a system where I can make all users feel like they are entering the bot for the first time again.
+
+Requirements:
+
+- Add an admin command (example: /reset_all)
+- When triggered:
+  - Reset all users’ data OR mark them as:
+    - not verified
+    - new users
+  - Clear:
+    - verification status
+    - device_id links
+    - session data
+
+Result:
+
+- Any user who enters the bot after reset:
+  - sees the verification step again
+  - treated exactly like first-time user
+  - no previous data is considered
+
+---
+
+🚀 Fresh Start User Flow
+
+When any user presses /start:
+
+1. Show welcome message
+2. Show button: "ابدأ التحقق"
+3. When clicked:
+   - Open Mini App (Telegram WebApp)
+4. After verification:
+   - Close Mini App automatically
+   - Return to bot
+   - Show success message
+   - Then show full bot access
+
+---
+
+⚠️ Important Behavior
+
+- After reset:
+  - ALL users must go through verification again
+  - System must behave as if database is new
+- Owner account can also be reset (optional or excluded based on config)
+
+---
+
+🖼️ Telegram Link Preview (Fix Required)
+
+Problem:
+
+- When I send my bot link, no preview image appears.
+
+Required fix:
+
+- Ensure the bot link shows:
+  - Bot image (thumbnail)
+  - Title
+  - Description
+
+Solution Requirements:
+
+- Configure Telegram bot profile:
+  - Set profile photo
+  - Set bot description and about text via BotFather
+- Ensure link preview is enabled (not disabled in message)
+- If using a website or redirect:
+  - Add proper Open Graph (og:image, og:title, og:description) metadata
+
+---
+
+📌 Final Summary
+
+- Owner can reset all users anytime
+- All users return to first-time state
+- Verification appears again on /start
+- Mini App handles verification
+- Bot link shows preview image correctly
+
+---
+
+🎯 Final Goal
+
+Have full control as the owner to reset the system anytime, while ensuring users always go through a clean verification flow and the bot looks professional when shared.

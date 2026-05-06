@@ -1,0 +1,179 @@
+Project Description (Full Verification Flow + Strong Anti-Multi-Account System + UI Improvements):
+
+I need a complete refactor and upgrade of my Telegram bot to implement a professional verification flow, strong anti-multi-account protection, and improved user experience.
+
+---
+
+🎯 Main Goal
+
+- Each device can only use one account.
+- Detect and stop multi-account abuse even if the user uses:
+  - Telegram clones
+  - Parallel apps
+  - Multiple Telegram sessions on the same phone
+- Provide a smooth onboarding experience with a Mini App verification system.
+
+---
+
+🔐 Step 1: Entry Message (UI تحسين الرسالة)
+
+When the user opens the bot, show a professional welcome message with Telegram-style emojis and their IDs:
+
+Example format:
+
+👋(5339536521009571338) أهلاً {username}!
+🎰(5102856631562011824) مرحباً بك في Jo-jokes — أسرع بوت ربح TON!
+🔐(5197288647275071607) خطوة واحدة للبدء:
+افتح التطبيق وأكمل التحقق السريع للحصول على وصول كامل.
+
+- Keep emojis with their exact IDs
+- Message must look clean and professional
+
+---
+
+🚀 Step 2: Verification Button
+
+- Show button: "ابدأ التحقق"
+- When clicked:
+  - Open a Telegram Mini App (WebApp) (NOT external link)
+
+---
+
+📱 Step 3: Device Detection (IMPORTANT)
+
+Inside the Mini App:
+
+- Generate a strong device fingerprint (device_id) using:
+  
+  - browser/device info
+  - screen size
+  - system data
+  - user agent
+
+- Hash it securely before saving
+
+- Save:
+  
+  - user_id
+  - device_id (hashed)
+  - IP address (secondary only)
+
+---
+
+🧠 Anti Multi-Account Logic
+
+Rule:
+
+- One device_id = one main account only
+
+Detection must work even if:
+
+- User installs Telegram clone
+- Uses parallel space / dual apps
+- Logs in with another account on same phone
+
+👉 If same device_id appears again:
+
+- This is multi-account abuse
+
+---
+
+🔴 If Duplicate Detected (VERY IMPORTANT FLOW)
+
+Inside Mini App:
+
+- Show message:
+  
+  «"تم اكتشاف تعدد حسابات"»
+
+- Then:
+  
+  - Close Mini App automatically
+  - Return to bot
+
+Inside Bot:
+
+- Show:
+  
+  «"تم اكتشاف تعدد الحسابات وتم حظر الحساب"»
+
+- Mark account as:
+  
+  - banned OR not eligible
+
+---
+
+🟢 If Verification Successful
+
+Inside Mini App:
+
+- Complete verification
+
+Then:
+
+- Auto close Mini App
+- Return to bot
+
+Inside Bot:
+
+- Show:
+  
+  «"تم فحص البوت بنجاح"»
+
+- Immediately after:
+
+- Show full welcome message and allow access
+
+---
+
+⚠️ Important Rules
+
+- DO NOT rely on IP alone
+- DO NOT allow multiple accounts from same device
+- DO allow:
+  - Different devices on same WiFi
+
+---
+
+🖼️ Step 4: Link Preview (Very Important)
+
+When sharing the bot link:
+
+- Ensure a preview image appears
+- Add:
+  - Bot image (thumbnail)
+  - Title
+  - Description
+
+Use proper metadata (Open Graph / Telegram preview settings)
+
+---
+
+🔄 Step 5: Reset Testing Mode
+
+- Add ability to:
+  - Reset users OR mark them as "not verified"
+- So accounts behave like:
+  - first-time users again
+- This is for testing verification flow
+
+---
+
+📌 Final Summary
+
+- First user on device → allowed + verified
+- Same device second account → detected + blocked
+- Mini App handles verification and closes automatically
+- Clean UI messages with emoji IDs
+- Bot link shows preview image
+- Testing reset mode available
+
+---
+
+🎯 Final Goal
+
+Build a secure, smart, and professional earning bot that:
+
+- Prevents abuse completely
+- Detects same-device multi-accounts even with Telegram clones
+- Provides smooth UX and strong verification system

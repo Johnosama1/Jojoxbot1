@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/jojox-wheel/"
+title = "JojoX Wheel"
+version = "1.0.0"
+id = "artifacts/jojox-wheel"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/jojox-wheel/" ]
+localPort = 18635
+
+[services.development]
+run = "pnpm --filter @workspace/jojox-wheel run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/jojox-wheel", "run", "build" ]
+publicDir = "artifacts/jojox-wheel/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18635"
+BASE_PATH = "/jojox-wheel/"

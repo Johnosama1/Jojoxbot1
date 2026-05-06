@@ -1,0 +1,218 @@
+---
+
+I want to build a complete Telegram bot + web app system with a TON-based reward system. Please implement and fix all the following requirements:
+
+1. Fix Telegram Bot Opening Issue:
+
+
+
+The bot is not opening correctly inside Telegram.
+
+It shows an error related to public base URL.
+
+Fix routing and configuration so the app opens properly inside Telegram without errors.
+
+
+2. Wheel of Fortune (Accurate Logic Required):
+
+
+
+The wheel must be fully accurate.
+
+The reward MUST exactly match where the pointer stops.
+
+No mismatch between visual result and reward.
+
+Example:
+
+0.05 TON → user gets 0.05 TON
+
+1 TON → user gets 1 TON
+
+
+Add smooth and realistic animation.
+
+
+3. Probability Control (Temporary Setup):
+
+
+
+Set all rewards probability to 0%.
+
+EXCEPT 0.05 TON → set it to 100% temporarily.
+
+Admin will adjust later.
+
+
+4. Tasks System:
+
+
+
+Add a tasks section with 5 sample tasks.
+
+Tasks must NOT be auto-completed.
+
+The bot must verify task completion (e.g., check if user joined a Telegram channel).
+
+Only after verification → mark task as completed.
+
+
+5. Referral System:
+
+
+
+Add referral tracking.
+
+Reward logic:
+
+Every 5 completed tasks → 1 spin
+
+Every 5 referrals → 1 spin
+
+
+No incorrect or random rewards.
+
+
+6. Withdraw System:
+
+
+
+User must enter a valid TON wallet address.
+
+Validate format before قبول الطلب.
+
+If invalid → show error and reject input.
+
+
+7. Withdraw Approval System:
+
+
+
+When a user requests withdrawal:
+
+Send a private message to the owner.
+
+Include:
+
+Name
+
+Username
+
+User ID
+
+Amount
+
+TON wallet address
+
+
+
+Owner must have:
+
+Accept button
+
+Reject button
+
+
+
+8. Auto / Manual Withdraw Mode:
+
+
+
+Add two modes:
+
+Manual: owner handles transfer manually
+
+Auto: when owner clicks “Accept”, system sends TON automatically
+
+
+
+9. Admin Panel INSIDE Telegram Bot (NOT Web):
+
+
+
+The admin panel must be داخل البوت فقط.
+
+No web admin panel.
+
+
+10. Owner-Only Access (Very Important):
+
+
+
+Only the bot owner can access admin features.
+
+Use strict verification by Telegram User ID (hardcoded).
+
+Do NOT rely on username.
+
+If any other user tries → deny access.
+
+
+11. Hidden Admin Command:
+
+
+
+Admin panel opens via a secret command (e.g., /admin or custom).
+
+This command must NOT appear in public commands.
+
+
+12. Admin Control Features (Inside Bot UI):
+
+
+
+Interactive buttons menu for:
+
+Control wheel probabilities
+
+Add / edit / delete tasks
+
+Add TON balance to any user by ID
+
+Add spins to any user
+
+Remove TON or spins from any user
+
+View total number of users
+
+Toggle showing/hiding user count in bot
+
+View withdrawal requests
+
+Accept / Reject withdrawals
+
+
+
+13. Security:
+
+
+
+Admin features must be hidden and protected.
+
+Unauthorized users must not see or access anything.
+
+
+14. General Fixes:
+
+
+
+Fix all logic errors.
+
+Ensure fairness and consistency.
+
+Improve performance and reliability.
+
+
+15. UI/UX:
+
+
+
+Modern and attractive design.
+
+Animated background.
+
+Optional 3D effects if possible.
+
+
+
+---

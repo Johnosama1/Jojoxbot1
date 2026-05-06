@@ -1,0 +1,54 @@
+Design a mobile-first UI with the following visual style:
+
+THEME & COLORS
+- Dark background with a rich illustrated/gradient scene (forest, sky, or abstract environment) as the backdrop
+- Primary accent: amber/gold (#fbbf24, #f59e0b) for CTAs, highlights, and key values
+- Secondary accents: emerald (#10b981) for success/positive, blue (#3b82f6) for social/info, violet (#8b5cf6) for rank/special
+- All text is white or white with opacity (white/40–white/70 for secondary)
+
+GLASSMORPHISM CARDS
+- Cards use: background rgba(255,255,255,0.08–0.12), backdrop-filter blur(16–20px), border 1px solid rgba(255,255,255,0.12–0.15), border-radius 16–24px
+- Deep glass variant: background rgba(0,0,0,0.30), same blur and border
+- Gradient cards for hero sections: linear-gradient(145deg, rgba(accent,0.20), rgba(0,0,0,0.38)) with a matching accent border
+
+TYPOGRAPHY
+- Font weights: use 400 for body, 600–700 for labels, 900 (black/extrabold) for numbers, balances, and headings
+- Hero numbers (balances, scores): very large (3xl–5xl), font-black, white with text-shadow glow matching accent color
+- Section labels: 10–11px, uppercase, letter-spacing widest, white/40–white/50
+- All important values: tabular-nums for alignment
+
+BUTTONS & INTERACTIONS
+- Primary CTA: linear-gradient(135deg, #ffd700, #ff9500), black text, box-shadow glow in amber, font-black, rounded-2xl, full-width
+- Disabled state: rgba(255,255,255,0.07) background, white/30 text, no glow
+- All interactive elements: whileTap scale 0.93–0.97 (Framer Motion) or active:scale-95 (Tailwind)
+- Floating bottom nav: glassmorphism pill, fixed bottom, icons with opacity-50 inactive / opacity-100 active
+
+LAYOUT
+- Mobile viewport only (max-width ~430px), full-height scroll
+- Top section: avatar + name + rank badge on left, contextual action button on right
+- Hero card: balance/main metric with gradient background
+- Stats row: 3-column grid of mini glassmorphism stat cards with colored icons
+- Content sections: stacked cards with 8–12px gap, 16px horizontal padding
+- Bottom padding: pb-28 to clear the floating nav
+
+ANIMATIONS (Framer Motion)
+- Page entrance: y:20→0, opacity:0→1, staggered children with 0.05–0.1s delay
+- Pulse animation on key metrics when value > 0: scale [1, 1.06, 1] loop 1.8s
+- Spring transitions: stiffness 300–400, damping 20–28
+- AnimatePresence for modals/overlays with y:80 exit
+- Badges and chips: scale 0→1 spring on mount
+
+SPECIAL ELEMENTS
+- Live indicator: small pulsing green dot + "LIVE" text in emerald chip
+- Progress bars: rounded-full, gradient fill (accent color), gray/10 background track
+- Milestone dots: 5-dot row, filled dots use accent gradient, empty dots use white/15
+- Badges/counts: small pill with gradient background, glow box-shadow, positioned absolute top-right
+- Lottie animations for stickers/icons where possible (verified badge, trophies, etc.)
+- TON coin: always shown with the official TON logo image next to the value
+
+MICRO-DETAILS
+- Radial glow blobs in card corners: absolute positioned circle with radial-gradient, pointer-events-none, opacity 0.25–0.35
+- Inner highlight on buttons: absolute inset div with bg-gradient-to-b from-white/20 to-transparent
+- Section headers: icon (lucide, w-4 h-4, accent color) + font-black text, small and tight
+- Empty states: centered icon in a rounded square (accent/10 bg, accent/20 border) + two lines of text (white/40 + white/25)
+- All monetary values: always show currency symbol/logo inline, use 3–4 decimal places for crypto

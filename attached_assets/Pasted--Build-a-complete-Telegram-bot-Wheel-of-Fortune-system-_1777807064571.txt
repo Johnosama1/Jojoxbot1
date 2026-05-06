@@ -1,0 +1,152 @@
+---
+
+Build a complete Telegram bot (Wheel of Fortune system) with a mandatory first-time verification and strong anti-multi-account protection using a web-based verification system.
+
+Main Flow:
+
+When a user sends /start, the bot must check if the user is verified
+
+If NOT verified → block access and send a verification message with a button (Verify Now)
+
+If verified → allow full access to the bot and wheel features
+
+If banned → deny access completely
+
+
+Verification System (IMPORTANT):
+
+Verification must be done through an external web page (NOT inside Telegram)
+
+When the user clicks "Verify Now", send them a unique verification link (including their Telegram user_id as a parameter)
+
+
+Web Verification Page:
+
+When opened, automatically collect:
+
+User IP address
+
+User-Agent (device/browser info)
+
+
+Show a simple captcha (to prevent bots)
+
+When user clicks "Confirm Verification":
+
+Send collected data (user_id, IP, user-agent) to the bot backend (API endpoint)
+
+
+
+Anti Multi-Account Logic:
+
+When receiving verification data:
+
+Check if the IP already exists in the database for another verified user
+
+
+
+If IP already exists:
+
+Treat this as a duplicate account attempt
+
+Mark this user as banned
+
+Do NOT verify the account
+
+Save the ban in the database
+
+
+If IP is new:
+
+Mark user as verified
+
+Save:
+
+user_id
+
+IP address
+
+user-agent
+
+verification status = true
+
+
+
+Database Structure (example):
+
+users:
+
+user_id
+
+username
+
+ip
+
+user_agent
+
+verified (true/false)
+
+banned (true/false)
+
+last_spin_time
+
+
+
+Bot Features (Wheel of Fortune):
+
+Only verified users can use the wheel
+
+Add a "Spin Wheel" button
+
+Each user can spin only once every 24 hours
+
+Store spin results and timestamps
+
+Prevent multiple spins within cooldown
+
+
+Security & Protection:
+
+Always check:
+
+If user is banned → block immediately
+
+If not verified → force verification
+
+
+Do NOT allow any command before verification
+
+Add cooldown system (24 hours per spin)
+
+Prevent abuse and repeated attempts
+
+
+Additional Improvements:
+
+Log all actions (verification attempts, bans, spins)
+
+Optional: limit accounts per IP (e.g. max 1)
+
+Optional: detect suspicious behavior
+
+
+Important Notes:
+
+Telegram does NOT provide real user IP → MUST use external web verification
+
+System must be fully functional (bot + backend + verification page)
+
+Ensure clean connection between:
+
+Telegram bot
+
+Web verification page
+
+Database
+
+
+Code should be structured, secure, and production-ready
+
+
+
+---
