@@ -271,6 +271,7 @@ export default function LeaderboardPage() {
                 {/* Score */}
                 <div style={{ textAlign: "right", flexShrink: 0 }}>
                   <div style={{
+                    display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end",
                     color: "#fff",
                     fontWeight: 900,
                     fontSize: 15,
@@ -278,6 +279,7 @@ export default function LeaderboardPage() {
                     letterSpacing: -0.3,
                   }}>
                     {entry.referralCount.toLocaleString()}
+                    <span style={{ color: "#fbbf24", fontSize: 13 }}>✦</span>
                   </div>
                   <div style={{
                     color: "rgba(255,255,255,0.40)",
@@ -319,8 +321,9 @@ export default function LeaderboardPage() {
           </div>
           <p style={{ flex: 1, color: "#fbbf24", fontWeight: 800, fontSize: 13, margin: 0 }}>You</p>
           <div style={{ textAlign: "right" }}>
-            <div style={{ color: "#fbbf24", fontWeight: 900, fontSize: 15 }}>
+            <div style={{ color: "#fbbf24", fontWeight: 900, fontSize: 15, display: "flex", alignItems: "center", gap: 4, justifyContent: "flex-end" }}>
               {data.myRank.referralCount.toLocaleString()}
+              <span style={{ color: "#fbbf24", fontSize: 13 }}>✦</span>
             </div>
             <div style={{ color: "rgba(251,191,36,0.50)", fontSize: 9, fontWeight: 700, letterSpacing: 0.8 }}>
               REFERRALS

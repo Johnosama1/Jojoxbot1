@@ -153,9 +153,13 @@ export default function ReferralPage() {
               background: "rgba(251,191,36,0.10)",
               cursor: "pointer",
               whiteSpace: "nowrap",
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
             }}
           >
-            {progress}/5 ✦
+            <span>{progress}/5</span>
+            <span style={{ fontSize: 14, lineHeight: 1 }}>✦</span>
           </div>
         </div>
 

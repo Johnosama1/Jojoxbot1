@@ -11,7 +11,7 @@ import { useLocation } from "wouter";
 
 const MIN_WITHDRAWAL = 0.1;
 const TON_IMG  = "https://assets.coingecko.com/coins/images/17980/standard/photo_2024-09-10_17.09.00.jpeg?1725963446";
-const USDT_IMG = "/usdt.png";
+const USDT_IMG = "https://assets.coingecko.com/coins/images/325/large/Tether.png";
 
 function UsdtLogo({ size = 32 }: { size?: number }) {
   return <img src={USDT_IMG} alt="USDT" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />;
@@ -206,7 +206,10 @@ export default function WalletPage() {
               <UsdtLogo size={28} />
               <span style={{ color: "rgba(255,255,255,0.50)", fontSize: 9, fontWeight: 800, letterSpacing: 2, textTransform: "uppercase" }}>USDT</span>
             </div>
-            <div style={{ color: "#fff", fontWeight: 900, fontSize: 22, letterSpacing: -0.5, lineHeight: 1 }}>{usdtBalance.toFixed(2)}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ color: "#fff", fontWeight: 900, fontSize: 22, letterSpacing: -0.5, lineHeight: 1 }}>{usdtBalance.toFixed(2)}</div>
+              <UsdtLogo size={22} />
+            </div>
             <div style={{ color: "rgba(255,255,255,0.30)", fontSize: 9, marginTop: 4 }}>
               {tonPrice ? `≈ ${(usdtBalance / tonPrice).toFixed(3)} TON` : "—"}
             </div>

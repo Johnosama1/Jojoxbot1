@@ -198,7 +198,7 @@ export default function TopBar() {
         flexShrink: 0,
       }}>
         <img
-          src="/usdt.png"
+          src="https://assets.coingecko.com/coins/images/325/large/Tether.png"
           alt="USDT"
           style={{ width: 20, height: 20, borderRadius: "50%", objectFit: "cover", boxShadow: "0 0 8px rgba(38,161,123,0.55)" }}
         />
