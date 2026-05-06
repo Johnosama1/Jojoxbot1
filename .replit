@@ -13,3 +13,9 @@ externalPort = 3002
 [[ports]]
 localPort = 23863
 externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+DISABLE_BOT = "true"
+PORT = "8080"
