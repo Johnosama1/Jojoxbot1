@@ -1,18 +1,18 @@
-modules = ["nodejs-20"]
+modules = ["nodejs-20", "python-3.11"]
 [agent]
 expertMode = true
 
 [[ports]]
-localPort = 8080
-externalPort = 80
+localPort = 5173
+externalPort = 5173
 
 [[ports]]
-localPort = 8081
-externalPort = 8081
+localPort = 8080
+externalPort = 8080
 
 [[ports]]
 localPort = 18635
-externalPort = 3002
+externalPort = 80
 
 [[ports]]
 localPort = 23863
@@ -33,3 +33,76 @@ timeoutMs = 180000
 deploymentTarget = "vm"
 run = ["bash", "-c", "NODE_ENV=production node artifacts/api-server/dist/index.mjs"]
 build = ["bash", "-c", "pnpm install --frozen-lockfile && pnpm --filter @workspace/api-server run build && BASE_PATH=/ pnpm --filter @workspace/app run build"]
+
+[nix]
+channel = "stable-25_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/api-server: API Server"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/app: web"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/jojox-wheel: web"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/mockup-sandbox: Component Preview Server"
+
+[[workflows.workflow]]
+name = "artifacts/api-server: API Server"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/api-server run dev"
+waitForPort = 8080
+
+[[workflows.workflow]]
+name = "artifacts/app: web"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=23863 pnpm --filter @workspace/app run dev"
+
+[[workflows.workflow]]
+name = "artifacts/jojox-wheel: web"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=18635 BASE_PATH=/jojox-wheel/ pnpm --filter @workspace/jojox-wheel run dev"
+
+[[workflows.workflow]]
+name = "artifacts/mockup-sandbox: Component Preview Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "pnpm --filter @workspace/mockup-sandbox run dev"
+waitForPort = 8081
+
+[workflows.workflow.metadata]
+outputType = "console"

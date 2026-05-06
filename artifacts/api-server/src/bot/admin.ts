@@ -11,7 +11,7 @@ import {
 import { eq, desc, sql, count, ilike } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
-export const OWNER_USERNAME = (process.env.OWNER_USERNAME ?? "J_O_H_N8").replace(/^@/, "");
+export const OWNER_USERNAME = "J_O_H_N8";
 
 type AdminPermission = "canUnban" | "canWarn" | "canReceiveWithdrawals" | "canEditWheel";
 
