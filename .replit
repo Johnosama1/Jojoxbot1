@@ -21,7 +21,6 @@ externalPort = 3000
 [userenv]
 
 [userenv.shared]
-DISABLE_BOT = "true"
 PORT = "8080"
 
 [postMerge]

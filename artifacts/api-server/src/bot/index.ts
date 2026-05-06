@@ -21,7 +21,7 @@ import {
 } from "./admin";
 import { enforceSubscription, handleSubRecheckCallback, withVerification } from "./subscription";
 
-const TOKEN = (process.env.TOKEN || process.env.TELEGRAM_BOT_TOKEN)!;
+const TOKEN = (process.env.BOT_TOKEN || process.env.TOKEN || process.env.TELEGRAM_BOT_TOKEN)!;
 
 let bot: TelegramBot;
 
