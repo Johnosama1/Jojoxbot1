@@ -13,9 +13,9 @@ A Telegram Mini App with a lucky wheel game, referral system, leaderboard, and T
 
 Required env vars:
 - `DATABASE_URL` — set automatically by Replit PostgreSQL
-- `PORT` — set to `8080` as a Replit shared env var; required by the API server at startup
-- `DISABLE_BOT` — set to `true` (shared env var) until `BOT_TOKEN` is configured
-- `BOT_TOKEN` — Telegram bot token (user must provide)
+- `PORT` — set to `8080` as a Replit shared env var
+- `BOT_TOKEN` / `TELEGRAM_BOT_TOKEN` — Telegram bot token (set as Replit secrets)
+- `MINI_APP_URL` — URL of the frontend app; currently points to Replit dev domain
 
 ## Stack
 
@@ -25,7 +25,7 @@ Required env vars:
 - **Database**: PostgreSQL via Drizzle ORM (`lib/db`)
 - **Package manager**: pnpm (workspace monorepo)
 - **Blockchain**: TON via `@ton/ton` + `@tonconnect/ui-react`
-- **Bot**: node-telegram-bot-api
+- **Bot**: node-telegram-bot-api (polling mode in dev)
 
 ## Where things live
 
@@ -38,10 +38,11 @@ lib/db/                 — Drizzle ORM schema + migrations
 lib/api-spec/           — Shared API contract types
 lib/api-zod/            — Zod validators for API
 lib/api-client-react/   — React Query hooks for API
-vercel.json             — Vercel deployment config (no changes needed)
+vercel.json             — Vercel deployment config
 ```
 
 Schema: `lib/db/src/schema/index.ts`
+API routes: `artifacts/api-server/src/routes/`
 
 ## Architecture decisions
 
@@ -49,32 +50,35 @@ Schema: `lib/db/src/schema/index.ts`
 - API server builds to `dist/index.mjs` via esbuild before starting (no ts-node in prod)
 - **Replit deployment**: `vm` target (always-on); single process serves both API (`/api/*`) and the built React SPA (static files from `artifacts/app/dist/public`). See `.replit` `[deployment]` section.
 - Vercel deployment also supported: `vercel.json` uses serverless `api/index.js` entry + static SPA output
-- Bot runs in polling mode in dev (`DISABLE_BOT=true` until token is set); webhook mode in prod via `BOT_WEBHOOK_URL`
-- Frontend proxies `/api` to `localhost:8080` in dev via Vite proxy
+- Bot runs in polling mode in dev; webhook mode in prod via `BOT_WEBHOOK_URL`
+- Frontend proxies `/api` to `localhost:8080` in dev via Vite proxy; app served at `/app/` path
 
 ## Product
 
 - Lucky wheel spin game with Telegram Mini App UI
 - Referral system with leaderboard
 - TON wallet connection and withdrawal flow
-- Admin panel for configuration
+- Admin panel for configuration (owner Telegram ID: 6145230334)
 - Tasks/quests system for users
 
 ## User preferences
 
 - No code modifications to the cloned repo; deployed as-is from GitHub
-- Telegram bot token setup left for user to configure
+- Telegram bot token set as Replit secrets (`BOT_TOKEN` + `TELEGRAM_BOT_TOKEN`)
 
 ## Gotchas
 
+- **Port conflict pattern**: Old node processes hold ports 8080/23863/18635 after checkpoint → run `fuser -k 8080/tcp 23863/tcp 18635/tcp` before restarting workflows
 - `PORT=8080` must be set as a shared env var — API server throws if missing
-- `DISABLE_BOT=true` prevents bot polling errors when no `BOT_TOKEN` is present
-- Sticker pre-cache warnings on startup are harmless (no bot token = no Telegram API access)
+- `MINI_APP_URL` must point to the running app URL — currently the Replit dev domain; update after deployment
+- Bot token read as `process.env.TOKEN || process.env.TELEGRAM_BOT_TOKEN` in bot/index.ts
+- `wheel_slots` and `bot_settings` tables need data — seeded on first setup (8 default wheel slots)
+- Tasks table starts empty — add tasks via the admin panel in Telegram
 - Do not run `drizzle-kit push --force` unless intentionally resetting schema
-- In production, the API server serves the frontend SPA — `artifacts/app/dist/public` must exist (built during deploy). Set `BOT_WEBHOOK_URL=https://<domain>/api/bot-webhook` for reliable bot operation
+- In production: set `BOT_WEBHOOK_URL=https://<domain>/api/bot-webhook` for reliable bot operation
 
 ## Pointers
 
-- Vercel deployment: `vercel.json` at repo root — ready for one-click deploy
 - DB schema: `lib/db/src/schema/index.ts`
 - API routes: `artifacts/api-server/src/routes/`
+- Vercel deployment: `vercel.json` at repo root
