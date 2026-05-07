@@ -4,6 +4,8 @@ import lottie from "lottie-web";
 import usdtAnimData from "../../public/usdt-anim.json";
 import star2Data from "../../public/star2.json";
 import capElectroData from "../../public/cap-electro.json";
+import johnImg from "../../public/dev-john.jpg";
+import ammarImg from "../../public/dev-ammar.jpg";
 import { useWinModalOpen } from "../lib/winModal";
 
 function DevAvatar({ src, name, gradient }: { src: string; name: string; gradient: string }) {
@@ -142,7 +144,7 @@ export default function TopBar() {
                 style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, textDecoration: "none" }}
                 onClick={() => setShowInfo(false)}
               >
-                <DevAvatar src="/dev-john.jpg" name="John" gradient="linear-gradient(135deg,#fbbf24,#f59e0b)" />
+                <DevAvatar src={johnImg} name="John" gradient="linear-gradient(135deg,#fbbf24,#f59e0b)" />
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
                     <div style={{ color: "#fff", fontWeight: 800, fontSize: 14 }}>John</div>
@@ -158,7 +160,7 @@ export default function TopBar() {
                 style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}
                 onClick={() => setShowInfo(false)}
               >
-                <DevAvatar src="/dev-ammar.jpg" name="Ammar" gradient="linear-gradient(135deg,#7c3aed,#4f46e5)" />
+                <DevAvatar src={ammarImg} name="Ammar" gradient="linear-gradient(135deg,#7c3aed,#4f46e5)" />
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
                     <div style={{ color: "#fff", fontWeight: 800, fontSize: 14 }}>𝗔𝗺𝗺𝗮𝗿</div>
