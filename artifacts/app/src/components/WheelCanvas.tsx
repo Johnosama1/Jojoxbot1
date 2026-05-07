@@ -146,8 +146,8 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
       ctx.beginPath();
       ctx.arc(0, iconY, iconR, 0, Math.PI * 2);
       ctx.clip();
-      if (usdtAnimCanvasRef.current) {
-        const uc = usdtAnimCanvasRef.current;
+      const uc = usdtAnimCanvasRef.current;
+      if (uc && uc.width > 0 && uc.height > 0) {
         ctx.drawImage(uc, 0, 0, uc.width, uc.height, -iconR, iconY - iconR, iconR * 2, iconR * 2);
       } else {
         const fbGrad = ctx.createRadialGradient(-iconR * 0.25, iconY - iconR * 0.25, 0, 0, iconY, iconR);
