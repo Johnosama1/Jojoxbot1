@@ -476,28 +476,6 @@ export default function WalletPage() {
         {tab === "withdraw" && (
           <div className="wallet-fade" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
-            {/* Bouncing bot icon — only when wallet not connected */}
-            {!savedWallet && (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "8px 0 4px" }}>
-                <div className="bot-bounce" style={{
-                  width: 110, height: 110,
-                  borderRadius: "50%",
-                  overflow: "hidden",
-                  boxShadow: "0 0 0 3px rgba(251,191,36,0.35), 0 8px 32px rgba(251,191,36,0.30), 0 0 60px rgba(139,92,246,0.20)",
-                  flexShrink: 0,
-                }}>
-                  <img
-                    src="/app/bot-icon-circle.png"
-                    alt="Jojox"
-                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                  />
-                </div>
-                <div style={{ color: "rgba(255,255,255,0.50)", fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>
-                  Connect your TON wallet to withdraw
-                </div>
-              </div>
-            )}
-
             {/* Wallet connect card */}
             <div style={{
               borderRadius: 20, padding: "14px 16px",
