@@ -4,6 +4,26 @@ import { usersTable, botSettingsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
+// ── Inline buildMsg (avoids circular import from bot/index.ts) ────────────
+const _utf16Len = (s: string): number => {
+  let n = 0;
+  for (const ch of s) n += (ch.codePointAt(0)! > 0xffff) ? 2 : 1;
+  return n;
+};
+function buildSubMsg(parts: { text: string; emojiId?: string }[]): { text: string; entities: object[] } {
+  let text = "";
+  let offset = 0;
+  const entities: object[] = [];
+  for (const p of parts) {
+    if (p.emojiId) {
+      entities.push({ type: "custom_emoji", offset, length: _utf16Len(p.text), custom_emoji_id: p.emojiId });
+    }
+    text += p.text;
+    offset += _utf16Len(p.text);
+  }
+  return { text, entities };
+}
+
 export interface RequiredChannel {
   username: string;
   title: string;
@@ -250,41 +270,59 @@ export async function handleSubRecheckCallback(
       }
     } else {
       // ── Subscription verified — remove gate message, show welcome ──
+      const { text: vText, entities: vEntities } = buildSubMsg([
+        { text: "✅", emojiId: "6203840986443944067" },
+        { text: " Verified successfully!" },
+      ]);
       try {
-        await bot.editMessageText(
-          "✅ *Verified successfully\\!*",
-          {
-            chat_id: chatId,
-            message_id: msgId,
-            parse_mode: "MarkdownV2",
-            reply_markup: { inline_keyboard: [] },
-          }
-        );
+        await (bot.editMessageText as Function)(vText, {
+          chat_id: chatId,
+          message_id: msgId,
+          entities: vEntities,
+          reply_markup: { inline_keyboard: [] },
+        });
       } catch { /* ignore */ }
 
       const MINI_APP_URL =
         process.env.MINI_APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN}/`;
 
       const firstName = q.from.first_name || "";
-      const escapedName = escapeMarkdownV2(firstName);
 
-      await bot.sendMessage(
-        chatId,
-        `🤝 *Welcome to Jo\\-jokes, ${escapedName}\\!*\n\n` +
-        `🎁 The fastest USDT earning bot\\!\n\n` +
-        `✨ *How to earn* 🎪\n\n` +
-        `1️⃣ Complete tasks « 1 spin per tasks\n` +
-        `2️⃣ Invite friends « 1 free spin per friends\n` +
-        `🎡 Spin the wheel « win 0\\.1 to 10 USDT\\!`,
-        {
-          parse_mode: "MarkdownV2",
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: "🎁 Open now", web_app: { url: `${MINI_APP_URL}?uid=${userId}` } }],
-            ],
-          },
-        }
-      );
+      const { text: wText, entities: wEntities } = buildSubMsg([
+        { text: "👋", emojiId: "5319007286004299794" },
+        { text: ` Welcome to Jo-jokes, ${firstName}!\n\n` },
+        { text: "😀", emojiId: "6129832240303051599" },
+        { text: " The fastest USDT earning bot!\n\n" },
+        { text: "✨", emojiId: "6131673419768403090" },
+        { text: " How to earn" },
+        { text: "❓", emojiId: "5436113877181941026" },
+        { text: "\n\n" },
+        { text: "✅", emojiId: "6203840986443944067" },
+        { text: " Complete tasks " },
+        { text: "⬅️", emojiId: "6131729520631223468" },
+        { text: " 1 spin per " },
+        { text: "5️⃣", emojiId: "6203785577070858514" },
+        { text: " tasks\n\n" },
+        { text: "👥", emojiId: "6204118338252049831" },
+        { text: " Invite friends " },
+        { text: "⬅️", emojiId: "6131729520631223468" },
+        { text: " 1 free spin per " },
+        { text: "5️⃣", emojiId: "6203785577070858514" },
+        { text: " friends\n\n" },
+        { text: "🎰", emojiId: "5104986024807760966" },
+        { text: " Spin the wheel " },
+        { text: "⬅️", emojiId: "6131729520631223468" },
+        { text: " win 0.1 to 10 USDT!" },
+      ]);
+
+      await bot.sendMessage(chatId, wText, {
+        entities: wEntities as never,
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🎁 Open now", web_app: { url: `${MINI_APP_URL}?uid=${userId}` } }],
+          ],
+        },
+      });
     }
   } catch (err) {
     logger.error({ err, userId }, "handleSubRecheckCallback error");

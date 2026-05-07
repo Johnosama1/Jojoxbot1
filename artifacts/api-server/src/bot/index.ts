@@ -66,24 +66,24 @@ async function maybeBlocked(chatId: number, userId: number, username?: string): 
 
 // ── buildMsg: Telegram message with custom emoji entities ─────────────────
 
-interface MsgSegment {
-  text: string;
-  emojiId?: string;
-}
+const utf16Len = (s: string): number => {
+  let n = 0;
+  for (const ch of s) n += (ch.codePointAt(0)! > 0xffff) ? 2 : 1;
+  return n;
+};
 
-export function buildMsg(segments: MsgSegment[]): {
-  text: string;
-  entities: Array<{ type: string; offset: number; length: number; custom_emoji_id?: string }>;
-} {
+export interface MsgPart { text: string; emojiId?: string }
+
+export function buildMsg(parts: MsgPart[]): { text: string; entities: object[] } {
   let text = "";
-  const entities: Array<{ type: string; offset: number; length: number; custom_emoji_id?: string }> = [];
-  for (const seg of segments) {
-    const offset = Buffer.byteLength(text, "utf16le") / 2;
-    text += seg.text;
-    if (seg.emojiId) {
-      const length = Buffer.byteLength(seg.text, "utf16le") / 2;
-      entities.push({ type: "custom_emoji", offset, length, custom_emoji_id: seg.emojiId });
+  let offset = 0;
+  const entities: object[] = [];
+  for (const p of parts) {
+    if (p.emojiId) {
+      entities.push({ type: "custom_emoji", offset, length: utf16Len(p.text), custom_emoji_id: p.emojiId });
     }
+    text += p.text;
+    offset += utf16Len(p.text);
   }
   return { text, entities };
 }
@@ -142,24 +142,42 @@ export async function processUpdateAndWait(update: TelegramBot.Update): Promise<
 
 export async function sendWelcomeMessage(chatId: number, userId: number, firstName: string) {
   const MINI_APP_URL = process.env.MINI_APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN}/`;
-  const escapedName = firstName.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
-  await bot.sendMessage(
-    chatId,
-    `🤝 *Welcome to Jo\\-jokes, ${escapedName}\\!*\n\n` +
-    `🎁 The fastest USDT earning bot\\!\n\n` +
-    `✨ *How to earn* 🎪\n\n` +
-    `1️⃣ Complete tasks « 1 spin per tasks\n` +
-    `2️⃣ Invite friends « 1 free spin per friends\n` +
-    `🎡 Spin the wheel « win 0\\.1 to 10 USDT\\!`,
-    {
-      parse_mode: "MarkdownV2",
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "🎁 Open now", web_app: { url: `${MINI_APP_URL}?uid=${userId}` } }],
-        ],
-      },
-    }
-  );
+
+  const { text: welcomeText, entities: welcomeEntities } = buildMsg([
+    { text: "👋", emojiId: "5319007286004299794" },
+    { text: ` Welcome to Jo-jokes, ${firstName}!\n\n` },
+    { text: "😀", emojiId: "6129832240303051599" },
+    { text: " The fastest USDT earning bot!\n\n" },
+    { text: "✨", emojiId: "6131673419768403090" },
+    { text: " How to earn" },
+    { text: "❓", emojiId: "5436113877181941026" },
+    { text: "\n\n" },
+    { text: "✅", emojiId: "6203840986443944067" },
+    { text: " Complete tasks " },
+    { text: "⬅️", emojiId: "6131729520631223468" },
+    { text: " 1 spin per " },
+    { text: "5️⃣", emojiId: "6203785577070858514" },
+    { text: " tasks\n\n" },
+    { text: "👥", emojiId: "6204118338252049831" },
+    { text: " Invite friends " },
+    { text: "⬅️", emojiId: "6131729520631223468" },
+    { text: " 1 free spin per " },
+    { text: "5️⃣", emojiId: "6203785577070858514" },
+    { text: " friends\n\n" },
+    { text: "🎰", emojiId: "5104986024807760966" },
+    { text: " Spin the wheel " },
+    { text: "⬅️", emojiId: "6131729520631223468" },
+    { text: " win 0.1 to 10 USDT!" },
+  ]);
+
+  await bot.sendMessage(chatId, welcomeText, {
+    entities: welcomeEntities as never,
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🎁 Open now", web_app: { url: `${MINI_APP_URL}?uid=${userId}` } }],
+      ],
+    },
+  });
 }
 
 function setMenuButton() {
