@@ -1,6 +1,7 @@
 import { useUser } from "../lib/userContext";
 import { useEffect, useRef, useState } from "react";
 import lottie from "lottie-web";
+import usdtAnimData from "../../public/usdt-anim.json";
 import { useWinModalOpen } from "../lib/winModal";
 
 function StarSticker() {
@@ -28,7 +29,8 @@ function UsdtSticker() {
       renderer: "svg",
       loop: true,
       autoplay: true,
-      path: "/usdt-anim.json",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      animationData: usdtAnimData as any,
     });
     return () => anim.destroy();
   }, []);

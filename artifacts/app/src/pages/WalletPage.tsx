@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import lottie from "lottie-web";
+import usdtAnimData from "../../public/usdt-anim.json";
 import { useUser } from "../lib/userContext";
 import { api, swapUsdtToTon, invalidateUserCaches, getWithdrawalsOnce } from "../lib/api";
 import type { Withdrawal } from "../lib/api";
@@ -14,7 +16,20 @@ const TON_IMG  = "https://assets.coingecko.com/coins/images/17980/standard/photo
 const USDT_IMG = "https://assets.coingecko.com/coins/images/325/large/Tether.png";
 
 function UsdtLogo({ size = 32 }: { size?: number }) {
-  return <img src={USDT_IMG} alt="USDT" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />;
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    const anim = lottie.loadAnimation({
+      container: ref.current,
+      renderer: "svg",
+      loop: true,
+      autoplay: true,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      animationData: usdtAnimData as any,
+    });
+    return () => anim.destroy();
+  }, []);
+  return <div ref={ref} style={{ width: size, height: size, flexShrink: 0 }} />;
 }
 function TonLogo({ size = 32 }: { size?: number }) {
   return <img src={TON_IMG} alt="TON" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />;

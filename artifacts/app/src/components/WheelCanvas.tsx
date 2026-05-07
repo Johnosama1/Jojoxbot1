@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 import lottie from "lottie-web";
+import usdtAnimData from "../../public/usdt-anim.json";
 import { WheelSlot } from "../lib/api";
 
 interface WheelCanvasProps {
@@ -21,7 +22,7 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
 
   const [arrowState, setArrowState] = useState<"idle" | "thrown" | "landing">("idle");
 
-  // Load USDT Lottie animation onto hidden canvas renderer
+  // Load USDT Lottie animation onto hidden off-screen canvas renderer
   useEffect(() => {
     if (!usdtLottieRef.current) return;
     const anim = lottie.loadAnimation({
@@ -29,7 +30,8 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
       renderer: "canvas",
       loop: true,
       autoplay: true,
-      path: "/usdt-anim.json",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      animationData: usdtAnimData as any,
       rendererSettings: { clearCanvas: true },
     });
     anim.addEventListener("DOMLoaded", () => {
@@ -394,10 +396,10 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
 
   return (
     <>
-      {/* Hidden lottie canvas renderer for USDT animation */}
+      {/* Hidden lottie canvas renderer for USDT animation — fixed off-screen so layout is computed */}
       <div
         ref={usdtLottieRef}
-        style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 64, height: 64, overflow: "hidden", zIndex: -1 }}
+        style={{ position: "fixed", left: -9999, top: 0, width: 80, height: 80, pointerEvents: "none", visibility: "hidden" }}
       />
 
       <style>{`
