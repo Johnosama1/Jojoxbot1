@@ -6,6 +6,8 @@ import contestData from "../../public/lb-sticker2.json";
 import crownData   from "../../public/lb-sticker1.json";
 import crown2Data  from "../../public/crown2.json";
 import usdtData    from "../../public/usdt-anim.json";
+import medal2Data  from "../../public/medal-2nd.json";
+import medal3Data  from "../../public/medal-3rd.json";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function useLottie(data: any, size: number, loop = true) {
@@ -29,6 +31,8 @@ function ContestSticker()  { return useLottie(contestData, 150); }
 function CrownSticker()    { return useLottie(crownData, 34); }
 function Crown2Sticker()   { return useLottie(crown2Data, 28); }
 function UsdtSticker()     { return useLottie(usdtData, 32); }
+function Medal2Sticker()   { return useLottie(medal2Data, 40); }
+function Medal3Sticker()   { return useLottie(medal3Data, 40); }
 
 interface LeaderEntry {
   rank: number;
@@ -71,26 +75,14 @@ function RankBadge({ rank }: { rank: number }) {
   if (rank === 2) {
     return (
       <div style={{ width: 44, height: 44, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{
-          width: 34, height: 34, borderRadius: "50%",
-          background: "linear-gradient(135deg, #e2e8f0, #94a3b8)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 2px 10px rgba(148,163,184,0.45)",
-          fontSize: 15, fontWeight: 900, color: "#0f172a",
-        }}>2</div>
+        <Medal2Sticker />
       </div>
     );
   }
   if (rank === 3) {
     return (
       <div style={{ width: 44, height: 44, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{
-          width: 34, height: 34, borderRadius: "50%",
-          background: "linear-gradient(135deg, #fed7aa, #f97316)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          boxShadow: "0 2px 10px rgba(249,115,22,0.40)",
-          fontSize: 15, fontWeight: 900, color: "#0a0600",
-        }}>3</div>
+        <Medal3Sticker />
       </div>
     );
   }
