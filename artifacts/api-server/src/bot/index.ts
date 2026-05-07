@@ -106,6 +106,10 @@ export function buildMsg(parts: MsgPart[]): { text: string; entities: object[] }
   return { text, entities };
 }
 
+// ── HTML escape helper ─────────────────────────────────────────────────────
+const esc = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 // ── Withdrawal notification ────────────────────────────────────────────────
 
 export async function sendWithdrawalNotification(
@@ -117,20 +121,22 @@ export async function sendWithdrawalNotification(
 ): Promise<void> {
   if (!bot) return;
   try {
-    const userName = user.username ? `@${user.username}` : user.firstName || String(user.id);
+    const userName = user.username
+      ? `@${esc(user.username)}`
+      : esc(user.firstName || String(user.id));
     await bot.sendMessage(
       ownerId,
-      `💸 *طلب سحب جديد #${withdrawalId}*\n\n` +
+      `💸 <b>طلب سحب جديد #${withdrawalId}</b>\n\n` +
       `👤 ${userName} (${user.id})\n` +
-      `💰 المبلغ: *${parseFloat(amount).toFixed(4)} TON*\n` +
-      `📍 العنوان: \`${walletAddress}\``,
+      `💰 المبلغ: <b>${parseFloat(amount).toFixed(4)} TON</b>\n` +
+      `📍 العنوان: <code>${esc(walletAddress)}</code>`,
       {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [
             [
-              { text: "✅ موافقة", callback_data: `withdraw_approve_${withdrawalId}` },
-              { text: "❌ رفض", callback_data: `withdraw_reject_${withdrawalId}` },
+              { text: "✅ قبول وتحويل", callback_data: `withdraw_approve_${withdrawalId}` },
+              { text: "❌ رفض وإرجاع الرصيد", callback_data: `withdraw_reject_${withdrawalId}` },
             ],
           ],
         },
@@ -248,14 +254,17 @@ async function handleWithdrawalCallback(
         const result = await executeAutoWithdrawal(w.id, chatId);
         if (result.success) {
           await bot.editMessageText(
-            `✅ *تم التحويل بنجاح*\n\nطلب #${wId} — ${parseFloat(w.amount).toFixed(4)} TON\n📍 \`${w.walletAddress}\`\n🔗 المرجع: \`${result.txHash}\``,
-            { chat_id: chatId, message_id: msgId, parse_mode: "Markdown" }
+            `✅ <b>تم التحويل بنجاح</b>\n\n` +
+            `طلب #${wId} — ${parseFloat(w.amount).toFixed(4)} TON\n` +
+            `📍 <code>${esc(w.walletAddress)}</code>\n` +
+            `🔗 المرجع: <code>${esc(result.txHash ?? "")}</code>`,
+            { chat_id: chatId, message_id: msgId, parse_mode: "HTML" }
           );
         } else {
-          await bot.sendMessage(chatId, `❌ فشل التحويل: ${result.error}`);
+          await bot.sendMessage(chatId, `❌ فشل التحويل: ${esc(result.error ?? "")}`, { parse_mode: "HTML" });
         }
       } catch (err) {
-        await bot.sendMessage(chatId, `❌ فشل التحويل: ${err instanceof Error ? err.message : String(err)}`);
+        await bot.sendMessage(chatId, `❌ فشل التحويل: ${esc(err instanceof Error ? err.message : String(err))}`, { parse_mode: "HTML" });
       }
     } else {
       // TON wallet not configured — mark approved but no transfer executed
@@ -266,13 +275,17 @@ async function handleWithdrawalCallback(
       try {
         await bot.sendMessage(
           w.userId,
-          `✅ *تمت الموافقة على طلب السحب #${wId}*\n💰 المبلغ: *${parseFloat(w.amount).toFixed(4)} TON*\n📍 العنوان: \`${w.walletAddress}\`\n\nسيتم معالجة التحويل قريباً.`,
-          { parse_mode: "Markdown" }
+          `✅ <b>تمت الموافقة على طلب السحب #${wId}</b>\n` +
+          `💰 المبلغ: <b>${parseFloat(w.amount).toFixed(4)} TON</b>\n` +
+          `📍 العنوان: <code>${esc(w.walletAddress)}</code>\n\n` +
+          `سيتم معالجة التحويل قريباً.`,
+          { parse_mode: "HTML" }
         );
       } catch { /* ignore */ }
       await bot.editMessageText(
-        `✅ تمت الموافقة على الطلب #${wId}\n⚠️ محفظة TON غير مُهيَّأة — يُرجى إعداد المحفظة لإتمام التحويل.`,
-        { chat_id: chatId, message_id: msgId, parse_mode: "Markdown" }
+        `✅ تمت الموافقة على الطلب #${wId}\n` +
+        `⚠️ محفظة TON غير مُهيَّأة — يُرجى إعداد المحفظة لإتمام التحويل.`,
+        { chat_id: chatId, message_id: msgId }
       );
     }
   } else if (data.startsWith("withdraw_reject_")) {
@@ -281,7 +294,7 @@ async function handleWithdrawalCallback(
     const [w] = await db.select().from(withdrawalsTable).where(eq(withdrawalsTable.id, wId)).limit(1);
     if (!w) { await bot.sendMessage(chatId, "❌ الطلب غير موجود"); return true; }
     if (w.status !== "pending") {
-      await bot.sendMessage(chatId, `⚠️ الطلب #${wId} بالفعل ${w.status}`);
+      await bot.sendMessage(chatId, `⚠️ الطلب #${wId} بالفعل ${esc(w.status)}`);
       return true;
     }
     await db
@@ -295,8 +308,9 @@ async function handleWithdrawalCallback(
     try {
       await bot.sendMessage(
         w.userId,
-        `❌ *تم رفض طلب السحب #${wId}*\n💰 تم إعادة *${parseFloat(w.amount).toFixed(4)} TON* لرصيدك داخل البوت.`,
-        { parse_mode: "Markdown" }
+        `❌ <b>تم رفض طلب السحب #${wId}</b>\n` +
+        `💰 تم إعادة <b>${parseFloat(w.amount).toFixed(4)} TON</b> لرصيدك داخل البوت.`,
+        { parse_mode: "HTML" }
       );
     } catch { /* ignore */ }
     await bot.editMessageText(
@@ -410,13 +424,13 @@ function setupBotHandlers() {
     const [addr, balance] = await Promise.all([getWalletAddress(), getWalletBalance()]);
     await bot.sendMessage(
       msg.chat.id,
-      `💼 *محفظة البوت الساخنة*\n\n` +
-      `📍 العنوان:\n\`${addr ?? "غير متاح"}\`\n\n` +
-      `💰 الرصيد: *${balance ?? "—"} TON*\n\n` +
+      `💼 <b>محفظة البوت الساخنة</b>\n\n` +
+      `📍 العنوان:\n<code>${esc(addr ?? "غير متاح")}</code>\n\n` +
+      `💰 الرصيد: <b>${balance ?? "—"} TON</b>\n\n` +
       (balance && parseFloat(balance) < 0.1
         ? "⚠️ الرصيد منخفض — اشحن المحفظة لضمان نجاح عمليات السحب."
         : "✅ المحفظة جاهزة للإرسال."),
-      { parse_mode: "Markdown" }
+      { parse_mode: "HTML" }
     );
   }));
 

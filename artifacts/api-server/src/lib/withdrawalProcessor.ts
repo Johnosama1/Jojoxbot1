@@ -10,25 +10,9 @@ function getBot() {
   return require("../bot").getBot?.();
 }
 
-// Inline buildMsg to avoid circular dependency with bot/index.ts
-function utf16Len(s: string): number {
-  let n = 0;
-  for (const ch of s) n += (ch.codePointAt(0)! > 0xffff) ? 2 : 1;
-  return n;
-}
-function buildMsgLocal(parts: { text: string; emojiId?: string }[]) {
-  let text = "";
-  let offset = 0;
-  const entities: object[] = [];
-  for (const p of parts) {
-    if (p.emojiId) {
-      entities.push({ type: "custom_emoji", offset, length: utf16Len(p.text), custom_emoji_id: p.emojiId });
-    }
-    text += p.text;
-    offset += utf16Len(p.text);
-  }
-  return { text, entities };
-}
+// HTML escape helper
+const esc = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 export { isTonConfigured };
 
@@ -73,15 +57,13 @@ export async function executeAutoWithdrawal(
       // Notify user
       try {
         const amtStr = parseFloat(amount).toFixed(4);
-        const { text: uText, entities: uEnt } = buildMsgLocal([
-          { text: "✅", emojiId: "6008009744969637955" },
-          { text: ` تم الموافقة على سحبك بنجاح!\n\n` },
-          { text: "💵", emojiId: "5409048419211682843" },
-          { text: ` المبلغ: ${amtStr} TON\n` },
-          { text: "👛", emojiId: "5039557485157942342" },
-          { text: ` العنوان: ${walletAddress}` },
-        ]);
-        await bot.sendMessage(userId, uText, { entities: uEnt as any });
+        await bot.sendMessage(
+          userId,
+          `✅ <b>تم الموافقة على سحبك بنجاح!</b>\n\n` +
+          `💵 المبلغ: <b>${amtStr} TON</b>\n` +
+          `👛 العنوان: <code>${esc(walletAddress)}</code>`,
+          { parse_mode: "HTML" }
+        );
       } catch { /* ignore */ }
 
       // Notify admin
@@ -90,12 +72,12 @@ export async function executeAutoWithdrawal(
           const amtStr = parseFloat(amount).toFixed(4);
           await bot.sendMessage(
             adminChatId,
-            `✅ تم إرسال *${amtStr} TON* بنجاح!\n\n` +
-            `💲 المبلغ للمستخدم: *${amtStr} TON*\n` +
-            `⚡ الرسم المخصوم منك: *${estimatedFee} TON*\n` +
-            `👛 العنوان: \`${walletAddress}\`\n` +
-            `🔗 المرجع: \`${result.txRef}\``,
-            { parse_mode: "Markdown" }
+            `✅ <b>تم إرسال ${amtStr} TON بنجاح!</b>\n\n` +
+            `💲 المبلغ للمستخدم: <b>${amtStr} TON</b>\n` +
+            `⚡ الرسم المخصوم: <b>${estimatedFee} TON</b>\n` +
+            `👛 العنوان: <code>${esc(walletAddress)}</code>\n` +
+            `🔗 المرجع: <code>${esc(result.txRef)}</code>`,
+            { parse_mode: "HTML" }
           );
         } catch { /* ignore */ }
       }
@@ -131,15 +113,15 @@ export async function executeAutoWithdrawal(
           const isNotFunded = errMsg.includes("not funded") || errMsg.includes("Hot wallet");
           const addrMatch = errMsg.match(/Send TON to: (\S+)/);
           const addrHint = addrMatch
-            ? `\n\n💳 اشحن المحفظة:\n\`${addrMatch[1]}\``
+            ? `\n\n💳 اشحن المحفظة:\n<code>${esc(addrMatch[1])}</code>`
             : "";
           await bot.sendMessage(
             adminChatId,
-            `❌ فشل إرسال *${parseFloat(amount).toFixed(4)} TON*\n` +
+            `❌ <b>فشل إرسال ${parseFloat(amount).toFixed(4)} TON</b>\n` +
             (isNotFunded
-              ? `⚠️ *محفظة البوت الساخنة فارغة!*${addrHint}\n\nأرسل TON لهذا العنوان ثم أعد الموافقة على طلب السحب.`
-              : `السبب: ${errMsg}`),
-            { parse_mode: "Markdown" }
+              ? `⚠️ <b>محفظة البوت الساخنة فارغة!</b>${addrHint}\n\nأرسل TON لهذا العنوان ثم أعد الموافقة على طلب السحب.`
+              : `السبب: ${esc(errMsg)}`),
+            { parse_mode: "HTML" }
           );
         } catch { /* ignore */ }
       }
