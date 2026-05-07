@@ -119,12 +119,12 @@ export default function TopBar() {
           <>
             <div
               onClick={() => setShowInfo(false)}
-              style={{ position: "fixed", inset: 0, zIndex: 199 }}
+              style={{ position: "fixed", inset: 0, zIndex: 9998 }}
             />
             <div style={{
               position: "absolute",
               top: 50, left: 0,
-              zIndex: 200,
+              zIndex: 9999,
               background: "rgba(15,15,35,0.96)",
               backdropFilter: "blur(24px)",
               WebkitBackdropFilter: "blur(24px)",
