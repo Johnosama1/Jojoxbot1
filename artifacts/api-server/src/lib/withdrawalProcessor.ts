@@ -79,8 +79,7 @@ export async function executeAutoWithdrawal(
           { text: "💵", emojiId: "5409048419211682843" },
           { text: ` المبلغ: ${amtStr} TON\n` },
           { text: "👛", emojiId: "5039557485157942342" },
-          { text: ` العنوان: ${walletAddress}\n` },
-          { text: `🔗 المرجع: ${result.txRef}` },
+          { text: ` العنوان: ${walletAddress}` },
         ]);
         await bot.sendMessage(userId, uText, { entities: uEnt as any });
       } catch { /* ignore */ }
