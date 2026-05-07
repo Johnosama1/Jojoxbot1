@@ -29,9 +29,8 @@ function resolveAppUrl(req: Request): string {
     }
   }
 
-  // 5. Derive from request (works behind Replit/Vercel reverse proxy)
-  const host = req.get("x-forwarded-host") || req.get("host") || "localhost";
-  return `${req.protocol}://${host}`;
+  // 5. Default to Vercel deployment
+  return "https://jojoxbot-api-server.vercel.app";
 }
 
 router.get("/tonconnect-manifest.json", (req: Request, res: Response) => {

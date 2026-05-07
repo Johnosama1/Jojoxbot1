@@ -141,7 +141,7 @@ export async function processUpdateAndWait(update: TelegramBot.Update): Promise<
 // ── Welcome & menu ──────────────────────────────────────────────────────────
 
 export async function sendWelcomeMessage(chatId: number, userId: number, firstName: string) {
-  const MINI_APP_URL = process.env.MINI_APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN}/`;
+  const MINI_APP_URL = process.env.MINI_APP_URL || "https://jojoxbot-api-server.vercel.app/app/";
 
   const { text: welcomeText, entities: welcomeEntities } = buildMsg([
     { text: "👋", emojiId: "5319007286004299794" },
