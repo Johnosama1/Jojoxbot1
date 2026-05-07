@@ -19,6 +19,22 @@ function StarSticker() {
   return <div ref={ref} style={{ width: 18, height: 18, flexShrink: 0 }} />;
 }
 
+function UsdtSticker() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    const anim = lottie.loadAnimation({
+      container: ref.current,
+      renderer: "svg",
+      loop: true,
+      autoplay: true,
+      path: "/usdt-anim.json",
+    });
+    return () => anim.destroy();
+  }, []);
+  return <div ref={ref} style={{ width: 28, height: 28, flexShrink: 0, marginLeft: -4, marginRight: -2 }} />;
+}
+
 export default function TopBar() {
   const { user } = useUser();
   const stickerRef = useRef<HTMLDivElement>(null);
@@ -197,11 +213,7 @@ export default function TopBar() {
         boxShadow: "0 0 18px rgba(251,191,36,0.18), inset 0 1px 0 rgba(255,255,255,0.08)",
         flexShrink: 0,
       }}>
-        <img
-          src="https://assets.coingecko.com/coins/images/325/large/Tether.png"
-          alt="USDT"
-          style={{ width: 20, height: 20, borderRadius: "50%", objectFit: "cover", boxShadow: "0 0 8px rgba(38,161,123,0.55)" }}
-        />
+        <UsdtSticker />
         <div style={{ color: "#fbbf24", fontWeight: 900, fontSize: 14, letterSpacing: 0.3, lineHeight: 1 }}>
           {balance}
           <span style={{ fontSize: 9, fontWeight: 700, opacity: 0.70, marginLeft: 4 }}>USDT</span>
