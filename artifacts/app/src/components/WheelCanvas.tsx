@@ -382,15 +382,18 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
           alignItems: "center",
           justifyContent: "center",
         }}>
-          <div style={{
-            width: 60,
-            height: 60,
-            borderRadius: "50%",
-            border: "4px solid rgba(251,191,36,0.15)",
-            borderTopColor: "#fbbf24",
-            animation: "spin 0.9s linear infinite",
-          }} />
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <img
+            src="/logo.png"
+            alt="Jo-jokes"
+            style={{
+              width: size * 0.82,
+              height: size * 0.82,
+              borderRadius: "50%",
+              objectFit: "cover",
+              pointerEvents: "none",
+              userSelect: "none",
+            }}
+          />
         </div>
       )}
 
