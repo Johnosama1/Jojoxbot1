@@ -181,6 +181,16 @@ export default function WalletPage() {
         .wallet-input::-webkit-inner-spin-button,
         .wallet-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         .wallet-input { -moz-appearance: textfield; }
+        @keyframes botBounce {
+          0%   { transform: translateY(0)    scale(1);    }
+          20%  { transform: translateY(-18px) scale(1.06); }
+          40%  { transform: translateY(0)    scale(0.97); }
+          55%  { transform: translateY(-9px)  scale(1.03); }
+          70%  { transform: translateY(0)    scale(0.99); }
+          85%  { transform: translateY(-4px)  scale(1.01); }
+          100% { transform: translateY(0)    scale(1);    }
+        }
+        .bot-bounce { animation: botBounce 1.4s ease-in-out infinite; }
       `}</style>
 
       {/* ══ HEADER ══ */}
@@ -465,6 +475,28 @@ export default function WalletPage() {
         {/* ══════════════ WITHDRAW TAB ══════════════ */}
         {tab === "withdraw" && (
           <div className="wallet-fade" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+
+            {/* Bouncing bot icon — only when wallet not connected */}
+            {!savedWallet && (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "8px 0 4px" }}>
+                <div className="bot-bounce" style={{
+                  width: 110, height: 110,
+                  borderRadius: "50%",
+                  overflow: "hidden",
+                  boxShadow: "0 0 0 3px rgba(251,191,36,0.35), 0 8px 32px rgba(251,191,36,0.30), 0 0 60px rgba(139,92,246,0.20)",
+                  flexShrink: 0,
+                }}>
+                  <img
+                    src="/app/bot-icon-circle.png"
+                    alt="Jojox"
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  />
+                </div>
+                <div style={{ color: "rgba(255,255,255,0.50)", fontSize: 11, fontWeight: 700, letterSpacing: 0.5 }}>
+                  Connect your TON wallet to withdraw
+                </div>
+              </div>
+            )}
 
             {/* Wallet connect card */}
             <div style={{
