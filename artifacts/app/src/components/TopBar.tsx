@@ -78,7 +78,7 @@ export default function TopBar() {
       renderer: "svg",
       loop: true,
       autoplay: true,
-      path: "/sticker-cap.json",
+      path: "/cap-electro.json",
     });
     return () => anim.destroy();
   }, []);
