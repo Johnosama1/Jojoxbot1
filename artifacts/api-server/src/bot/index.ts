@@ -34,6 +34,23 @@ export function getBot(): TelegramBot {
   return bot;
 }
 
+// ── Serverless async handler tracking ────────────────────────────────────────
+// node-telegram-bot-api fires handlers via EventEmitter (fire-and-forget).
+// In Vercel serverless, the function may terminate before async handlers finish.
+// We collect all handler promises and await them in processUpdateAndWait.
+const _handlerPromises: Promise<void>[] = [];
+
+function wrapHandler<T extends unknown[]>(
+  fn: (...args: T) => Promise<void> | void
+): (...args: T) => void {
+  return (...args: T) => {
+    const result = fn(...args);
+    if (result instanceof Promise) {
+      _handlerPromises.push(result.catch(err => logger.error({ err }, "Bot handler error")));
+    }
+  };
+}
+
 // ── Maintenance check helpers ──────────────────────────────────────────────
 
 async function botIsDisabled(): Promise<boolean> {
@@ -128,14 +145,21 @@ export async function sendWithdrawalNotification(
 
 export async function processUpdateAndWait(update: TelegramBot.Update): Promise<void> {
   if (!bot) return;
+  _handlerPromises.length = 0; // Clear previous cycle's promises
   try {
-    // node-telegram-bot-api processes updates automatically in webhook mode
-    // via processUpdate. This lets us await any async side effects.
+    // Trigger all registered handlers synchronously; wrapped handlers push
+    // their Promise into _handlerPromises before returning.
     (bot as unknown as { processUpdate: (u: TelegramBot.Update) => void }).processUpdate(update);
-    // Allow event loop to flush async handlers
+    // Give synchronous code one tick to register promises
     await new Promise<void>((resolve) => setImmediate(resolve));
+    // Now await every async handler so Vercel doesn't kill them mid-flight
+    if (_handlerPromises.length > 0) {
+      await Promise.allSettled([..._handlerPromises]);
+    }
   } catch (err) {
     logger.error({ err }, "processUpdateAndWait error");
+  } finally {
+    _handlerPromises.length = 0;
   }
 }
 
@@ -302,7 +326,7 @@ export function initBotPolling() {
 function setupBotHandlers() {
 
   // ── /start ────────────────────────────────────────────────────────────────
-  bot.onText(/\/start(.*)/, async (msg, match) => {
+  bot.onText(/\/start(.*)/, wrapHandler(async (msg, match) => {
     try {
       const chatId = msg.chat.id;
       const userId = msg.from!.id;
@@ -364,19 +388,19 @@ function setupBotHandlers() {
     } catch (err) {
       logger.error({ err }, "Error in /start handler");
     }
-  });
+  }));
 
   // ── /admin ────────────────────────────────────────────────────────────────
-  bot.onText(/^\/admin$/, async (msg) => {
+  bot.onText(/^\/admin$/, wrapHandler(async (msg) => {
     const userId = msg.from!.id;
     const username = msg.from?.username;
     const info = await getAdminInfo(userId, username);
     if (!info) return;
     await showAdminMenu(bot, msg.chat.id, undefined, info);
-  });
+  }));
 
   // ── /wallet ───────────────────────────────────────────────────────────────
-  bot.onText(/^\/wallet$/, async (msg) => {
+  bot.onText(/^\/wallet$/, wrapHandler(async (msg) => {
     const userId = msg.from!.id;
     const username = msg.from?.username;
     const info = await getAdminInfo(userId, username);
@@ -392,10 +416,10 @@ function setupBotHandlers() {
         : "✅ المحفظة جاهزة للإرسال."),
       { parse_mode: "Markdown" }
     );
-  });
+  }));
 
   // ── /setowner ─────────────────────────────────────────────────────────────
-  bot.onText(/^\/setowner$/, async (msg) => {
+  bot.onText(/^\/setowner$/, wrapHandler(async (msg) => {
     const userId = msg.from!.id;
     const username = msg.from?.username;
     if (username !== OWNER_USERNAME) return;
@@ -407,10 +431,10 @@ function setupBotHandlers() {
       msg.chat.id,
       `✅ تم تسجيلك كمالك للبوت!\nID: ${userId}\nاستخدم /admin للوصول إلى لوحة التحكم.`
     );
-  });
+  }));
 
   // ── Global callback_query handler ─────────────────────────────────────────
-  bot.on("callback_query", async (q) => {
+  bot.on("callback_query", wrapHandler(async (q) => {
     if (!q.message) {
       await bot.answerCallbackQuery(q.id).catch(() => {});
       return;
@@ -465,10 +489,10 @@ function setupBotHandlers() {
       logger.error({ err, data, userId }, "callback_query handler error");
       await bot.answerCallbackQuery(q.id).catch(() => {});
     }
-  });
+  }));
 
   // ── Global message handler ────────────────────────────────────────────────
-  bot.on("message", async (msg) => {
+  bot.on("message", wrapHandler(async (msg) => {
     if (!msg.from) return;
 
     // Commands handled by onText — skip here to avoid double processing
@@ -503,5 +527,5 @@ function setupBotHandlers() {
     } catch (err) {
       logger.error({ err, userId }, "message handler error");
     }
-  });
+  }));
 }
