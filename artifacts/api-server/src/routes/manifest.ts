@@ -43,7 +43,7 @@ router.get("/tonconnect-manifest.json", (req: Request, res: Response) => {
   res.json({
     url: appUrl,
     name: "Jojox Lucky Wheel",
-    iconUrl: `${appUrl}/bot-icon-circle.png`,
+    iconUrl: `${appUrl}/app/bot-icon-circle.png`,
   });
 });
 
