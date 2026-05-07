@@ -187,30 +187,6 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
       ctx.fillText(label, 0, textY);
       ctx.shadowBlur  = 0;
 
-      // ── "USDT" badge-style label ──
-      const badgeY   = textY + fontSize + 2;
-      const badgeFsz = Math.max(7, Math.round(fontSize * 0.72));
-
-      // Subtle pill background
-      ctx.save();
-      const badgeW = badgeFsz * 3.4;
-      const badgeH = badgeFsz + 4;
-      ctx.beginPath();
-      ctx.roundRect(-badgeW / 2, badgeY - badgeH * 0.72, badgeW, badgeH, badgeH / 2);
-      ctx.fillStyle = "rgba(38,200,140,0.18)";
-      ctx.fill();
-      ctx.strokeStyle = "rgba(38,200,140,0.4)";
-      ctx.lineWidth   = 0.8;
-      ctx.stroke();
-      ctx.restore();
-
-      ctx.font      = `700 ${badgeFsz}px 'Inter', sans-serif`;
-      ctx.fillStyle = "rgba(80,230,175,0.95)";
-      ctx.shadowColor = "rgba(38,200,140,0.6)";
-      ctx.shadowBlur  = 4;
-      ctx.fillText("USDT", 0, badgeY);
-      ctx.shadowBlur  = 0;
-
       ctx.restore();
     }
 
