@@ -38,7 +38,7 @@ function StarSticker() {
       renderer: "svg",
       loop: true,
       autoplay: true,
-      path: "/star.json",
+      path: "/star2.json",
     });
     return () => anim.destroy();
   }, []);
