@@ -1,4 +1,5 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
+import lottie from "lottie-web";
 import { useLocation, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TonConnectUIProvider } from "@tonconnect/ui-react";
@@ -46,6 +47,33 @@ function BannedScreen() {
   );
 }
 
+function MaintenanceLottie() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    const anim = lottie.loadAnimation({
+      container: ref.current,
+      renderer: "svg",
+      loop: true,
+      autoplay: true,
+      path: "/maintenance-anim.json",
+    });
+    return () => anim.destroy();
+  }, []);
+  return (
+    <div style={{ position: "relative", marginBottom: 16 }}>
+      <div style={{
+        position: "absolute", inset: -24,
+        borderRadius: "50%",
+        background: "radial-gradient(circle, rgba(251,191,36,0.12) 0%, transparent 70%)",
+        animation: "blink 2.5s ease-in-out infinite",
+        pointerEvents: "none",
+      }} />
+      <div ref={ref} style={{ width: 160, height: 160, position: "relative" }} />
+    </div>
+  );
+}
+
 function MaintenanceScreen() {
   return (
     <div style={{
@@ -54,23 +82,10 @@ function MaintenanceScreen() {
       background: "linear-gradient(160deg, #05080f 0%, #0a0f1a 50%, #080d15 100%)",
       padding: "32px 24px", textAlign: "center",
     }}>
-      {/* Animated glow rings */}
-      <div style={{ position: "relative", marginBottom: 32 }}>
-        <div style={{
-          position: "absolute", inset: -20,
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(251,191,36,0.15) 0%, transparent 70%)",
-          animation: "pulse 2.5s ease-in-out infinite",
-        }} />
-        <div style={{ fontSize: 80, position: "relative", filter: "drop-shadow(0 0 30px rgba(251,191,36,0.5))" }}>
-          🔧
-        </div>
-      </div>
+      <MaintenanceLottie />
 
       <style>{`
-        @keyframes pulse { 0%,100%{opacity:.4;transform:scale(1)} 50%{opacity:1;transform:scale(1.1)} }
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
-        @keyframes dotdot { 0%{content:"."} 33%{content:".."} 66%{content:"..."} 100%{content:"."} }
       `}</style>
 
       <div style={{
