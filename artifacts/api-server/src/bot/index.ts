@@ -158,13 +158,11 @@ export async function sendWelcomeMessage(chatId: number, userId: number, firstNa
 }
 
 function setMenuButton() {
-  const MINI_APP_URL = process.env.MINI_APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN}/`;
+  // Use default menu button — WebApp must only open after subscription is verified via bot
   fetch(`https://api.telegram.org/bot${TOKEN}/setChatMenuButton`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      menu_button: { type: "web_app", text: "🎡 Play", web_app: { url: MINI_APP_URL } },
-    }),
+    body: JSON.stringify({ menu_button: { type: "default" } }),
   }).catch(() => {});
 }
 

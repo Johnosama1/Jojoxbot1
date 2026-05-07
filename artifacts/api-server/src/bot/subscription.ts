@@ -97,34 +97,30 @@ export async function getMissingChannels(
   return results.filter((r) => !r.ok).map((r) => r.ch);
 }
 
+// ── Escape MarkdownV2 special characters ────────────────────────────────────
+function escapeMarkdownV2(text: string): string {
+  return text.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
+}
+
 // ── Build the subscription block message ────────────────────────────────────
-export function buildBlockMessage(missingChannels: RequiredChannel[]): {
+// Shows ALL required channels as join buttons (one per row), then verify button
+export function buildBlockMessage(allChannels: RequiredChannel[]): {
   text: string;
   keyboard: TelegramBot.InlineKeyboardButton[][];
 } {
-  const channelList = missingChannels
-    .map((ch, i) => `${i + 1}\\. *${escapeMarkdownV2(ch.title || `@${ch.username}`)}*`)
-    .join("\n");
+  const text = `⚠️ *يجب الانضمام إلى قنوات الشرط أولاً لاستخدام البوت*`;
 
-  const text =
-    `⚠️ *الاشتراك الإجباري*\n\n` +
-    `للاستمرار في استخدام البوت، يجب أن تكون عضواً في القنوات التالية:\n\n` +
-    `${channelList}\n\n` +
-    `📌 بعد الانضمام اضغط زر *التحقق* أدناه\\.`;
-
-  const joinButtons: TelegramBot.InlineKeyboardButton[] = missingChannels.map((ch) => ({
-    text: `📢 انضمام — ${ch.title || `@${ch.username}`}`,
-    url: ch.inviteLink || `https://t.me/${ch.username.replace(/^@/, "")}`,
-  }));
-
-  const keyboard: TelegramBot.InlineKeyboardButton[][] = joinButtons.map((btn) => [btn]);
-  keyboard.push([{ text: "✅ تحققت من اشتراكي", callback_data: "sub_recheck" }]);
+  const keyboard: TelegramBot.InlineKeyboardButton[][] = [
+    ...allChannels.map((ch) => [
+      {
+        text: `📢 ${ch.title || `@${ch.username}`}`,
+        url: ch.inviteLink || `https://t.me/${ch.username.replace(/^@/, "")}`,
+      },
+    ]),
+    [{ text: "✅ تحقق", callback_data: "sub_recheck" }],
+  ];
 
   return { text, keyboard };
-}
-
-function escapeMarkdownV2(text: string): string {
-  return text.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
 }
 
 // ── Main enforcement gate ────────────────────────────────────────────────────
@@ -139,27 +135,27 @@ export async function enforceSubscription(
   try {
     const now = Date.now();
 
-    // ── Step 1: check user-level cache ────────────────────────────────
+    // ── Step 1: fetch all required channels ───────────────────────────
+    const requiredChannels = await getRequiredChannels();
+    if (requiredChannels.length === 0) {
+      // No channels configured — clear any stale block
+      userSubCache.set(userId, { ts: now, missing: [] });
+      await db
+        .update(usersTable)
+        .set({ isBlockedForLeaving: false })
+        .where(eq(usersTable.id, userId))
+        .catch(() => {});
+      return false;
+    }
+
+    // ── Step 2: check user-level cache ────────────────────────────────
     const cached = userSubCache.get(userId);
     let missingChannels: RequiredChannel[];
 
     if (cached && (now - cached.ts) < USER_CACHE_TTL) {
       missingChannels = cached.missing;
     } else {
-      // ── Step 2: fetch required channels ──────────────────────────────
-      const requiredChannels = await getRequiredChannels();
-      if (requiredChannels.length === 0) {
-        // No channels configured — clear any stale block
-        userSubCache.set(userId, { ts: now, missing: [] });
-        await db
-          .update(usersTable)
-          .set({ isBlockedForLeaving: false })
-          .where(eq(usersTable.id, userId))
-          .catch(() => {});
-        return false;
-      }
-
-      // ── Step 3: live-check all channels ───────────────────────────────
+      // ── Step 3: live-check all channels ────────────────────────────
       missingChannels = await getMissingChannels(bot, userId);
       userSubCache.set(userId, { ts: now, missing: missingChannels });
 
@@ -174,7 +170,7 @@ export async function enforceSubscription(
 
     if (missingChannels.length === 0) return false;
 
-    // ── Step 4: send block message ────────────────────────────────────
+    // ── Step 4: answer callback query if provided ─────────────────────
     if (callbackQueryId) {
       try {
         await bot.answerCallbackQuery(callbackQueryId, {
@@ -184,7 +180,8 @@ export async function enforceSubscription(
       } catch { /* ignore */ }
     }
 
-    const { text, keyboard } = buildBlockMessage(missingChannels);
+    // ── Step 5: send block message with ALL required channels ─────────
+    const { text, keyboard } = buildBlockMessage(requiredChannels);
     await bot.sendMessage(chatId, text, {
       parse_mode: "MarkdownV2",
       reply_markup: { inline_keyboard: keyboard },
@@ -196,7 +193,7 @@ export async function enforceSubscription(
   }
 }
 
-// ── Handle ✅ "تحققت من اشتراكي" callback ─────────────────────────────────
+// ── Handle ✅ "تحقق" callback ──────────────────────────────────────────────
 export async function handleSubRecheckCallback(
   bot: TelegramBot,
   q: TelegramBot.CallbackQuery
@@ -217,7 +214,7 @@ export async function handleSubRecheckCallback(
     if (requiredChannels.length === 0) {
       try {
         await bot.editMessageText(
-          "✅ لا توجد قنوات مطلوبة حالياً\\. يمكنك استخدام البوت بحرية\\!",
+          "✅ *لا توجد قنوات مطلوبة\\. يمكنك استخدام البوت\\!*",
           { chat_id: chatId, message_id: msgId, parse_mode: "MarkdownV2", reply_markup: { inline_keyboard: [] } }
         );
       } catch { /* ignore */ }
@@ -236,7 +233,8 @@ export async function handleSubRecheckCallback(
       .catch(() => {});
 
     if (isBlocked) {
-      const { text, keyboard } = buildBlockMessage(missingChannels);
+      // Still missing channels — show updated block message with ALL channels
+      const { text, keyboard } = buildBlockMessage(requiredChannels);
       try {
         await bot.editMessageText(text, {
           chat_id: chatId,
@@ -251,12 +249,10 @@ export async function handleSubRecheckCallback(
         });
       }
     } else {
-      const MINI_APP_URL =
-        process.env.MINI_APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN}/`;
-
+      // ── Subscription verified — remove gate message, show welcome ──
       try {
         await bot.editMessageText(
-          "✅ *تم التحقق بنجاح\\!*\n\nأنت مشترك في جميع القنوات المطلوبة\\. مرحباً بك\\! 🎉",
+          "✅ *تم التحقق بنجاح\\!*",
           {
             chat_id: chatId,
             message_id: msgId,
@@ -266,14 +262,20 @@ export async function handleSubRecheckCallback(
         );
       } catch { /* ignore */ }
 
+      const MINI_APP_URL =
+        process.env.MINI_APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN}/`;
+
+      const firstName = q.from.first_name || "";
+      const escapedName = escapeMarkdownV2(firstName);
+
       await bot.sendMessage(
         chatId,
-        "🎉 *تم استعادة وصولك الكامل\\!*\n\nاستمر في اللعب والفوز بالجوائز\\! 🏆",
+        `🎉 *أهلاً ${escapedName}\\!*\n\nتم التحقق من اشتراكك بنجاح\\. استمتع باللعب وربح الجوائز\\! 🎡`,
         {
           parse_mode: "MarkdownV2",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "🎡 افتح التطبيق", web_app: { url: `${MINI_APP_URL}` } }],
+              [{ text: "🎡 افتح التطبيق", web_app: { url: `${MINI_APP_URL}?uid=${userId}` } }],
             ],
           },
         }
