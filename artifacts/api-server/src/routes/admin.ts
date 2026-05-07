@@ -14,7 +14,8 @@ import { invalidateWheelCache } from "./wheel";
 import { invalidateTasksCache } from "./tasks";
 import { getBot } from "../bot";
 import { getChannelPhotoUrl } from "../bot/admin";
-import { setBotEnabled } from "../bot/control";
+import { setBotEnabled, clearBotEnabledCache } from "../bot/control";
+import { clearAllSubCache } from "../bot/subscription";
 
 const router = Router();
 
@@ -213,6 +214,10 @@ router.put("/settings", async (req, res) => {
   }
   if (key === "bot_enabled") {
     await setBotEnabled(String(value) === "true");
+    clearBotEnabledCache();
+  }
+  if (key === "required_channels") {
+    clearAllSubCache();
   }
   res.json({ key, value });
 });

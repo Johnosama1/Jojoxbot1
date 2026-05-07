@@ -10,6 +10,8 @@ import {
 } from "@workspace/db/schema";
 import { eq, desc, sql, count, ilike } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { isBotEnabled, setBotEnabled, clearBotEnabledCache } from "./control";
+import { clearAllSubCache } from "./subscription";
 
 export const OWNER_USERNAME = "J_O_H_N8";
 
@@ -164,7 +166,15 @@ export async function showAdminMenu(bot: TelegramBot, chatId: number, messageId?
     ]);
   }
 
-  // Row 4: Admins management (owner only)
+  // Row 4: Channels + Bot control (owner only)
+  if (!info || info.isOwner) {
+    rows.push([
+      { text: "📢 القنوات الإجبارية", callback_data: "adm:channels" },
+      { text: "🛠 التحكم بالبوت", callback_data: "adm:botctrl" },
+    ]);
+  }
+
+  // Row 5: Admins management (owner only)
   if (!info || info.isOwner) {
     rows.push([{ text: "👮 المشرفون", callback_data: "adm:admins" }]);
   }
@@ -361,8 +371,8 @@ async function showRequiredChannelsMenu(bot: TelegramBot, chatId: number, messag
     : channels.map((c, i) => `${i + 1}. ${c.title || `@${c.username}`} (@${c.username})`).join("\n");
 
   const text =
-    `🔒 *إدارة القنوات المطلوبة*\n\n` +
-    `هذه القنوات تصبح *إلزامية* للمستخدمين الذين حصلوا على لفات مجانية منها.\n\n` +
+    `📢 *إدارة القنوات الإجبارية*\n\n` +
+    `جميع المستخدمين (جدد وقدامى) *ملزمون* بالاشتراك في هذه القنوات لاستخدام البوت والميني آب.\n\n` +
     `*القنوات الحالية:*\n${listText}`;
 
   const channelButtons: TelegramBot.InlineKeyboardButton[][] = channels.map((c, i) => [
@@ -374,6 +384,28 @@ async function showRequiredChannelsMenu(bot: TelegramBot, chatId: number, messag
       ...channelButtons,
       [{ text: "➕ إضافة قناة", callback_data: "adm:set:ch:add" }],
       [{ text: "◀️ رجوع للإعدادات", callback_data: "adm:settings" }],
+    ],
+  };
+  await editOrSend(bot, chatId, text, keyboard, messageId);
+}
+
+// ─────────────────────────── BOT CONTROL ───────────────────────────
+
+async function showBotControlMenu(bot: TelegramBot, chatId: number, messageId?: number) {
+  const enabled = await isBotEnabled();
+  const statusText = enabled ? "🟢 يعمل بشكل طبيعي" : "🔴 متوقف (وضع الصيانة)";
+  const text =
+    `🛠 *التحكم في حالة البوت*\n\n` +
+    `الحالة الحالية: *${statusText}*\n\n` +
+    (enabled
+      ? "لإيقاف البوت اضغط الزر أدناه. سيظهر للمستخدمين رسالة صيانة وستبقى أنت وحدك قادراً على الوصول."
+      : "البوت *متوقف* حالياً. المستخدمون لا يمكنهم الوصول. اضغط لتشغيله.");
+  const keyboard: TelegramBot.InlineKeyboardMarkup = {
+    inline_keyboard: [
+      enabled
+        ? [{ text: "🔴 إيقاف البوت (وضع الصيانة)", callback_data: "adm:botctrl:off" }]
+        : [{ text: "🟢 تشغيل البوت", callback_data: "adm:botctrl:on" }],
+      [{ text: "◀️ رجوع", callback_data: "adm:main" }],
     ],
   };
   await editOrSend(bot, chatId, text, keyboard, messageId);
@@ -499,6 +531,32 @@ export async function handleAdminCallback(
     if (data === "adm:main")     { await showAdminMenu(bot, chatId, msgId, info); return true; }
     if (data === "adm:stats")    { if (!info.isOwner) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; } await showStats(bot, chatId, msgId); return true; }
     if (data === "adm:settings") { if (!info.isOwner) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; } await showSettingsMenu(bot, chatId, msgId); return true; }
+
+    // Top-level channels management (owner only)
+    if (data === "adm:channels") {
+      if (!info.isOwner) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; }
+      await showRequiredChannelsMenu(bot, chatId, msgId); return true;
+    }
+
+    // Bot control (owner only)
+    if (data === "adm:botctrl") {
+      if (!info.isOwner) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; }
+      await showBotControlMenu(bot, chatId, msgId); return true;
+    }
+    if (data === "adm:botctrl:on" || data === "adm:botctrl:off") {
+      if (!info.isOwner) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; }
+      const enable = data === "adm:botctrl:on";
+      await setBotEnabled(enable);
+      clearBotEnabledCache();
+      await bot.sendMessage(
+        chatId,
+        enable
+          ? "✅ *تم تشغيل البوت بنجاح\\!* 🟢\n\nالمستخدمون يمكنهم الوصول الآن\\."
+          : "🔴 *تم إيقاف البوت\\!*\n\nوضع الصيانة مفعّل\\. ستظهر للمستخدمين رسالة صيانة\\.",
+        { parse_mode: "MarkdownV2" }
+      );
+      await showBotControlMenu(bot, chatId, msgId); return true;
+    }
 
     if (data === "adm:wheel") {
       if (!info.isOwner && !hasPerm(info, "canEditWheel")) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; }
@@ -679,6 +737,7 @@ export async function handleAdminCallback(
           try { channels = JSON.parse(chRaw ?? "[]"); } catch { /* ignore */ }
           channels.splice(idx, 1);
           await setSetting("required_channels", JSON.stringify(channels));
+          clearAllSubCache(); // Force fresh check for all users on next access
           await showRequiredChannelsMenu(bot, chatId, msgId);
           return true;
         }
@@ -984,9 +1043,27 @@ export async function handleAdminText(bot: TelegramBot, msg: TelegramBot.Message
       const chRaw = await getSetting("required_channels");
       let channels: { username: string; title: string; inviteLink: string }[] = [];
       try { channels = JSON.parse(chRaw ?? "[]"); } catch { /* ignore */ }
+
+      // Verify bot can check this channel membership
+      let verifyNote = "";
+      try {
+        const botInfo = await bot.getMe();
+        const member = await bot.getChatMember(`@${username}`, botInfo.id);
+        if (!["administrator", "creator"].includes(member.status)) {
+          verifyNote = "\n\n⚠️ *ملاحظة:* البوت ليس مشرفاً في القناة. اجعله مشرفاً لضمان عمل فحص الاشتراك بشكل صحيح.";
+        }
+      } catch {
+        verifyNote = `\n\n⚠️ *ملاحظة:* تعذر التحقق من القناة. تأكد أن البوت عضو أو مشرف في @${username}.`;
+      }
+
       channels.push({ username, title, inviteLink });
       await setSetting("required_channels", JSON.stringify(channels));
-      await send(`✅ *تمت إضافة القناة المطلوبة:*\n@${username} — ${title}\n\nالمستخدمون الذين سبق أن حصلوا على مكافآت سيُطلب منهم البقاء مشتركين.`, { parse_mode: "Markdown" });
+      clearAllSubCache(); // Force fresh check for all users on next access
+      await send(
+        `✅ *تمت إضافة القناة المطلوبة:*\n@${username} — ${title}\n\n` +
+        `جميع مستخدمي البوت سيُطلب منهم الاشتراك في هذه القناة عند الاستخدام.${verifyNote}`,
+        { parse_mode: "Markdown" }
+      );
       const tmp = await send("جاري التحميل...");
       await showRequiredChannelsMenu(bot, chatId, tmp.message_id);
       return true;
