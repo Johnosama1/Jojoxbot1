@@ -216,10 +216,10 @@ export default function ReferralPage() {
             width: 58,
             flexShrink: 0,
             borderRadius: 18,
-            border: "none",
+            border: "1px solid rgba(251,191,36,0.35)",
             cursor: "pointer",
-            background: "#ffffff",
-            boxShadow: "0 6px 24px rgba(0,0,0,0.25)",
+            background: "linear-gradient(135deg,rgba(251,191,36,0.18),rgba(180,120,0,0.22))",
+            boxShadow: "0 6px 24px rgba(251,191,36,0.20)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -227,9 +227,9 @@ export default function ReferralPage() {
           }}
         >
           <img
-            src="/leaderboard-icon.png"
+            src="/app/leaderboard-icon.png"
             alt="Leaderboard"
-            style={{ width: 30, height: 30, objectFit: "contain" }}
+            style={{ width: 34, height: 34, objectFit: "contain" }}
           />
         </button>
       </div>
