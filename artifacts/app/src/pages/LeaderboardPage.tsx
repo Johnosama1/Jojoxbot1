@@ -244,7 +244,6 @@ export default function LeaderboardPage() {
                   }}>
                     {displayName(entry)}{isMe ? " · You" : ""}
                   </p>
-                  {entry.rank === 1 && <UsdtSticker />}
                 </div>
 
                 {/* Score */}
