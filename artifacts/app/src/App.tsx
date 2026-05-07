@@ -21,7 +21,7 @@ const WalletPage      = lazy(() => import("./pages/WalletPage"));
 const queryClient = new QueryClient();
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const MANIFEST_URL = `${window.location.origin}${BASE}/api/tonconnect-manifest.json`;
+const MANIFEST_URL = `${window.location.origin}/api/tonconnect-manifest.json`;
 
 function BannedScreen() {
   return (
