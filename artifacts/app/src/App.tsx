@@ -135,18 +135,43 @@ function SessionIssuingScreen() {
     <div style={{
       position: "fixed", inset: 0, zIndex: 9998,
       display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-      background: "linear-gradient(160deg, #050d0a 0%, #0a1a10 100%)",
+      background: "rgba(5,8,6,0.72)",
+      backdropFilter: "blur(4px)",
     }}>
-      <div style={{
-        width: 48, height: 48, borderRadius: "50%",
-        border: "3px solid rgba(74,222,128,0.15)",
-        borderTopColor: "#4ade80",
-        animation: "spin 0.8s linear infinite",
-      }} />
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-      <p style={{ color: "rgba(255,255,255,0.4)", marginTop: 20, fontSize: 14 }}>
-        جارٍ التحقق...
-      </p>
+      <style>{`
+        @keyframes ssPulse {
+          0%,100% { box-shadow: 0 0 28px 8px rgba(255,185,30,0.45), 0 0 60px 20px rgba(255,140,20,0.18); }
+          50%      { box-shadow: 0 0 48px 16px rgba(255,215,60,0.70), 0 0 90px 30px rgba(255,160,30,0.30); }
+        }
+        @keyframes ssDot {
+          0%,80%,100% { opacity:0.25; transform:scale(0.75); }
+          40%         { opacity:1;    transform:scale(1);    }
+        }
+      `}</style>
+
+      <img
+        src="/logo.png"
+        alt="Jo-jokes"
+        style={{
+          width: 180, height: 180,
+          borderRadius: "50%",
+          objectFit: "cover",
+          border: "3px solid rgba(255,185,30,0.6)",
+          animation: "ssPulse 2s ease-in-out infinite",
+          marginBottom: 28,
+        }}
+      />
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        {[0, 1, 2].map(i => (
+          <div key={i} style={{
+            width: 10, height: 10, borderRadius: "50%",
+            background: i === 1 ? "#a855f7" : "#fbbf24",
+            animation: "ssDot 1.2s ease-in-out infinite",
+            animationDelay: `${i * 0.2}s`,
+          }} />
+        ))}
+      </div>
     </div>
   );
 }

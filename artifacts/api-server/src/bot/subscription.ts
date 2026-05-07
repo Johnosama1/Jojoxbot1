@@ -4,6 +4,10 @@ import { usersTable, botSettingsTable } from "@workspace/db/schema";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
+// ── HTML escape helper ─────────────────────────────────────────────────────
+const esc = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 // ── Inline buildMsg (avoids circular import from bot/index.ts) ────────────
 const _utf16Len = (s: string): number => {
   let n = 0;
@@ -96,7 +100,7 @@ async function checkChannel(
   return true;
 }
 
-// ── Check ALL required channels — return list of missing ones ──────────────
+// ── Check ALL required channels in batches of 10 (avoids rate limits) ───────
 export async function getMissingChannels(
   bot: TelegramBot,
   userId: number
@@ -104,31 +108,36 @@ export async function getMissingChannels(
   const channels = await getRequiredChannels();
   if (channels.length === 0) return [];
 
-  const results = await Promise.all(
-    channels.map(async (ch) => {
-      const ok = await checkChannel(bot, userId, ch);
-      logger.debug(
-        { userId, channel: ch.username, status: ok ? "member" : "not_member" },
-        "subscription check"
-      );
-      return { ch, ok };
-    })
-  );
-  return results.filter((r) => !r.ok).map((r) => r.ch);
+  const missing: RequiredChannel[] = [];
+  const BATCH = 10;
+
+  for (let i = 0; i < channels.length; i += BATCH) {
+    const batch = channels.slice(i, i + BATCH);
+    const results = await Promise.all(
+      batch.map(async (ch) => {
+        const ok = await checkChannel(bot, userId, ch);
+        return { ch, ok };
+      })
+    );
+    for (const r of results) {
+      if (!r.ok) missing.push(r.ch);
+    }
+    if (i + BATCH < channels.length) {
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  }
+
+  return missing;
 }
 
-// ── Escape MarkdownV2 special characters ────────────────────────────────────
-function escapeMarkdownV2(text: string): string {
-  return text.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
-}
-
-// ── Build the subscription block message ────────────────────────────────────
+// ── Build the subscription block message (HTML) ──────────────────────────────
 // Shows ALL required channels as join buttons (one per row), then verify button
 export function buildBlockMessage(allChannels: RequiredChannel[]): {
   text: string;
   keyboard: TelegramBot.InlineKeyboardButton[][];
 } {
-  const text = `⚠️ *يجب الانضمام إلى قنوات الشرط أولاً لاستخدام البوت*`;
+  const text =
+    `⚠️ <b>يجب الانضمام إلى قنوات الشرط أولاً لاستخدام البوت</b>`;
 
   const keyboard: TelegramBot.InlineKeyboardButton[][] = [
     ...allChannels.map((ch) => [
@@ -200,10 +209,10 @@ export async function enforceSubscription(
       } catch { /* ignore */ }
     }
 
-    // ── Step 5: send block message with ALL required channels ─────────
+    // ── Step 5: send block message with ALL required channels (HTML) ──
     const { text, keyboard } = buildBlockMessage(requiredChannels);
     await bot.sendMessage(chatId, text, {
-      parse_mode: "MarkdownV2",
+      parse_mode: "HTML",
       reply_markup: { inline_keyboard: keyboard },
     });
     return true;
@@ -234,8 +243,8 @@ export async function handleSubRecheckCallback(
     if (requiredChannels.length === 0) {
       try {
         await bot.editMessageText(
-          "✅ *لا توجد قنوات مطلوبة\\. يمكنك استخدام البوت\\!*",
-          { chat_id: chatId, message_id: msgId, parse_mode: "MarkdownV2", reply_markup: { inline_keyboard: [] } }
+          "✅ <b>لا توجد قنوات مطلوبة. يمكنك استخدام البوت!</b>",
+          { chat_id: chatId, message_id: msgId, parse_mode: "HTML", reply_markup: { inline_keyboard: [] } }
         );
       } catch { /* ignore */ }
       return true;
@@ -259,12 +268,12 @@ export async function handleSubRecheckCallback(
         await bot.editMessageText(text, {
           chat_id: chatId,
           message_id: msgId,
-          parse_mode: "MarkdownV2",
+          parse_mode: "HTML",
           reply_markup: { inline_keyboard: keyboard },
         });
       } catch {
         await bot.sendMessage(chatId, text, {
-          parse_mode: "MarkdownV2",
+          parse_mode: "HTML",
           reply_markup: { inline_keyboard: keyboard },
         });
       }
