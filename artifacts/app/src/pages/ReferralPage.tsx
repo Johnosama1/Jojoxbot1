@@ -69,13 +69,11 @@ export default function ReferralPage() {
         gap: 0,
       }}
     >
-      {/* ── Big sticker centered at top ── */}
       <div
         ref={stickerRef}
         style={{ width: 130, height: 130, marginTop: 8, flexShrink: 0 }}
       />
 
-      {/* ── Title ── */}
       <h1
         style={{
           color: "#fff",
@@ -91,7 +89,6 @@ export default function ReferralPage() {
         Invite Friends
       </h1>
 
-      {/* ── Subtitle ── */}
       <p
         style={{
           color: "rgba(255,255,255,0.65)",
@@ -107,7 +104,6 @@ export default function ReferralPage() {
         Share your invite link and earn free spins from your friends' activity
       </p>
 
-      {/* ── Progress card ── */}
       <div
         style={{
           width: "100%",
@@ -121,7 +117,6 @@ export default function ReferralPage() {
           boxShadow: "0 6px 28px rgba(0,0,0,0.40)",
         }}
       >
-        {/* Header row */}
         <div
           style={{
             display: "flex",
@@ -163,7 +158,6 @@ export default function ReferralPage() {
           </div>
         </div>
 
-        {/* Progress dots */}
         <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
           {Array.from({ length: 5 }, (_, i) => {
             const done = i < progress;
@@ -184,10 +178,8 @@ export default function ReferralPage() {
             );
           })}
         </div>
-
       </div>
 
-      {/* ── Big Invite Friends button + Leaderboard button ── */}
       <div style={{ width: "100%", display: "flex", gap: 10, marginBottom: 10 }}>
         <button
           onClick={shareLink}
@@ -240,7 +232,6 @@ export default function ReferralPage() {
         </button>
       </div>
 
-      {/* Copy link row */}
       <div
         style={{
           width: "100%",
