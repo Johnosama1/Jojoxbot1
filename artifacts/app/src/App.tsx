@@ -46,6 +46,73 @@ function BannedScreen() {
   );
 }
 
+function MaintenanceScreen() {
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999,
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      background: "linear-gradient(160deg, #05080f 0%, #0a0f1a 50%, #080d15 100%)",
+      padding: "32px 24px", textAlign: "center",
+    }}>
+      {/* Animated glow rings */}
+      <div style={{ position: "relative", marginBottom: 32 }}>
+        <div style={{
+          position: "absolute", inset: -20,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(251,191,36,0.15) 0%, transparent 70%)",
+          animation: "pulse 2.5s ease-in-out infinite",
+        }} />
+        <div style={{ fontSize: 80, position: "relative", filter: "drop-shadow(0 0 30px rgba(251,191,36,0.5))" }}>
+          🔧
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes pulse { 0%,100%{opacity:.4;transform:scale(1)} 50%{opacity:1;transform:scale(1.1)} }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+        @keyframes dotdot { 0%{content:"."} 33%{content:".."} 66%{content:"..."} 100%{content:"."} }
+      `}</style>
+
+      <div style={{
+        background: "rgba(251,191,36,0.06)",
+        border: "1px solid rgba(251,191,36,0.25)",
+        borderRadius: 24,
+        padding: "32px 28px",
+        maxWidth: 340,
+        width: "100%",
+        boxShadow: "0 0 60px rgba(251,191,36,0.08)",
+      }}>
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          background: "rgba(251,191,36,0.15)", border: "1px solid rgba(251,191,36,0.3)",
+          borderRadius: 20, padding: "4px 14px", marginBottom: 18,
+        }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#fbbf24", display: "inline-block", animation: "blink 1.2s ease-in-out infinite" }} />
+          <span style={{ color: "#fbbf24", fontSize: 12, fontWeight: 700, letterSpacing: "0.06em" }}>MAINTENANCE</span>
+        </div>
+
+        <h2 style={{ color: "#fef3c7", fontWeight: 900, fontSize: 22, margin: "0 0 14px", lineHeight: 1.3 }}>
+          🚧 البوت تحت الصيانة
+        </h2>
+        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, margin: "0 0 24px", lineHeight: 1.8, direction: "rtl" }}>
+          نحن نعمل على تحديث وتحسين التطبيق.
+          <br />سيعود قريباً إن شاء الله! ⚡
+        </p>
+
+        <div style={{
+          background: "rgba(0,0,0,0.3)", borderRadius: 14,
+          padding: "14px 16px",
+          border: "1px solid rgba(255,255,255,0.06)",
+        }}>
+          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 12, margin: 0, lineHeight: 1.7, direction: "rtl" }}>
+            يرجى إغلاق التطبيق والمحاولة مرة أخرى بعد قليل
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SessionIssuingScreen() {
   return (
     <div style={{
@@ -88,7 +155,10 @@ function PersistentRouter() {
   // ── 1. Banned ─────────────────────────────────────────────────────
   if (banned || sessionState === "banned") return <BannedScreen />;
 
-  // ── 2. Session gate: issuing token ────────────────────────────────
+  // ── 2. Maintenance mode ───────────────────────────────────────────
+  if (sessionState === "maintenance") return <MaintenanceScreen />;
+
+  // ── 3. Session gate: issuing token ────────────────────────────────
   if (sessionState === "issuing") return <SessionIssuingScreen />;
 
   // ── 3. Subscription blocked ───────────────────────────────────────

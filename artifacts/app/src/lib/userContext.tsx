@@ -8,7 +8,8 @@ export type SessionState =
   | "issuing"           // in-flight request
   | "ready"             // token issued, app usable
   | "blocked"           // subscription check failed
-  | "banned";           // user banned
+  | "banned"            // user banned
+  | "maintenance";      // bot under maintenance
 
 export interface BlockedInfo {
   missingChannels: SubscriptionChannel[];
@@ -101,7 +102,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setSessionState("ready");
     } catch (e: unknown) {
       const err = e as { status?: number; body?: { error?: string; missingChannels?: SubscriptionChannel[]; requiredChannels?: SubscriptionChannel[] } };
-      if (err?.status === 403) {
+      if (err?.status === 503 && err.body?.error === "maintenance") {
+        setSessionState("maintenance");
+      } else if (err?.status === 403) {
         if (err.body?.error === "banned") {
           setBanned(true);
           setSessionState("banned");
@@ -131,8 +134,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setBlockedInfo(null);
       setSessionState("ready");
     } catch (e: unknown) {
-      const err = e as { status?: number; body?: { missingChannels?: SubscriptionChannel[]; requiredChannels?: SubscriptionChannel[] } };
-      if (err?.status === 403) {
+      const err = e as { status?: number; body?: { error?: string; missingChannels?: SubscriptionChannel[]; requiredChannels?: SubscriptionChannel[] } };
+      if (err?.status === 503 && err.body?.error === "maintenance") {
+        setSessionState("maintenance");
+      } else if (err?.status === 403) {
         setBlockedInfo({
           missingChannels: err.body?.missingChannels ?? [],
           requiredChannels: err.body?.requiredChannels ?? [],
