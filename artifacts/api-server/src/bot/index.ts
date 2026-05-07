@@ -217,13 +217,17 @@ async function handleWithdrawalCallback(
       await bot.sendMessage(chatId, `⚠️ الطلب #${wId} بالفعل ${w.status}`);
       return true;
     }
-    if (w.status === "pending" && (await isTonConfigured())) {
+    if (w.status === "pending" && isTonConfigured()) {
       try {
-        await executeAutoWithdrawal(w);
-        await bot.editMessageText(
-          `✅ *تم التحويل التلقائي*\n\nطلب #${wId} تم تنفيذه.`,
-          { chat_id: chatId, message_id: msgId, parse_mode: "Markdown" }
-        );
+        const result = await executeAutoWithdrawal(w.id, chatId);
+        if (result.success) {
+          await bot.editMessageText(
+            `✅ *تم التحويل التلقائي*\n\nطلب #${wId} — ${parseFloat(w.amount).toFixed(4)} TON\n📍 \`${w.walletAddress}\`\n🔗 المرجع: \`${result.txHash}\``,
+            { chat_id: chatId, message_id: msgId, parse_mode: "Markdown" }
+          );
+        } else {
+          await bot.sendMessage(chatId, `❌ فشل التحويل: ${result.error}`);
+        }
       } catch (err) {
         await bot.sendMessage(chatId, `❌ فشل التحويل التلقائي: ${err instanceof Error ? err.message : String(err)}`);
       }
