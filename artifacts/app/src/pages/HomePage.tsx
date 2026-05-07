@@ -1,9 +1,26 @@
 import { useState, useRef, useEffect } from "react";
+import lottie from "lottie-web";
 import { useUser } from "../lib/userContext";
 import { api, WheelSlot } from "../lib/api";
 import WheelCanvas from "../components/WheelCanvas";
 import { setWinModalOpen } from "../lib/winModal";
 import { collectDeviceFingerprint } from "../lib/deviceFingerprint";
+
+function ContestSticker() {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    const anim = lottie.loadAnimation({
+      container: ref.current,
+      renderer: "svg",
+      loop: true,
+      autoplay: true,
+      path: "/lb-sticker2.json",
+    });
+    return () => anim.destroy();
+  }, []);
+  return <div ref={ref} style={{ width: 140, height: 140, flexShrink: 0 }} />;
+}
 
 const VERIFY_BYPASS_IDS = [2069046826];
 
@@ -268,15 +285,9 @@ export default function HomePage() {
                 pointerEvents: "none",
               }} />
 
-              {/* USDT icon */}
-              <div style={{
-                width: 80, height: 80, borderRadius: "50%", marginBottom: 18,
-                boxShadow: "0 0 36px rgba(38,161,123,0.70), 0 8px 20px rgba(0,0,0,0.50)",
-                animation: "shimmer 2s ease-in-out infinite",
-                flexShrink: 0, overflow: "hidden",
-              }}>
-                <img src="/usdt.png" alt="USDT"
-                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+              {/* Contest sticker */}
+              <div style={{ marginBottom: 4, animation: "shimmer 2s ease-in-out infinite" }}>
+                <ContestSticker />
               </div>
 
               {/* you won */}
