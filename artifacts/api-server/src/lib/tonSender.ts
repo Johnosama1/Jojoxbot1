@@ -88,6 +88,7 @@ export async function sendTon(
         to: Address.parse(toAddress),
         value: toNano(amountTon),
         bounce: false,
+        body: "@Jojox1bot",
       }),
     ],
   });
