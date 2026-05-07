@@ -130,17 +130,6 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
       const fontSize = outerR < 110 ? 10 : 13;
       const iconY    = -iconR * 0.4; // icon sits a bit higher
 
-      // ── USDT icon: shadow glow behind ──
-      ctx.save();
-      ctx.shadowColor = "rgba(38,210,150,0.55)";
-      ctx.shadowBlur  = 14;
-      ctx.beginPath();
-      ctx.arc(0, iconY, iconR, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(38,210,150,0.18)";
-      ctx.fill();
-      ctx.shadowBlur = 0;
-      ctx.restore();
-
       // ── USDT icon: clipped image ──
       ctx.save();
       ctx.beginPath();
@@ -163,17 +152,6 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
       }
       ctx.restore();
 
-      // ── Icon border ring ──
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(0, iconY, iconR, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(56,220,160,0.75)";
-      ctx.lineWidth   = 1.8;
-      ctx.shadowColor = "rgba(38,200,150,0.8)";
-      ctx.shadowBlur  = 8;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-      ctx.restore();
 
       // ── Amount number ──
       const amount = parseFloat(slots[i].amount);
