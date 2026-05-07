@@ -20,7 +20,7 @@ function useLottie(path: string, size: number, loop = true, segment?: [number, n
   return <div ref={ref} style={{ width: size, height: size, flexShrink: 0 }} />;
 }
 
-function ContestSticker()  { return useLottie("/lb-sticker2.json", 150, true, [210, 390]); }
+function ContestSticker()  { return useLottie("/lb-sticker2.json", 150); }
 function CrownSticker()    { return useLottie("/lb-sticker1.json", 34); }
 function Crown2Sticker()   { return useLottie("/crown2.json", 28); }
 
