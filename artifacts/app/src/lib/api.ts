@@ -1,3 +1,9 @@
+export interface SubscriptionChannel {
+  username: string;
+  title: string;
+  inviteLink: string;
+}
+
 export const api = {
   adminGetTasks: (userId: number) => apiCall<Task[]>('/admin/tasks', { headers: { 'Content-Type': 'application/json', 'x-user-id': String(userId) } }),
   adminGetWheel: (userId: number) => apiCall<WheelSlot[]>('/admin/wheel', { headers: { 'Content-Type': 'application/json', 'x-user-id': String(userId) } }),

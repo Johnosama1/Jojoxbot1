@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useUser } from "../lib/userContext";
-import { api, Task, WheelSlot, User, AdminUser, AdminPermission } from "../lib/api";
-import { Shield, Plus, Trash2, Settings, Users, Sliders, ListTodo, ChevronDown, ChevronUp, CreditCard, UserCog, Power, PowerOff } from "lucide-react";
+import { api, Task, WheelSlot, User, AdminUser, AdminPermission, SubscriptionChannel } from "../lib/api";
+import { Shield, Plus, Power, PowerOff } from "lucide-react";
 
 export default function AdminPage() {
   const { user, isAdmin } = useUser();
@@ -10,6 +10,10 @@ export default function AdminPage() {
   const [wheelSlots, setWheelSlots] = useState<WheelSlot[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
+  const [requiredChannels, setRequiredChannels] = useState<SubscriptionChannel[]>([]);
+  const [channelUsername, setChannelUsername] = useState("");
+  const [channelTitle, setChannelTitle] = useState("");
+  const [channelInviteLink, setChannelInviteLink] = useState("");
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
 
@@ -32,6 +36,12 @@ export default function AdminPage() {
       setWheelSlots(w);
       setUsers(u);
       setSettings(s);
+      try {
+        const raw = s["required_channels"];
+        setRequiredChannels(raw ? JSON.parse(raw) : []);
+      } catch {
+        setRequiredChannels([]);
+      }
     } catch {
       showMsg("خطأ في تحميل البيانات - تأكد من صلاحيات الأدمن");
     } finally {
@@ -58,6 +68,11 @@ export default function AdminPage() {
     await api.adminUpdateSetting(user.id, key, value);
     await loadData();
     showMsg("تم الحفظ!");
+  };
+
+  const saveRequiredChannels = async (channels: SubscriptionChannel[]) => {
+    if (!user) return;
+    await handleSaveSetting("required_channels", JSON.stringify(channels));
   };
 
   const botEnabled = settings["bot_enabled"] !== "false";
@@ -104,6 +119,45 @@ export default function AdminPage() {
               className={`relative w-12 h-6 rounded-full transition-all ${settings["show_user_count"] === "true" ? "bg-yellow-400" : "bg-purple-800"}`}
             >
               <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings["show_user_count"] === "true" ? "right-1" : "left-1"}`} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4 pt-4">
+        <div className="bg-purple-900/30 border border-purple-700/50 rounded-2xl p-4">
+          <h3 className="text-white font-bold mb-3">القنوات المطلوبة</h3>
+          <div className="space-y-2 mb-3">
+            {requiredChannels.length === 0 ? (
+              <p className="text-purple-300 text-sm">لا توجد قنوات مطلوبة حالياً.</p>
+            ) : requiredChannels.map((ch, index) => (
+              <div key={`${ch.username}-${index}`} className="flex items-center justify-between gap-2 text-sm text-purple-200 bg-black/20 rounded-xl px-3 py-2">
+                <span>{ch.title || `@${ch.username}`}</span>
+                <button
+                  className="text-red-300 font-bold"
+                  onClick={() => saveRequiredChannels(requiredChannels.filter((_, i) => i !== index))}
+                >
+                  حذف
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="grid gap-2">
+            <input className="bg-black/30 border border-purple-700/50 rounded-xl px-3 py-2 text-white text-sm" value={channelUsername} onChange={(e) => setChannelUsername(e.target.value)} placeholder="@channel" />
+            <input className="bg-black/30 border border-purple-700/50 rounded-xl px-3 py-2 text-white text-sm" value={channelTitle} onChange={(e) => setChannelTitle(e.target.value)} placeholder="اسم القناة" />
+            <input className="bg-black/30 border border-purple-700/50 rounded-xl px-3 py-2 text-white text-sm" value={channelInviteLink} onChange={(e) => setChannelInviteLink(e.target.value)} placeholder="رابط الدعوة" />
+            <button
+              className="bg-yellow-400 text-black rounded-xl py-2 font-bold"
+              onClick={() => {
+                if (!channelUsername.trim()) return;
+                const next = [...requiredChannels, { username: channelUsername.replace(/^@/, ""), title: channelTitle.trim(), inviteLink: channelInviteLink.trim() }];
+                setChannelUsername("");
+                setChannelTitle("");
+                setChannelInviteLink("");
+                saveRequiredChannels(next);
+              }}
+            >
+              إضافة قناة
             </button>
           </div>
         </div>
