@@ -5,12 +5,14 @@ import { Share2, Copy, CheckCheck } from "lucide-react";
 import { useLocation } from "wouter";
 import lottie from "lottie-web";
 import stickerMoneyData from "../../public/sticker-money.json";
+import leaderboardStickerData from "../../public/leaderboard-sticker.json";
 
 export default function ReferralPage() {
   const { user } = useUser();
   const [copied, setCopied] = useState(false);
   const [botUsername, setBotUsername] = useState("Jojox1bot");
   const stickerRef = useRef<HTMLDivElement>(null);
+  const leaderboardStickerRef = useRef<HTMLDivElement>(null);
   const [, setLocation] = useLocation();
 
   useEffect(() => {
@@ -22,6 +24,19 @@ export default function ReferralPage() {
       autoplay: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       animationData: stickerMoneyData as any,
+    });
+    return () => anim.destroy();
+  }, []);
+
+  useEffect(() => {
+    if (!leaderboardStickerRef.current) return;
+    const anim = lottie.loadAnimation({
+      container: leaderboardStickerRef.current,
+      renderer: "svg",
+      loop: true,
+      autoplay: true,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      animationData: leaderboardStickerData as any,
     });
     return () => anim.destroy();
   }, []);
@@ -226,11 +241,7 @@ export default function ReferralPage() {
             padding: 0,
           }}
         >
-          <img
-            src="/app/leaderboard-icon.png"
-            alt="Leaderboard"
-            style={{ width: 34, height: 34, objectFit: "contain", filter: "brightness(0) invert(1)" }}
-          />
+          <div ref={leaderboardStickerRef} style={{ width: 38, height: 38, pointerEvents: "none" }} />
         </button>
       </div>
 
