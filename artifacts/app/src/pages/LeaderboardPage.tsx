@@ -3,53 +3,25 @@ import { useUser } from "../lib/userContext";
 import { apiCall } from "../lib/api";
 import lottie from "lottie-web";
 
-function CrownSticker() {
+function useLottie(path: string, size: number, loop = true) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!ref.current) return;
     const anim = lottie.loadAnimation({
       container: ref.current,
       renderer: "svg",
-      loop: true,
+      loop,
       autoplay: true,
-      path: "/crown.json",
+      path,
     });
     return () => anim.destroy();
-  }, []);
-  return <div ref={ref} style={{ width: 32, height: 32, flexShrink: 0 }} />;
+  }, [path]);
+  return <div ref={ref} style={{ width: size, height: size, flexShrink: 0 }} />;
 }
 
-function Crown2Sticker() {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!ref.current) return;
-    const anim = lottie.loadAnimation({
-      container: ref.current,
-      renderer: "svg",
-      loop: true,
-      autoplay: true,
-      path: "/crown2.json",
-    });
-    return () => anim.destroy();
-  }, []);
-  return <div ref={ref} style={{ width: 28, height: 28 }} />;
-}
-
-function TrophySticker() {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!ref.current) return;
-    const anim = lottie.loadAnimation({
-      container: ref.current,
-      renderer: "svg",
-      loop: true,
-      autoplay: true,
-      path: "/trophy.json",
-    });
-    return () => anim.destroy();
-  }, []);
-  return <div ref={ref} style={{ width: 120, height: 120, flexShrink: 0 }} />;
-}
+function ContestSticker()  { return useLottie("/lb-sticker2.json", 150); }
+function CrownSticker()    { return useLottie("/lb-sticker1.json", 34); }
+function Crown2Sticker()   { return useLottie("/crown2.json", 28); }
 
 interface LeaderEntry {
   rank: number;
@@ -151,9 +123,9 @@ export default function LeaderboardPage() {
         padding: "0 14px 24px",
       }}
     >
-      {/* ── Big trophy ── */}
-      <div style={{ marginTop: 4 }}>
-        <TrophySticker />
+      {/* ── Contest sticker ── */}
+      <div style={{ marginTop: 4, marginBottom: -8 }}>
+        <ContestSticker />
       </div>
 
       {/* ── Title ── */}
