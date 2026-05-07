@@ -4,8 +4,6 @@ import { db } from "@workspace/db";
 import { withdrawalsTable, usersTable, botSettingsTable } from "@workspace/db/schema";
 import { eq, sql, desc } from "drizzle-orm";
 import { sendWithdrawalNotification } from "../bot";
-import { getSetting } from "../lib/settingsCache";
-import { executeAutoWithdrawal, isTonConfigured } from "../lib/withdrawalProcessor";
 import { verifyAccessMiddleware } from "../middlewares/verifyAccess";
 import { requireSession } from "../middlewares/requireSession";
 
@@ -77,19 +75,7 @@ router.post("/", withdrawLimiter, requireSession, verifyAccessMiddleware, async 
     status: "pending",
   }).returning();
 
-  // Auto-withdrawal if TON configured + withdraw_mode=auto
-  const withdrawMode = await getSetting("withdraw_mode");
-  if (withdrawMode === "auto" && isTonConfigured()) {
-    try {
-      const result = await executeAutoWithdrawal(wd.id);
-      if (result.success) {
-        res.json({ success: true, withdrawal: { ...wd, status: "completed", txHash: result.txHash } });
-        return;
-      }
-    } catch { /* fall through to manual */ }
-  }
-
-  // Manual withdrawal — notify owner
+  // Always manual — notify admin for approval. Admin presses ✅/❌ via bot callback.
   try {
     const ownerIdRow = await db
       .select()

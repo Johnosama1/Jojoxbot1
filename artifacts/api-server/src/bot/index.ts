@@ -242,21 +242,23 @@ async function handleWithdrawalCallback(
       await bot.sendMessage(chatId, `⚠️ الطلب #${wId} بالفعل ${w.status}`);
       return true;
     }
-    if (w.status === "pending" && isTonConfigured()) {
+    // Always execute TON transfer on admin approval
+    if (isTonConfigured()) {
       try {
         const result = await executeAutoWithdrawal(w.id, chatId);
         if (result.success) {
           await bot.editMessageText(
-            `✅ *تم التحويل التلقائي*\n\nطلب #${wId} — ${parseFloat(w.amount).toFixed(4)} TON\n📍 \`${w.walletAddress}\`\n🔗 المرجع: \`${result.txHash}\``,
+            `✅ *تم التحويل بنجاح*\n\nطلب #${wId} — ${parseFloat(w.amount).toFixed(4)} TON\n📍 \`${w.walletAddress}\`\n🔗 المرجع: \`${result.txHash}\``,
             { chat_id: chatId, message_id: msgId, parse_mode: "Markdown" }
           );
         } else {
           await bot.sendMessage(chatId, `❌ فشل التحويل: ${result.error}`);
         }
       } catch (err) {
-        await bot.sendMessage(chatId, `❌ فشل التحويل التلقائي: ${err instanceof Error ? err.message : String(err)}`);
+        await bot.sendMessage(chatId, `❌ فشل التحويل: ${err instanceof Error ? err.message : String(err)}`);
       }
     } else {
+      // TON wallet not configured — mark approved but no transfer executed
       await db
         .update(withdrawalsTable)
         .set({ status: "approved", processedAt: new Date() })
@@ -264,12 +266,12 @@ async function handleWithdrawalCallback(
       try {
         await bot.sendMessage(
           w.userId,
-          `✅ *تم الموافقة على طلب السحب #${wId}*\n💰 المبلغ: *${parseFloat(w.amount).toFixed(4)} TON*\n📍 العنوان: \`${w.walletAddress}\`\n\n✅ تم التحويل! شكراً.`,
+          `✅ *تمت الموافقة على طلب السحب #${wId}*\n💰 المبلغ: *${parseFloat(w.amount).toFixed(4)} TON*\n📍 العنوان: \`${w.walletAddress}\`\n\nسيتم معالجة التحويل قريباً.`,
           { parse_mode: "Markdown" }
         );
       } catch { /* ignore */ }
       await bot.editMessageText(
-        `✅ تمت الموافقة على الطلب #${wId}`,
+        `✅ تمت الموافقة على الطلب #${wId}\n⚠️ محفظة TON غير مُهيَّأة — يُرجى إعداد المحفظة لإتمام التحويل.`,
         { chat_id: chatId, message_id: msgId, parse_mode: "Markdown" }
       );
     }
@@ -288,17 +290,17 @@ async function handleWithdrawalCallback(
       .where(eq(withdrawalsTable.id, wId));
     await db
       .update(usersTable)
-      .set({ balance: sql`balance + ${w.amount}` })
+      .set({ tonBalance: sql`ton_balance + ${w.amount}` })
       .where(eq(usersTable.id, w.userId));
     try {
       await bot.sendMessage(
         w.userId,
-        `❌ *تم رفض طلب السحب #${wId}*\n💰 تم إعادة *${parseFloat(w.amount).toFixed(4)} TON* لرصيدك.`,
+        `❌ *تم رفض طلب السحب #${wId}*\n💰 تم إعادة *${parseFloat(w.amount).toFixed(4)} TON* لرصيدك داخل البوت.`,
         { parse_mode: "Markdown" }
       );
     } catch { /* ignore */ }
     await bot.editMessageText(
-      `❌ تم رفض الطلب #${wId} وإعادة المبلغ لرصيد المستخدم.`,
+      `❌ تم رفض الطلب #${wId}\n💰 أُعيد ${parseFloat(w.amount).toFixed(4)} TON لرصيد المستخدم.`,
       { chat_id: chatId, message_id: msgId }
     );
   }
