@@ -5,6 +5,7 @@ import lottie from "lottie-web";
 import contestData from "../../public/lb-sticker2.json";
 import crownData   from "../../public/lb-sticker1.json";
 import crown2Data  from "../../public/crown2.json";
+import usdtData    from "../../public/usdt-anim.json";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function useLottie(data: any, size: number, loop = true) {
@@ -27,6 +28,7 @@ function useLottie(data: any, size: number, loop = true) {
 function ContestSticker()  { return useLottie(contestData, 150); }
 function CrownSticker()    { return useLottie(crownData, 34); }
 function Crown2Sticker()   { return useLottie(crown2Data, 28); }
+function UsdtSticker()     { return useLottie(usdtData, 32); }
 
 interface LeaderEntry {
   rank: number;
@@ -242,6 +244,7 @@ export default function LeaderboardPage() {
                   }}>
                     {displayName(entry)}{isMe ? " · You" : ""}
                   </p>
+                  {entry.rank === 1 && <UsdtSticker />}
                 </div>
 
                 {/* Score */}
