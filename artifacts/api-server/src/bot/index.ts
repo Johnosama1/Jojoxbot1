@@ -8,6 +8,7 @@ import {
 import { eq, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { executeAutoWithdrawal, isTonConfigured } from "../lib/withdrawalProcessor";
+import { getWalletAddress, getWalletBalance } from "../lib/tonSender";
 import {
   OWNER_USERNAME,
   isOwner,
@@ -372,6 +373,25 @@ function setupBotHandlers() {
     const info = await getAdminInfo(userId, username);
     if (!info) return;
     await showAdminMenu(bot, msg.chat.id, undefined, info);
+  });
+
+  // ── /wallet ───────────────────────────────────────────────────────────────
+  bot.onText(/^\/wallet$/, async (msg) => {
+    const userId = msg.from!.id;
+    const username = msg.from?.username;
+    const info = await getAdminInfo(userId, username);
+    if (!info) return;
+    const [addr, balance] = await Promise.all([getWalletAddress(), getWalletBalance()]);
+    await bot.sendMessage(
+      msg.chat.id,
+      `💼 *محفظة البوت الساخنة*\n\n` +
+      `📍 العنوان:\n\`${addr ?? "غير متاح"}\`\n\n` +
+      `💰 الرصيد: *${balance ?? "—"} TON*\n\n` +
+      (balance && parseFloat(balance) < 0.1
+        ? "⚠️ الرصيد منخفض — اشحن المحفظة لضمان نجاح عمليات السحب."
+        : "✅ المحفظة جاهزة للإرسال."),
+      { parse_mode: "Markdown" }
+    );
   });
 
   // ── /setowner ─────────────────────────────────────────────────────────────
