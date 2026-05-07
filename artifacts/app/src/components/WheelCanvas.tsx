@@ -379,21 +379,49 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
           width: size,
           height: size + ARROW_H,
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
+          gap: 20,
         }}>
+          <style>{`
+            @keyframes logoPulse {
+              0%, 100% { box-shadow: 0 0 28px 8px rgba(255,185,30,0.45), 0 0 60px 20px rgba(255,140,20,0.18); }
+              50%       { box-shadow: 0 0 48px 16px rgba(255,215,60,0.7), 0 0 90px 30px rgba(255,160,30,0.30); }
+            }
+            @keyframes dotBlink {
+              0%, 80%, 100% { opacity: 0.25; transform: scale(0.75); }
+              40%           { opacity: 1;    transform: scale(1);    }
+            }
+          `}</style>
+
+          {/* Logo image with golden glow */}
           <img
             src="/logo.png"
             alt="Jo-jokes"
             style={{
-              width: size * 0.82,
-              height: size * 0.82,
+              width: size * 0.72,
+              height: size * 0.72,
               borderRadius: "50%",
               objectFit: "cover",
               pointerEvents: "none",
               userSelect: "none",
+              animation: "logoPulse 2s ease-in-out infinite",
+              border: "3px solid rgba(255,185,30,0.6)",
             }}
           />
+
+          {/* Loading dots */}
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            {[0, 1, 2].map(i => (
+              <div key={i} style={{
+                width: 10, height: 10, borderRadius: "50%",
+                background: i === 1 ? "#a855f7" : "#fbbf24",
+                animation: `dotBlink 1.2s ease-in-out infinite`,
+                animationDelay: `${i * 0.2}s`,
+              }} />
+            ))}
+          </div>
         </div>
       )}
 
