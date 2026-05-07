@@ -128,10 +128,17 @@ export async function executeAutoWithdrawal(
 
       if (adminChatId) {
         try {
+          const isNotFunded = errMsg.includes("not funded") || errMsg.includes("Hot wallet");
+          const addrMatch = errMsg.match(/Send TON to: (\S+)/);
+          const addrHint = addrMatch
+            ? `\n\n💳 اشحن المحفظة:\n\`${addrMatch[1]}\``
+            : "";
           await bot.sendMessage(
             adminChatId,
             `❌ فشل إرسال *${parseFloat(amount).toFixed(4)} TON*\n` +
-            `السبب: ${errMsg}`,
+            (isNotFunded
+              ? `⚠️ *محفظة البوت الساخنة فارغة!*${addrHint}\n\nأرسل TON لهذا العنوان ثم أعد الموافقة على طلب السحب.`
+              : `السبب: ${errMsg}`),
             { parse_mode: "Markdown" }
           );
         } catch { /* ignore */ }
