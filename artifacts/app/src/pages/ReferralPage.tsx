@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { Share2, Copy, CheckCheck } from "lucide-react";
 import { useLocation } from "wouter";
 import lottie from "lottie-web";
+import stickerMoneyData from "../../public/sticker-money.json";
 
 export default function ReferralPage() {
   const { user } = useUser();
@@ -19,7 +20,8 @@ export default function ReferralPage() {
       renderer: "svg",
       loop: true,
       autoplay: true,
-      path: "/sticker-money.json",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      animationData: stickerMoneyData as any,
     });
     return () => anim.destroy();
   }, []);

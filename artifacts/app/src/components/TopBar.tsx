@@ -2,6 +2,8 @@ import { useUser } from "../lib/userContext";
 import { useEffect, useRef, useState } from "react";
 import lottie from "lottie-web";
 import usdtAnimData from "../../public/usdt-anim.json";
+import star2Data from "../../public/star2.json";
+import capElectroData from "../../public/cap-electro.json";
 import { useWinModalOpen } from "../lib/winModal";
 
 function DevAvatar({ src, name, gradient }: { src: string; name: string; gradient: string }) {
@@ -38,7 +40,8 @@ function StarSticker() {
       renderer: "svg",
       loop: true,
       autoplay: true,
-      path: "/star2.json",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      animationData: star2Data as any,
     });
     return () => anim.destroy();
   }, []);
@@ -78,7 +81,8 @@ export default function TopBar() {
       renderer: "svg",
       loop: true,
       autoplay: true,
-      path: "/cap-electro.json",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      animationData: capElectroData as any,
     });
     return () => anim.destroy();
   }, []);

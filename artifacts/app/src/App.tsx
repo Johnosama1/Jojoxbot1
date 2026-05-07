@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useRef } from "react";
 import lottie from "lottie-web";
+import maintenanceAnimData from "../public/maintenance-anim.json";
 import { useLocation, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TonConnectUIProvider } from "@tonconnect/ui-react";
@@ -56,7 +57,8 @@ function MaintenanceLottie() {
       renderer: "svg",
       loop: true,
       autoplay: true,
-      path: "/maintenance-anim.json",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      animationData: maintenanceAnimData as any,
     });
     return () => anim.destroy();
   }, []);
