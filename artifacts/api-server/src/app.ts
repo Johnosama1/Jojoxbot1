@@ -39,7 +39,7 @@ app.use(cors({
     cb(null, ok);
   },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "x-telegram-init-data", "x-user-id"],
+  allowedHeaders: ["Content-Type", "x-telegram-init-data", "x-user-id", "x-session-token"],
   exposedHeaders: ["X-Sticker-Format"],
   credentials: false,
 }));

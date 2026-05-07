@@ -3,23 +3,33 @@ import { Router, type Request, type Response } from "express";
 const router = Router();
 
 function resolveAppUrl(req: Request): string {
-  // Prefer REPLIT_DEV_DOMAIN — always the correct public hostname in Replit dev
+  // 1. Replit dev — always correct public hostname
   if (process.env.REPLIT_DEV_DOMAIN) {
     return `https://${process.env.REPLIT_DEV_DOMAIN}`;
   }
 
-  // MINI_APP_URL may include a port (internal dev port) — strip it
+  // 2. Vercel production — stable alias URL (preferred over per-deployment URL)
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
+    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  }
+
+  // 3. Vercel per-deployment URL
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  // 4. Explicit override (Replit production / custom domain)
   if (process.env.MINI_APP_URL) {
     try {
       const parsed = new URL(process.env.MINI_APP_URL);
-      parsed.port = "";
-      return parsed.origin; // https://hostname (no port, no trailing slash)
+      parsed.port = ""; // strip internal dev port
+      return parsed.origin;
     } catch {
       return process.env.MINI_APP_URL.replace(/\/$/, "");
     }
   }
 
-  // Fallback: derive from request host (works behind Replit reverse proxy)
+  // 5. Derive from request (works behind Replit/Vercel reverse proxy)
   const host = req.get("x-forwarded-host") || req.get("host") || "localhost";
   return `${req.protocol}://${host}`;
 }
