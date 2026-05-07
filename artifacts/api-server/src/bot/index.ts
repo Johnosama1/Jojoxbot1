@@ -26,7 +26,7 @@ import {
 } from "./subscription";
 import { isBotEnabled, clearBotEnabledCache, setBotEnabled } from "./control";
 
-const TOKEN = (process.env.TOKEN || process.env.TELEGRAM_BOT_TOKEN)!;
+const TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
 
 let bot: TelegramBot;
 
