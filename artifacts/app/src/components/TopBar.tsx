@@ -4,6 +4,31 @@ import lottie from "lottie-web";
 import usdtAnimData from "../../public/usdt-anim.json";
 import { useWinModalOpen } from "../lib/winModal";
 
+function DevAvatar({ src, name, gradient }: { src: string; name: string; gradient: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <div style={{
+        width: 36, height: 36, borderRadius: "50%",
+        background: gradient,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontWeight: 900, color: "#fff", fontSize: 15, flexShrink: 0,
+      }}>
+        {name[0].toUpperCase()}
+      </div>
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={name}
+      onError={() => setFailed(true)}
+      style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", flexShrink: 0,
+        background: gradient }}
+    />
+  );
+}
+
 function StarSticker() {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -113,12 +138,7 @@ export default function TopBar() {
                 style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, textDecoration: "none" }}
                 onClick={() => setShowInfo(false)}
               >
-                <img
-                  src="/dev-john.jpg"
-                  alt="John"
-                  style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover",
-                    background: "linear-gradient(135deg,#fbbf24,#f59e0b)" }}
-                />
+                <DevAvatar src="/dev-john.jpg" name="John" gradient="linear-gradient(135deg,#fbbf24,#f59e0b)" />
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
                     <div style={{ color: "#fff", fontWeight: 800, fontSize: 14 }}>John</div>
@@ -134,12 +154,7 @@ export default function TopBar() {
                 style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}
                 onClick={() => setShowInfo(false)}
               >
-                <img
-                  src="/dev-ammar.jpg"
-                  alt="Ammar"
-                  style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover",
-                    background: "linear-gradient(135deg,#7c3aed,#4f46e5)" }}
-                />
+                <DevAvatar src="/dev-ammar.jpg" name="Ammar" gradient="linear-gradient(135deg,#7c3aed,#4f46e5)" />
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
                     <div style={{ color: "#fff", fontWeight: 800, fontSize: 14 }}>𝗔𝗺𝗺𝗮𝗿</div>
