@@ -16,6 +16,7 @@ function ContestSticker() {
       loop: true,
       autoplay: true,
       path: "/lb-sticker2.json",
+      initialSegment: [210, 390],
     });
     return () => anim.destroy();
   }, []);

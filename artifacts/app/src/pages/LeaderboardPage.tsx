@@ -3,7 +3,7 @@ import { useUser } from "../lib/userContext";
 import { apiCall } from "../lib/api";
 import lottie from "lottie-web";
 
-function useLottie(path: string, size: number, loop = true) {
+function useLottie(path: string, size: number, loop = true, segment?: [number, number]) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!ref.current) return;
@@ -13,13 +13,14 @@ function useLottie(path: string, size: number, loop = true) {
       loop,
       autoplay: true,
       path,
+      ...(segment ? { initialSegment: segment } : {}),
     });
     return () => anim.destroy();
   }, [path]);
   return <div ref={ref} style={{ width: size, height: size, flexShrink: 0 }} />;
 }
 
-function ContestSticker()  { return useLottie("/lb-sticker2.json", 150); }
+function ContestSticker()  { return useLottie("/lb-sticker2.json", 150, true, [210, 390]); }
 function CrownSticker()    { return useLottie("/lb-sticker1.json", 34); }
 function Crown2Sticker()   { return useLottie("/crown2.json", 28); }
 
