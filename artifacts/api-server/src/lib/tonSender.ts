@@ -2,6 +2,7 @@ import {
   TonClient,
   WalletContractV4,
   WalletContractV3R2,
+  WalletContractV5R1,
   toNano,
   Address,
   internal,
@@ -15,6 +16,38 @@ function getClient(): TonClient {
   const endpoint =
     process.env.TON_ENDPOINT || "https://toncenter.com/api/v2/jsonRPC";
   return new TonClient({ endpoint, ...(apiKey ? { apiKey } : {}) });
+}
+
+// Wallet versions to probe in priority order
+const WALLET_VERSIONS = ["V5R1", "V4", "V3R2"] as const;
+
+function buildContracts(publicKey: Buffer) {
+  return {
+    V5R1: WalletContractV5R1.create({ publicKey, workchain: 0 }),
+    V4:   WalletContractV4.create({ publicKey, workchain: 0 }),
+    V3R2: WalletContractV3R2.create({ publicKey, workchain: 0 }),
+  };
+}
+
+async function detectWallet(client: TonClient, publicKey: Buffer) {
+  const contracts = buildContracts(publicKey);
+  for (const ver of WALLET_VERSIONS) {
+    const c = contracts[ver];
+    if (await client.isContractDeployed(c.address)) {
+      logger.info({ version: ver, address: c.address.toString({ bounceable: false }) }, "Detected wallet version");
+      return { contract: c, version: ver };
+    }
+  }
+  // None deployed — check V5R1 balance (newest default)
+  const c = contracts.V5R1;
+  const balance = await client.getBalance(c.address);
+  if (balance === 0n) {
+    throw new Error(
+      `Hot wallet not funded. Send TON to: ${c.address.toString({ bounceable: false })}`
+    );
+  }
+  logger.info({ version: "V5R1", address: c.address.toString({ bounceable: false }) }, "Wallet not deployed yet — will deploy on first send");
+  return { contract: c, version: "V5R1" };
 }
 
 export interface TonSendResult {
@@ -34,53 +67,19 @@ export async function sendTon(
   const keyPair = await mnemonicToPrivateKey(words);
   const client = getClient();
 
-  // Try V4 first, fallback to V3R2
-  const contractV4 = WalletContractV4.create({
-    publicKey: keyPair.publicKey,
-    workchain: 0,
-  });
-  const contractV3 = WalletContractV3R2.create({
-    publicKey: keyPair.publicKey,
-    workchain: 0,
-  });
+  const { contract } = await detectWallet(client, keyPair.publicKey);
+  const wallet = client.open(contract as typeof contract);
 
-  // Detect which wallet version is deployed
-  let walletContract: typeof contractV4 | typeof contractV3 = contractV4;
-  const isV4Deployed = await client.isContractDeployed(contractV4.address);
-  if (!isV4Deployed) {
-    const isV3Deployed = await client.isContractDeployed(contractV3.address);
-    if (isV3Deployed) {
-      walletContract = contractV3;
-      logger.info("Using WalletV3R2");
-    } else {
-      // Neither deployed — check balance and attempt deploy via V4
-      const balance = await client.getBalance(contractV4.address);
-      if (balance === 0n) {
-        throw new Error(
-          `Hot wallet not funded. Send TON to: ${contractV4.address.toString({ bounceable: false })}`
-        );
-      }
-      logger.info("Hot wallet not yet deployed — will deploy on first send");
-      walletContract = contractV4;
-    }
-  }
-
-  const wallet = client.open(walletContract as typeof contractV4);
-
-  // seqno — 0 means undeployed (will deploy on send)
   let seqno = 0;
   try {
-    seqno = await wallet.getSeqno();
+    seqno = await (wallet as any).getSeqno();
   } catch {
     seqno = 0;
   }
 
-  logger.info(
-    { to: toAddress, amount: amountTon, seqno, walletVersion: isV4Deployed ? "V4" : "V3R2" },
-    "Sending TON transfer"
-  );
+  logger.info({ to: toAddress, amount: amountTon, seqno }, "Sending TON transfer");
 
-  await wallet.sendTransfer({
+  await (wallet as any).sendTransfer({
     secretKey: keyPair.secretKey,
     seqno,
     sendMode: SendMode.PAY_GAS_SEPARATELY + SendMode.IGNORE_ERRORS,
@@ -106,11 +105,12 @@ export async function getWalletAddress(): Promise<string | null> {
     const words = mnemonic.trim().split(/\s+/);
     const keyPair = await mnemonicToPrivateKey(words);
     const client = getClient();
-    const v4 = WalletContractV4.create({ publicKey: keyPair.publicKey, workchain: 0 });
-    const v3 = WalletContractV3R2.create({ publicKey: keyPair.publicKey, workchain: 0 });
-    const isV4 = await client.isContractDeployed(v4.address);
-    const contract = isV4 ? v4 : v3;
-    return contract.address.toString({ bounceable: false, testOnly: false });
+    const { contract } = await detectWallet(client, keyPair.publicKey).catch(() => {
+      // If not funded, still return V5R1 address
+      const contracts = buildContracts(keyPair.publicKey);
+      return { contract: contracts.V5R1, version: "V5R1" };
+    });
+    return (contract as any).address.toString({ bounceable: false, testOnly: false });
   } catch {
     return null;
   }
@@ -123,11 +123,17 @@ export async function getWalletBalance(): Promise<string | null> {
     const words = mnemonic.trim().split(/\s+/);
     const keyPair = await mnemonicToPrivateKey(words);
     const client = getClient();
-    const v4 = WalletContractV4.create({ publicKey: keyPair.publicKey, workchain: 0 });
-    const v3 = WalletContractV3R2.create({ publicKey: keyPair.publicKey, workchain: 0 });
-    const isV4 = await client.isContractDeployed(v4.address);
-    const addr = isV4 ? v4.address : v3.address;
-    const balance = await client.getBalance(addr);
+    const contracts = buildContracts(keyPair.publicKey);
+    // Check all versions and sum (realistically only one is deployed)
+    for (const ver of WALLET_VERSIONS) {
+      const c = contracts[ver];
+      if (await client.isContractDeployed(c.address)) {
+        const balance = await client.getBalance(c.address);
+        return (Number(balance) / 1e9).toFixed(4);
+      }
+    }
+    // None deployed — return V5R1 balance (likely 0)
+    const balance = await client.getBalance(contracts.V5R1.address);
     return (Number(balance) / 1e9).toFixed(4);
   } catch {
     return null;
