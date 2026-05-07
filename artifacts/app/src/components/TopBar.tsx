@@ -233,7 +233,7 @@ export default function TopBar() {
         border: "1px solid rgba(251,191,36,0.38)",
         borderRadius: 999,
         padding: "8px 14px",
-        boxShadow: "0 0 18px rgba(251,191,36,0.18), inset 0 1px 0 rgba(255,255,255,0.08)",
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.08)",
         flexShrink: 0,
       }}>
         <UsdtSticker />
