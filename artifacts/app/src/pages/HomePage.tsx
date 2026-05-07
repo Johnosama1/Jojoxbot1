@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import lottie from "lottie-web";
+import contestData from "../../public/lb-sticker2.json";
 import { useUser } from "../lib/userContext";
 import { api, WheelSlot } from "../lib/api";
 import WheelCanvas from "../components/WheelCanvas";
@@ -15,7 +16,8 @@ function ContestSticker() {
       renderer: "svg",
       loop: true,
       autoplay: true,
-      path: "/lb-sticker2.json",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      animationData: contestData as any,
     });
     return () => anim.destroy();
   }, []);

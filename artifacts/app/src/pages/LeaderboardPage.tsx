@@ -2,8 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { useUser } from "../lib/userContext";
 import { apiCall } from "../lib/api";
 import lottie from "lottie-web";
+import contestData from "../../public/lb-sticker2.json";
+import crownData   from "../../public/lb-sticker1.json";
+import crown2Data  from "../../public/crown2.json";
 
-function useLottie(path: string, size: number, loop = true, segment?: [number, number]) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function useLottie(data: any, size: number, loop = true) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!ref.current) return;
@@ -12,17 +16,17 @@ function useLottie(path: string, size: number, loop = true, segment?: [number, n
       renderer: "svg",
       loop,
       autoplay: true,
-      path,
-      ...(segment ? { initialSegment: segment } : {}),
+      animationData: data,
     });
     return () => anim.destroy();
-  }, [path]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   return <div ref={ref} style={{ width: size, height: size, flexShrink: 0 }} />;
 }
 
-function ContestSticker()  { return useLottie("/lb-sticker2.json", 150); }
-function CrownSticker()    { return useLottie("/lb-sticker1.json", 34); }
-function Crown2Sticker()   { return useLottie("/crown2.json", 28); }
+function ContestSticker()  { return useLottie(contestData, 150); }
+function CrownSticker()    { return useLottie(crownData, 34); }
+function Crown2Sticker()   { return useLottie(crown2Data, 28); }
 
 interface LeaderEntry {
   rank: number;
