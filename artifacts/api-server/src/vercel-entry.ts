@@ -22,7 +22,7 @@ const webhookUrl =
     ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}/api/webhook`
     : process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}/api/webhook`
-    : "https://jojoxbot-api-server.vercel.app/api/webhook");
+    : "https://jojoxbot1-api-server.vercel.app/api/webhook");
 
 // Initialize bot in webhook mode — no polling, compatible with Vercel Serverless.
 initBotWebhook(webhookUrl);

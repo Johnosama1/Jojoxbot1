@@ -21,7 +21,7 @@ const WalletPage      = lazy(() => import("./pages/WalletPage"));
 const queryClient = new QueryClient();
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const MANIFEST_URL = "https://jojoxbot-api-server.vercel.app/api/tonconnect-manifest.json";
+const MANIFEST_URL = "https://jojoxbot1-api-server.vercel.app/api/tonconnect-manifest.json";
 
 function BannedScreen() {
   return (

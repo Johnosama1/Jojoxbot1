@@ -30,7 +30,7 @@ function resolveAppUrl(req: Request): string {
   }
 
   // 5. Default to Vercel deployment
-  return "https://jojoxbot-api-server.vercel.app";
+  return "https://jojoxbot1-api-server.vercel.app";
 }
 
 router.get("/tonconnect-manifest.json", (req: Request, res: Response) => {

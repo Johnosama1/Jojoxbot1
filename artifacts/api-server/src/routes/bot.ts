@@ -25,7 +25,7 @@ router.post("/webhook", async (req, res) => {
   if (!botInstance) {
     const webhookUrl =
       process.env.BOT_WEBHOOK_URL ||
-      "https://jojoxbot-api-server.vercel.app/api/webhook";
+      "https://jojoxbot1-api-server.vercel.app/api/webhook";
     logger.warn({ webhookUrl }, "Bot not initialized at request time — lazy init");
     initBotWebhook(webhookUrl);
     botInstance = getBot();

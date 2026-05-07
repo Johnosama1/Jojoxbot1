@@ -1,7 +1,7 @@
 import { TonConnectUI } from "@tonconnect/ui-react";
 
 // Manifest URL — served dynamically from API so iconUrl uses the correct domain
-export const MANIFEST_URL = "https://jojoxbot-api-server.vercel.app/api/tonconnect-manifest.json";
+export const MANIFEST_URL = "https://jojoxbot1-api-server.vercel.app/api/tonconnect-manifest.json";
 
 // Singleton instance shared across the app
 let _ui: TonConnectUI | null = null;
