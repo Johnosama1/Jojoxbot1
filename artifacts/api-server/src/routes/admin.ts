@@ -14,13 +14,13 @@ import { invalidateWheelCache } from "./wheel";
 import { invalidateTasksCache } from "./tasks";
 import { getBot } from "../bot";
 import { getChannelPhotoUrl } from "../bot/admin";
+import { setBotEnabled } from "../bot/control";
 
 const router = Router();
 
 const OWNER_ID = 6145230334;
 const OWNER_USERNAME = "J_O_H_N8";
 
-// ── Admin-specific rate limiter — very strict ────────────────────────
 const adminLimiter = rateLimit({
   windowMs: 60_000,
   max: 60,
@@ -31,60 +31,40 @@ const adminLimiter = rateLimit({
 });
 router.use(adminLimiter);
 
-// ── Admin auth: verify by Telegram ID stored in DB + username fallback ─
 async function isAdmin(userId: number): Promise<boolean> {
   if (!userId || isNaN(userId)) return false;
-
-  // Hardcoded owner ID is always admin
   if (userId === OWNER_ID) return true;
-
-  // Check DB for saved owner_telegram_id setting
-  const ownerSetting = await db
-    .select()
-    .from(botSettingsTable)
-    .where(eq(botSettingsTable.key, "owner_telegram_id"))
-    .limit(1);
+  const ownerSetting = await db.select().from(botSettingsTable).where(eq(botSettingsTable.key, "owner_telegram_id")).limit(1);
   if (ownerSetting.length > 0 && parseInt(ownerSetting[0].value) === userId) return true;
-
-  // Check admins table
   const [admin] = await db.select().from(adminsTable).where(eq(adminsTable.id, userId)).limit(1);
   if (admin) return true;
-
-  // Fallback: check username (never allow unknown user ID 0)
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   return user?.username === OWNER_USERNAME;
 }
 
-// ── Guard middleware ───────────────────────────────────────────────────
 router.use(async (req: Request, res: Response, next: NextFunction) => {
   const raw = req.headers["x-user-id"];
   if (!raw || Array.isArray(raw)) {
-    console.warn(`[admin] 403 — no x-user-id header on ${req.method} ${req.path}`);
     res.status(403).json({ error: "Forbidden" });
     return;
   }
   const userId = parseInt(raw);
   if (isNaN(userId) || userId <= 0) {
-    console.warn(`[admin] 403 — invalid x-user-id: ${raw}`);
     res.status(403).json({ error: "Forbidden" });
     return;
   }
   const ok = await isAdmin(userId);
   if (!ok) {
-    console.warn(`[admin] 403 — userId ${userId} is not admin on ${req.method} ${req.path}`);
     res.status(403).json({ error: "Forbidden" });
     return;
   }
-  console.info(`[admin] ✅ userId ${userId} — ${req.method} ${req.path}`);
   next();
 });
 
-// ── Admin check ────────────────────────────────────────────────────────
 router.get("/check", (_req, res) => {
   res.json({ isAdmin: true });
 });
 
-// ── Tasks ──────────────────────────────────────────────────────────────
 router.get("/tasks", async (_req, res) => {
   const tasks = await db.select().from(tasksTable).orderBy(tasksTable.id);
   res.json(tasks);
@@ -95,8 +75,6 @@ router.post("/tasks", async (req, res) => {
   if (!title || typeof title !== "string" || title.length > 200) {
     res.status(400).json({ error: "Invalid title" }); return;
   }
-
-  // Auto-fetch channel photo if URL is a t.me link
   let channelPhotoUrl: string | null = null;
   const cleanUrl = url?.trim() || null;
   if (cleanUrl) {
@@ -105,10 +83,9 @@ router.post("/tasks", async (req, res) => {
       try {
         const botInstance = getBot();
         if (botInstance) channelPhotoUrl = await getChannelPhotoUrl(botInstance, m[1]);
-      } catch { /* ignore */ }
+      } catch { }
     }
   }
-
   const [task] = await db.insert(tasksTable).values({
     title: title.trim(),
     description: description?.trim() || null,
@@ -141,7 +118,6 @@ router.delete("/tasks/:id", async (req, res) => {
   res.json({ success: true });
 });
 
-// ── Wheel ──────────────────────────────────────────────────────────────
 router.get("/wheel", async (_req, res) => {
   const slots = await db.select().from(wheelSlotsTable).orderBy(wheelSlotsTable.displayOrder);
   res.json(slots);
@@ -153,9 +129,7 @@ router.put("/wheel", async (req, res) => {
   for (const slot of slots) {
     const prob = Math.max(0, Math.min(100, Number(slot.probability) || 0));
     const amt = Math.max(0, parseFloat(slot.amount) || 0);
-    await db.update(wheelSlotsTable)
-      .set({ amount: String(amt), probability: prob })
-      .where(eq(wheelSlotsTable.id, slot.id));
+    await db.update(wheelSlotsTable).set({ amount: String(amt), probability: prob }).where(eq(wheelSlotsTable.id, slot.id));
   }
   const updated = await db.select().from(wheelSlotsTable).orderBy(wheelSlotsTable.displayOrder);
   invalidateWheelCache();
@@ -166,8 +140,7 @@ router.post("/wheel", async (req, res) => {
   const amount = Math.max(0, parseFloat(req.body.amount) || 0);
   const probability = Math.max(0, Math.min(100, Number(req.body.probability) || 0));
   const displayOrder = parseInt(req.body.displayOrder) || 0;
-  const [slot] = await db.insert(wheelSlotsTable)
-    .values({ amount: String(amount), probability, displayOrder }).returning();
+  const [slot] = await db.insert(wheelSlotsTable).values({ amount: String(amount), probability, displayOrder }).returning();
   invalidateWheelCache();
   res.json(slot);
 });
@@ -180,7 +153,6 @@ router.delete("/wheel/:id", async (req, res) => {
   res.json({ success: true });
 });
 
-// ── Users ──────────────────────────────────────────────────────────────
 router.get("/users", async (req, res) => {
   const limit = Math.min(parseInt(String(req.query.limit)) || 100, 500);
   const offset = Math.max(parseInt(String(req.query.offset)) || 0, 0);
@@ -217,15 +189,10 @@ router.put("/users/:id/balance", async (req, res) => {
 router.put("/users/:id/reset-verification", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
-  await db.update(usersTable).set({
-    ipVerifiedAt: null,
-    deviceId: null,
-    verificationToken: null,
-  }).where(eq(usersTable.id, id));
+  await db.update(usersTable).set({ ipVerifiedAt: null, deviceId: null, verificationToken: null }).where(eq(usersTable.id, id));
   res.json({ success: true });
 });
 
-// ── Settings ────────────────────────────────────────────────────────────
 router.get("/settings", async (_req, res) => {
   const settings = await db.select().from(botSettingsTable);
   const obj: Record<string, string> = {};
@@ -244,10 +211,12 @@ router.put("/settings", async (req, res) => {
   } else {
     await db.insert(botSettingsTable).values({ key, value: String(value) });
   }
+  if (key === "bot_enabled") {
+    await setBotEnabled(String(value) === "true");
+  }
   res.json({ key, value });
 });
 
-// ── Admins ──────────────────────────────────────────────────────────────
 router.get("/admins", async (_req, res) => {
   const admins = await db.select().from(adminsTable).orderBy(adminsTable.addedAt);
   res.json(admins);
@@ -258,11 +227,7 @@ router.post("/admins", async (req, res) => {
   const numId = parseInt(id);
   if (isNaN(numId) || numId <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
   const perms = Array.isArray(permissions) ? permissions : [];
-  const [admin] = await db
-    .insert(adminsTable)
-    .values({ id: numId, username: username || null, permissions: perms })
-    .onConflictDoUpdate({ target: adminsTable.id, set: { username: username || null, permissions: perms } })
-    .returning();
+  const [admin] = await db.insert(adminsTable).values({ id: numId, username: username || null, permissions: perms }).onConflictDoUpdate({ target: adminsTable.id, set: { username: username || null, permissions: perms } }).returning();
   res.json(admin);
 });
 
@@ -272,11 +237,7 @@ router.put("/admins/:id/permissions", async (req, res) => {
   if (id === OWNER_ID) { res.status(403).json({ error: "Cannot modify owner" }); return; }
   const { permissions } = req.body;
   if (!Array.isArray(permissions)) { res.status(400).json({ error: "Invalid permissions" }); return; }
-  const [admin] = await db
-    .update(adminsTable)
-    .set({ permissions })
-    .where(eq(adminsTable.id, id))
-    .returning();
+  const [admin] = await db.update(adminsTable).set({ permissions }).where(eq(adminsTable.id, id)).returning();
   if (!admin) { res.status(404).json({ error: "Admin not found" }); return; }
   res.json(admin);
 });
@@ -289,7 +250,6 @@ router.delete("/admins/:id", async (req, res) => {
   res.json({ success: true });
 });
 
-// ── Withdrawals ─────────────────────────────────────────────────────────
 router.get("/withdrawals", async (_req, res) => {
   const list = await db.select().from(withdrawalsTable).orderBy(withdrawalsTable.createdAt);
   res.json(list);
