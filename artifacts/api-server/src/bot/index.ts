@@ -76,8 +76,8 @@ async function maybeBlocked(chatId: number, userId: number, username?: string): 
   if (await allowOwnerWhenDisabled(userId, username)) return false;
   await bot.sendMessage(
     chatId,
-    "🚧 *البوت تحت الصيانة حالياً*\n\nنحن نقوم بتحديث وتحسين التطبيق\\. عد قريباً\\! 🔧",
-    { parse_mode: "MarkdownV2" }
+    "🚧 <b>البوت تحت الصيانة حالياً</b>\n\nنحن نقوم بتحديث وتحسين التطبيق. عد قريباً! 🔧",
+    { parse_mode: "HTML" }
   );
   return true;
 }
@@ -366,7 +366,7 @@ function setupBotHandlers() {
         .limit(1);
 
       if (existing.length > 0 && existing[0].isVisible === false) {
-        await bot.sendMessage(chatId, "🚫 حسابك محظور\\. تواصل مع الدعم للمزيد من المعلومات\\.", { parse_mode: "MarkdownV2" });
+        await bot.sendMessage(chatId, "🚫 حسابك محظور. تواصل مع الدعم للمزيد من المعلومات.", { parse_mode: "HTML" });
         return;
       }
 
