@@ -111,61 +111,89 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
       ctx.textAlign    = "center";
       ctx.textBaseline = "middle";
 
-      const iconR  = outerR < 120 ? 11 : 16; // radius of USDT circle icon
-      const fontSize = outerR < 110 ? 9 : 12;
+      const iconR    = outerR < 120 ? 13 : 20;
+      const fontSize = outerR < 110 ? 10 : 13;
+      const iconY    = -iconR * 0.4; // icon sits a bit higher
 
-      // ── USDT circular icon ──
+      // ── USDT icon: shadow glow behind ──
       ctx.save();
-      // Clip to circle
+      ctx.shadowColor = "rgba(38,210,150,0.55)";
+      ctx.shadowBlur  = 14;
       ctx.beginPath();
-      ctx.arc(0, -iconR * 0.1, iconR, 0, Math.PI * 2);
-      ctx.clip();
+      ctx.arc(0, iconY, iconR, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(38,210,150,0.18)";
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.restore();
 
+      // ── USDT icon: clipped image ──
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(0, iconY, iconR, 0, Math.PI * 2);
+      ctx.clip();
       if (usdtImgRef.current) {
-        // Draw the USDT logo image
-        ctx.drawImage(usdtImgRef.current, -iconR, -iconR - iconR * 0.1, iconR * 2, iconR * 2);
+        ctx.drawImage(usdtImgRef.current, -iconR, iconY - iconR, iconR * 2, iconR * 2);
       } else {
-        // Fallback: green circle with "₮"
-        const fbGrad = ctx.createRadialGradient(-iconR * 0.25, -iconR * 0.25, 0, 0, 0, iconR);
+        const fbGrad = ctx.createRadialGradient(-iconR * 0.25, iconY - iconR * 0.25, 0, 0, iconY, iconR);
         fbGrad.addColorStop(0, "#3ecfa3");
         fbGrad.addColorStop(1, "#1a8c6a");
         ctx.fillStyle = fbGrad;
-        ctx.fillRect(-iconR, -iconR, iconR * 2, iconR * 2);
+        ctx.fillRect(-iconR, iconY - iconR, iconR * 2, iconR * 2);
         ctx.fillStyle = "#fff";
         ctx.font = `900 ${Math.round(iconR * 1.1)}px sans-serif`;
-        ctx.textAlign = "center";
+        ctx.textAlign    = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText("₮", 0, 0);
+        ctx.fillText("₮", 0, iconY);
       }
       ctx.restore();
 
-      // Thin glow ring around icon
+      // ── Icon border ring ──
       ctx.save();
       ctx.beginPath();
-      ctx.arc(0, -iconR * 0.1, iconR, 0, Math.PI * 2);
-      ctx.strokeStyle = "rgba(38,200,150,0.55)";
-      ctx.lineWidth   = 1.5;
-      ctx.shadowColor = "rgba(38,200,150,0.60)";
-      ctx.shadowBlur  = 6;
+      ctx.arc(0, iconY, iconR, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(56,220,160,0.75)";
+      ctx.lineWidth   = 1.8;
+      ctx.shadowColor = "rgba(38,200,150,0.8)";
+      ctx.shadowBlur  = 8;
       ctx.stroke();
       ctx.shadowBlur = 0;
       ctx.restore();
 
-      // ── Amount ──
+      // ── Amount number ──
       const amount = parseFloat(slots[i].amount);
       const label  = amount < 1 ? amount.toString() : amount.toFixed(0);
+      const textY  = iconY + iconR + fontSize * 1.35;
 
-      ctx.font      = `900 ${fontSize}px 'Inter', sans-serif`;
-      ctx.fillStyle = "#ffffff";
-      ctx.shadowColor = "rgba(255,255,255,0.4)";
+      ctx.font        = `900 ${fontSize + 1}px 'Inter', sans-serif`;
+      ctx.fillStyle   = "#ffffff";
+      ctx.shadowColor = "rgba(255,255,255,0.5)";
+      ctx.shadowBlur  = 6;
+      ctx.fillText(label, 0, textY);
+      ctx.shadowBlur  = 0;
+
+      // ── "USDT" badge-style label ──
+      const badgeY   = textY + fontSize + 2;
+      const badgeFsz = Math.max(7, Math.round(fontSize * 0.72));
+
+      // Subtle pill background
+      ctx.save();
+      const badgeW = badgeFsz * 3.4;
+      const badgeH = badgeFsz + 4;
+      ctx.beginPath();
+      ctx.roundRect(-badgeW / 2, badgeY - badgeH * 0.72, badgeW, badgeH, badgeH / 2);
+      ctx.fillStyle = "rgba(38,200,140,0.18)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(38,200,140,0.4)";
+      ctx.lineWidth   = 0.8;
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.font      = `700 ${badgeFsz}px 'Inter', sans-serif`;
+      ctx.fillStyle = "rgba(80,230,175,0.95)";
+      ctx.shadowColor = "rgba(38,200,140,0.6)";
       ctx.shadowBlur  = 4;
-      ctx.fillText(label, 0, iconR * 1.6 + fontSize * 0.6);
-      ctx.shadowBlur = 0;
-
-      // "USDT" sub-label
-      ctx.font      = `600 ${Math.max(6, fontSize * 0.72)}px 'Inter', sans-serif`;
-      ctx.fillStyle = "rgba(255,255,255,0.50)";
-      ctx.fillText("USDT", 0, iconR * 1.6 + fontSize * 1.65);
+      ctx.fillText("USDT", 0, badgeY);
+      ctx.shadowBlur  = 0;
 
       ctx.restore();
     }
