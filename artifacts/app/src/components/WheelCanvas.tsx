@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState } from "react";
+import lottie from "lottie-web";
 import { WheelSlot } from "../lib/api";
 
 interface WheelCanvasProps {
@@ -13,17 +14,29 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
   const rotationRef  = useRef(0);
   const animFrameRef = useRef<number>(0);
   const glowFrameRef = useRef(0);
-  const winFlashRef  = useRef<number | null>(null);
-  const usdtImgRef   = useRef<HTMLImageElement | null>(null);
-  const botImgRef    = useRef<HTMLImageElement | null>(null);
+  const winFlashRef        = useRef<number | null>(null);
+  const usdtAnimCanvasRef  = useRef<HTMLCanvasElement | null>(null);
+  const usdtLottieRef      = useRef<HTMLDivElement>(null);
+  const botImgRef          = useRef<HTMLImageElement | null>(null);
 
   const [arrowState, setArrowState] = useState<"idle" | "thrown" | "landing">("idle");
 
-  // Preload USDT image once
+  // Load USDT Lottie animation onto hidden canvas renderer
   useEffect(() => {
-    const img = new Image();
-    img.src = "/usdt.png";
-    img.onload = () => { usdtImgRef.current = img; };
+    if (!usdtLottieRef.current) return;
+    const anim = lottie.loadAnimation({
+      container: usdtLottieRef.current,
+      renderer: "canvas",
+      loop: true,
+      autoplay: true,
+      path: "/usdt-anim.json",
+      rendererSettings: { clearCanvas: true },
+    });
+    anim.addEventListener("DOMLoaded", () => {
+      const c = usdtLottieRef.current?.querySelector("canvas");
+      if (c) usdtAnimCanvasRef.current = c as HTMLCanvasElement;
+    });
+    return () => { anim.destroy(); usdtAnimCanvasRef.current = null; };
   }, []);
 
   // Preload bot logo image once
@@ -131,8 +144,9 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
       ctx.beginPath();
       ctx.arc(0, iconY, iconR, 0, Math.PI * 2);
       ctx.clip();
-      if (usdtImgRef.current) {
-        ctx.drawImage(usdtImgRef.current, -iconR, iconY - iconR, iconR * 2, iconR * 2);
+      if (usdtAnimCanvasRef.current) {
+        const uc = usdtAnimCanvasRef.current;
+        ctx.drawImage(uc, 0, 0, uc.width, uc.height, -iconR, iconY - iconR, iconR * 2, iconR * 2);
       } else {
         const fbGrad = ctx.createRadialGradient(-iconR * 0.25, iconY - iconR * 0.25, 0, 0, iconY, iconR);
         fbGrad.addColorStop(0, "#3ecfa3");
@@ -380,6 +394,12 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
 
   return (
     <>
+      {/* Hidden lottie canvas renderer for USDT animation */}
+      <div
+        ref={usdtLottieRef}
+        style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 64, height: 64, overflow: "hidden", zIndex: -1 }}
+      />
+
       <style>{`
         @keyframes arrowBounce {
           0%, 100% { transform: translateX(-50%) translateY(0px);   }
