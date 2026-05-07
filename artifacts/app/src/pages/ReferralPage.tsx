@@ -229,7 +229,7 @@ export default function ReferralPage() {
           <img
             src="/app/leaderboard-icon.png"
             alt="Leaderboard"
-            style={{ width: 34, height: 34, objectFit: "contain" }}
+            style={{ width: 34, height: 34, objectFit: "contain", filter: "brightness(0) invert(1)" }}
           />
         </button>
       </div>
