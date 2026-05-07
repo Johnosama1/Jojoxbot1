@@ -145,12 +145,17 @@ export async function sendWelcomeMessage(chatId: number, userId: number, firstNa
   const escapedName = firstName.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
   await bot.sendMessage(
     chatId,
-    `👋 *أهلاً ${escapedName}\\!*\n\nمرحباً بك في *Jo\\-jokes* 🎉\nالعب العجلة واربح جوائز رائعة\\! 🎡💰`,
+    `🤝 *Welcome to Jo\\-jokes, ${escapedName}\\!*\n\n` +
+    `🎁 The fastest USDT earning bot\\!\n\n` +
+    `✨ *How to earn* 🎪\n\n` +
+    `1️⃣ Complete tasks « 1 spin per tasks\n` +
+    `2️⃣ Invite friends « 1 free spin per friends\n` +
+    `🎡 Spin the wheel « win 0\\.1 to 10 USDT\\!`,
     {
       parse_mode: "MarkdownV2",
       reply_markup: {
         inline_keyboard: [
-          [{ text: "🎡 افتح التطبيق", web_app: { url: `${MINI_APP_URL}?uid=${userId}` } }],
+          [{ text: "🎁 Open now", web_app: { url: `${MINI_APP_URL}?uid=${userId}` } }],
         ],
       },
     }

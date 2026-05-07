@@ -252,7 +252,7 @@ export async function handleSubRecheckCallback(
       // ── Subscription verified — remove gate message, show welcome ──
       try {
         await bot.editMessageText(
-          "✅ *تم التحقق بنجاح\\!*",
+          "✅ *Verified successfully\\!*",
           {
             chat_id: chatId,
             message_id: msgId,
@@ -270,12 +270,17 @@ export async function handleSubRecheckCallback(
 
       await bot.sendMessage(
         chatId,
-        `🎉 *أهلاً ${escapedName}\\!*\n\nتم التحقق من اشتراكك بنجاح\\. استمتع باللعب وربح الجوائز\\! 🎡`,
+        `🤝 *Welcome to Jo\\-jokes, ${escapedName}\\!*\n\n` +
+        `🎁 The fastest USDT earning bot\\!\n\n` +
+        `✨ *How to earn* 🎪\n\n` +
+        `1️⃣ Complete tasks « 1 spin per tasks\n` +
+        `2️⃣ Invite friends « 1 free spin per friends\n` +
+        `🎡 Spin the wheel « win 0\\.1 to 10 USDT\\!`,
         {
           parse_mode: "MarkdownV2",
           reply_markup: {
             inline_keyboard: [
-              [{ text: "🎡 افتح التطبيق", web_app: { url: `${MINI_APP_URL}?uid=${userId}` } }],
+              [{ text: "🎁 Open now", web_app: { url: `${MINI_APP_URL}?uid=${userId}` } }],
             ],
           },
         }
