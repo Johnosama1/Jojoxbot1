@@ -85,9 +85,10 @@
       .splash-logo-img {
         width: 180px;
         height: 180px;
-        object-fit: contain;
+        object-fit: cover;
+        border-radius: 50%;
         animation: splash-float 2.4s ease-in-out infinite;
-        filter: drop-shadow(0 0 32px rgba(251,191,36,0.55)) drop-shadow(0 0 60px rgba(139,92,246,0.30));
+        box-shadow: 0 0 0 4px rgba(251,191,36,0.35), 0 0 40px rgba(251,191,36,0.45), 0 0 70px rgba(139,92,246,0.25);
       }
 
       .splash-dots {
@@ -121,7 +122,7 @@
     <div id="splash">
       <img
         class="splash-logo-img"
-        src="https://i.ibb.co/gZgFjFmZ/cropped-circle-image-1.png"
+        src="/app/bot-icon-circle.png"
         alt="Jo-jokes"
       />
       <div class="splash-dots">
