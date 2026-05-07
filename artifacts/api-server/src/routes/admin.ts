@@ -20,7 +20,7 @@ import { clearAllSubCache } from "../bot/subscription";
 const router = Router();
 
 const OWNER_ID = 6145230334;
-const OWNER_USERNAME = "J_O_H_N8";
+const OWNER_USERNAME = (process.env.OWNER_USERNAME || "J_O_H_N8").replace(/^@/, "");
 
 const adminLimiter = rateLimit({
   windowMs: 60_000,

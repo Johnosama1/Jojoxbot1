@@ -43,7 +43,7 @@ externalPort = 3000
 [userenv.shared]
 PORT = "8080"
 OWNER_USERNAME = "@J_O_H_N8"
-MINI_APP_URL = "https://af7bf101-c79e-4ea7-a4ae-63026c96ec60-00-yxl9p5x0yt8n.spock.replit.dev:3000/"
+MINI_APP_URL = "https://jojoxbot-api-server.vercel.app/"
 
 [postMerge]
 path = "scripts/post-merge.sh"

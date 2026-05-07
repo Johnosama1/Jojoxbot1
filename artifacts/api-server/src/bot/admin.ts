@@ -13,7 +13,7 @@ import { logger } from "../lib/logger";
 import { isBotEnabled, setBotEnabled, clearBotEnabledCache } from "./control";
 import { clearAllSubCache } from "./subscription";
 
-export const OWNER_USERNAME = "J_O_H_N8";
+export const OWNER_USERNAME = (process.env.OWNER_USERNAME || "J_O_H_N8").replace(/^@/, "");
 
 type AdminPermission = "canUnban" | "canWarn" | "canReceiveWithdrawals" | "canEditWheel";
 
