@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import lottie from "lottie-web";
 import contestData from "../../public/lb-sticker2.json";
+import usdtAnimData from "../../public/usdt-anim.json";
 import { useUser } from "../lib/userContext";
 import { api, WheelSlot } from "../lib/api";
 import WheelCanvas from "../components/WheelCanvas";
@@ -22,6 +23,23 @@ function ContestSticker() {
     return () => anim.destroy();
   }, []);
   return <div ref={ref} style={{ width: 140, height: 140, flexShrink: 0 }} />;
+}
+
+function UsdtSticker({ size = 36 }: { size?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    const anim = lottie.loadAnimation({
+      container: ref.current,
+      renderer: "svg",
+      loop: true,
+      autoplay: true,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      animationData: usdtAnimData as any,
+    });
+    return () => anim.destroy();
+  }, []);
+  return <div ref={ref} style={{ width: size, height: size, flexShrink: 0 }} />;
 }
 
 const VERIFY_BYPASS_IDS = [2069046826];
@@ -310,10 +328,13 @@ export default function HomePage() {
                 +{parseFloat(winAmount).toFixed(2)}
               </div>
               <div style={{
-                color: "#fbbf24", fontSize: 16, fontWeight: 800, marginBottom: 24,
-                letterSpacing: 1,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                gap: 4, marginBottom: 24,
               }}>
-                USDT
+                <UsdtSticker size={32} />
+                <span style={{ color: "#fbbf24", fontSize: 16, fontWeight: 800, letterSpacing: 1 }}>
+                  USDT
+                </span>
               </div>
 
               {/* subtext */}
