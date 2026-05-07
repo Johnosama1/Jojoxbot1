@@ -305,9 +305,9 @@ export default function HomePage() {
                 pointerEvents: "none",
               }} />
 
-              {/* Contest sticker */}
+              {/* USDT sticker */}
               <div style={{ marginBottom: 4, animation: "shimmer 2s ease-in-out infinite" }}>
-                <ContestSticker />
+                <UsdtSticker size={140} />
               </div>
 
               {/* you won */}
