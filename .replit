@@ -41,6 +41,8 @@ externalPort = 3000
 [userenv]
 
 [userenv.shared]
+
+[userenv.development]
 DISABLE_BOT = "true"
 
 [postMerge]

@@ -50,7 +50,7 @@ API routes: `artifacts/api-server/src/routes/`
 - API server builds to `dist/index.mjs` via esbuild before starting (no ts-node in prod)
 - **Replit deployment**: `vm` target (always-on); single process serves both API (`/api/*`) and the built React SPA (static files from `artifacts/app/dist/public`). See `.replit` `[deployment]` section.
 - Vercel deployment also supported: `vercel.json` uses serverless `api/index.js` entry + static SPA output
-- Bot runs in polling mode in dev; webhook mode in prod via `BOT_WEBHOOK_URL`
+- Bot disabled in dev (`DISABLE_BOT=true` dev-only env var); webhook mode in prod auto-detected from `REPLIT_DOMAINS`, or override with `BOT_WEBHOOK_URL`
 - Frontend proxies `/api` to `localhost:8080` in dev via Vite proxy; app served at `/app/` path
 
 ## Product
@@ -87,7 +87,7 @@ Plain `git push` via HTTPS hangs in this environment — the helper script uses 
 - `wheel_slots` and `bot_settings` tables need data — seeded on first setup (8 default wheel slots)
 - Tasks table starts empty — add tasks via the admin panel in Telegram
 - Do not run `drizzle-kit push --force` unless intentionally resetting schema
-- In production: set `BOT_WEBHOOK_URL=https://<domain>/api/bot-webhook` for reliable bot operation
+- In production: webhook URL auto-detected from `REPLIT_DOMAINS` env var (set by Replit runtime). Override with `BOT_WEBHOOK_URL=https://<domain>/api/webhook` if needed (Vercel: uses `VERCEL_PROJECT_PRODUCTION_URL` auto-var)
 - **GitHub push**: plain `git push` hangs — use `bash .local/push-to-github.sh` instead
 
 ## Pointers

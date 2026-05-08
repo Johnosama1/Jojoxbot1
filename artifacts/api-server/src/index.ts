@@ -25,9 +25,15 @@ const server = app.listen(port, (err?: Error) => {
   db.execute(sql`SELECT 1`).catch(() => {});
 
   if (process.env.DISABLE_BOT !== "true") {
-    if (process.env.BOT_WEBHOOK_URL) {
-      initBotWebhook(process.env.BOT_WEBHOOK_URL);
-      logger.info({ botMs: Date.now() - tBot }, "Telegram bot started (webhook mode)");
+    // Prefer explicit env var; fall back to Replit production domain auto-detection
+    const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
+    const webhookUrl =
+      process.env.BOT_WEBHOOK_URL ||
+      (replitDomain ? `https://${replitDomain}/api/webhook` : undefined);
+
+    if (webhookUrl) {
+      initBotWebhook(webhookUrl);
+      logger.info({ botMs: Date.now() - tBot, webhookUrl }, "Telegram bot started (webhook mode)");
     } else {
       initBotPolling();
       logger.info({ botMs: Date.now() - tBot }, "Telegram bot started (polling mode)");
