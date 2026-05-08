@@ -66,16 +66,29 @@ API routes: `artifacts/api-server/src/routes/`
 - No code modifications to the cloned repo; deployed as-is from GitHub
 - Telegram bot token set as Replit secrets (`BOT_TOKEN` + `TELEGRAM_BOT_TOKEN`)
 
+## GitHub Push (CI/CD)
+
+To push commits from this Replit environment to GitHub (which triggers Vercel auto-redeploy):
+
+```bash
+bash .local/push-to-github.sh
+```
+
+Requires `GITHUB_TOKEN` secret (classic PAT with `repo` scope) set in Replit Secrets.
+Plain `git push` via HTTPS hangs in this environment — the helper script uses the correct
+`https://username:token@github.com/...` URL format with `HTTP/1.1` to work around the block.
+
 ## Gotchas
 
 - **Port conflict pattern**: Old node processes hold ports 8080/23863/18635 after checkpoint → run `fuser -k 8080/tcp 23863/tcp 18635/tcp` before restarting workflows
 - `PORT=8080` must be set as a shared env var — API server throws if missing
 - `MINI_APP_URL` must point to the running app URL — currently the Replit dev domain; update after deployment
-- Bot token read as `process.env.TOKEN || process.env.TELEGRAM_BOT_TOKEN` in bot/index.ts
+- Bot token read as `process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN || process.env.TOKEN` in bot/index.ts
 - `wheel_slots` and `bot_settings` tables need data — seeded on first setup (8 default wheel slots)
 - Tasks table starts empty — add tasks via the admin panel in Telegram
 - Do not run `drizzle-kit push --force` unless intentionally resetting schema
 - In production: set `BOT_WEBHOOK_URL=https://<domain>/api/bot-webhook` for reliable bot operation
+- **GitHub push**: plain `git push` hangs — use `bash .local/push-to-github.sh` instead
 
 ## Pointers
 
