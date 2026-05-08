@@ -205,14 +205,35 @@ export async function sendWelcomeMessage(chatId: number, userId: number, firstNa
     { text: " win 0.1 to 10 USDT!" },
   ]);
 
-  await bot.sendMessage(chatId, welcomeText, {
-    entities: welcomeEntities as never,
-    reply_markup: {
-      inline_keyboard: [
-        [{ text: "🎁 Open now", web_app: { url: `${MINI_APP_URL}?uid=${userId}` } }],
-      ],
-    },
-  });
+  try {
+    await bot.sendMessage(chatId, welcomeText, {
+      entities: welcomeEntities as never,
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: "🎁 Open now", web_app: { url: `${MINI_APP_URL}?uid=${userId}` } }],
+        ],
+      },
+    });
+  } catch {
+    // Fallback: send as plain HTML if custom emoji entities fail
+    await bot.sendMessage(
+      chatId,
+      `👋 <b>Welcome to Jo-jokes, ${firstName}!</b>\n\n` +
+      `🎁 The fastest USDT earning bot!\n\n` +
+      `✨ <b>How to earn</b>\n\n` +
+      `✅ Complete tasks « 1 spin per 5 tasks\n\n` +
+      `👥 Invite friends « 1 free spin per 5 friends\n\n` +
+      `🎰 Spin the wheel « win 0.1 to 10 USDT!`,
+      {
+        parse_mode: "HTML",
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: "🎁 Open now", web_app: { url: `${MINI_APP_URL}?uid=${userId}` } }],
+          ],
+        },
+      }
+    );
+  }
 }
 
 function setMenuButton() {
