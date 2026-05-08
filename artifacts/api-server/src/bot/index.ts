@@ -26,7 +26,11 @@ import {
 } from "./subscription";
 import { isBotEnabled, clearBotEnabledCache, setBotEnabled } from "./control";
 
-const TOKEN = process.env.TELEGRAM_BOT_TOKEN!;
+const TOKEN =
+  process.env.TELEGRAM_BOT_TOKEN ||
+  process.env.BOT_TOKEN ||
+  process.env.TOKEN ||
+  "";
 
 let bot: TelegramBot;
 
@@ -343,13 +347,13 @@ function setupBotHandlers() {
 
   // ── /start ────────────────────────────────────────────────────────────────
   bot.onText(/\/start(.*)/, wrapHandler(async (msg, match) => {
-    try {
-      const chatId = msg.chat.id;
-      const userId = msg.from!.id;
-      const username = msg.from?.username;
-      const firstName = msg.from?.first_name || "";
-      const lastName = msg.from?.last_name || "";
+    const chatId = msg.chat.id;
+    const userId = msg.from!.id;
+    const username = msg.from?.username;
+    const firstName = msg.from?.first_name || "";
+    const lastName = msg.from?.last_name || "";
 
+    try {
       if (await maybeBlocked(chatId, userId, username)) return;
 
       const refParam = match?.[1]?.trim();
@@ -403,6 +407,13 @@ function setupBotHandlers() {
       await sendWelcomeMessage(chatId, userId, firstName);
     } catch (err) {
       logger.error({ err }, "Error in /start handler");
+      console.error("[/start] DB error — sending fallback reply:", err);
+      // Always reply so Telegram knows the update was processed
+      try {
+        await sendWelcomeMessage(chatId, userId, firstName);
+      } catch (sendErr) {
+        console.error("[/start] fallback sendWelcomeMessage failed:", sendErr);
+      }
     }
   }));
 
