@@ -31,6 +31,55 @@ if [ -z "${TELEGRAM_BOT_TOKEN:-}" ]; then
   exit 1
 fi
 
+# ── Helper: remove ALL occurrences of a Vercel env var ───────────────────────
+# Vercel stores one record per target/context, so the same key can have multiple IDs.
+# Usage: remove_env KEY
+remove_env() {
+  local KEY="$1"
+
+  # Collect all IDs for this key (may be multiple across different targets)
+  IDS=$(curl -sf \
+    -H "Authorization: Bearer $VERCEL_TOKEN" \
+    "$VERCEL_API/v10/projects/$VERCEL_PROJECT_ID/env" \
+    | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+ids=[e['id'] for e in d.get('envs',[]) if e['key']=='$KEY']
+print('\n'.join(ids))
+" 2>/dev/null || echo "")
+
+  if [ -z "$IDS" ]; then
+    echo "  $KEY not present — nothing to remove."
+    return 0
+  fi
+
+  while IFS= read -r ID; do
+    [ -z "$ID" ] && continue
+    echo "  Removing $KEY (id=$ID)..."
+    curl -s -X DELETE \
+      "$VERCEL_API/v10/projects/$VERCEL_PROJECT_ID/env/$ID" \
+      -H "Authorization: Bearer $VERCEL_TOKEN" \
+      > /dev/null && echo "  OK removed id=$ID" || echo "  WARN: failed to remove id=$ID"
+  done <<< "$IDS"
+
+  # Verify no DATABASE_URL records remain
+  REMAINING=$(curl -sf \
+    -H "Authorization: Bearer $VERCEL_TOKEN" \
+    "$VERCEL_API/v10/projects/$VERCEL_PROJECT_ID/env" \
+    | python3 -c "
+import json,sys
+d=json.load(sys.stdin)
+ids=[e['id'] for e in d.get('envs',[]) if e['key']=='$KEY']
+print(len(ids))
+" 2>/dev/null || echo "unknown")
+
+  if [ "$REMAINING" != "0" ]; then
+    echo "  ERROR: $KEY still has $REMAINING record(s) on Vercel after deletion attempt!" >&2
+    exit 1
+  fi
+  echo "  Verified: $KEY is fully absent from Vercel."
+}
+
 # ── Helper: upsert a Vercel env var ──────────────────────────────────────────
 # Usage: upsert_env KEY VALUE TYPE TARGET_JSON
 # TYPE: "encrypted" | "sensitive" | "plain"
@@ -74,10 +123,13 @@ print(matches[0]['id'] if matches else '')
 echo "==> Syncing env vars to Vercel project: $VERCEL_PROJECT_ID"
 echo ""
 
-echo "[1/2] NEON_DATABASE_URL (encrypted, production + preview)"
+echo "[0/3] DATABASE_URL — removing stale Replit-local DB URL if present"
+remove_env "DATABASE_URL"
+
+echo "[1/3] NEON_DATABASE_URL (encrypted, production + preview)"
 upsert_env "NEON_DATABASE_URL" "$NEON_DATABASE_URL" "encrypted" '["production","preview"]'
 
-echo "[2/2] TELEGRAM_BOT_TOKEN (encrypted, production + preview)"
+echo "[2/3] TELEGRAM_BOT_TOKEN (encrypted, production + preview)"
 upsert_env "TELEGRAM_BOT_TOKEN" "$TELEGRAM_BOT_TOKEN" "encrypted" '["production","preview"]'
 
 echo ""
