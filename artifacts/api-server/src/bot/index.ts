@@ -354,66 +354,71 @@ function setupBotHandlers() {
     const lastName = msg.from?.last_name || "";
 
     try {
+      // ── 1. Maintenance check (uses 5s cache — fast after first call) ──────
       if (await maybeBlocked(chatId, userId, username)) return;
 
-      const refParam = match?.[1]?.trim();
-      let referredBy: number | undefined;
-      if (refParam?.startsWith("ref_")) {
-        const refId = parseInt(refParam.replace("ref_", ""));
-        if (!isNaN(refId) && refId !== userId) referredBy = refId;
-      }
-
-      const existing = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.id, userId))
-        .limit(1);
-
-      if (existing.length > 0 && existing[0].isVisible === false) {
-        await bot.sendMessage(chatId, "🚫 حسابك محظور. تواصل مع الدعم للمزيد من المعلومات.", { parse_mode: "HTML" });
-        return;
-      }
-
-      const isNew = existing.length === 0;
-      if (isNew) {
-        await db
-          .insert(usersTable)
-          .values({
-            id: userId,
-            username: username || null,
-            firstName,
-            lastName,
-            referredBy: referredBy ?? null,
-            spins: 0,
-          })
-          .onConflictDoNothing();
-      } else {
-        await db
-          .update(usersTable)
-          .set({
-            username: username || existing[0].username,
-            firstName: firstName || existing[0].firstName,
-          })
-          .where(eq(usersTable.id, userId));
-      }
-
-      // ── Subscription check for ALL users (new and existing) ─────────────
-      const adminInfo = await getAdminInfo(userId, username);
-      if (!adminInfo) {
-        const blocked = await enforceSubscription(bot, chatId, userId);
-        if (blocked) return;
-      }
-
+      // ── 2. Send welcome IMMEDIATELY — user sees it with zero DB delay ─────
       await sendWelcomeMessage(chatId, userId, firstName);
+
+      // ── 3. Background: DB upsert + subscription check (fire and forget) ───
+      (async () => {
+        try {
+          const refParam = match?.[1]?.trim();
+          let referredBy: number | undefined;
+          if (refParam?.startsWith("ref_")) {
+            const refId = parseInt(refParam.replace("ref_", ""));
+            if (!isNaN(refId) && refId !== userId) referredBy = refId;
+          }
+
+          const existing = await db
+            .select()
+            .from(usersTable)
+            .where(eq(usersTable.id, userId))
+            .limit(1);
+
+          // If user is banned send a follow-up ban notice
+          if (existing.length > 0 && existing[0].isVisible === false) {
+            await bot.sendMessage(chatId, "🚫 حسابك محظور. تواصل مع الدعم للمزيد من المعلومات.", { parse_mode: "HTML" });
+            return;
+          }
+
+          const isNew = existing.length === 0;
+          if (isNew) {
+            await db
+              .insert(usersTable)
+              .values({
+                id: userId,
+                username: username || null,
+                firstName,
+                lastName,
+                referredBy: referredBy ?? null,
+                spins: 0,
+              })
+              .onConflictDoNothing();
+          } else {
+            await db
+              .update(usersTable)
+              .set({
+                username: username || existing[0].username,
+                firstName: firstName || existing[0].firstName,
+              })
+              .where(eq(usersTable.id, userId));
+          }
+
+          // Subscription check — sends join prompt if user hasn't subscribed
+          const adminInfo = await getAdminInfo(userId, username);
+          if (!adminInfo) {
+            await enforceSubscription(bot, chatId, userId);
+          }
+        } catch (bgErr) {
+          logger.error({ bgErr }, "Background /start DB error");
+        }
+      })();
     } catch (err) {
       logger.error({ err }, "Error in /start handler");
-      console.error("[/start] DB error — sending fallback reply:", err);
-      // Always reply so Telegram knows the update was processed
       try {
         await sendWelcomeMessage(chatId, userId, firstName);
-      } catch (sendErr) {
-        console.error("[/start] fallback sendWelcomeMessage failed:", sendErr);
-      }
+      } catch { /* ignore */ }
     }
   }));
 
