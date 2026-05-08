@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useLocation } from "wouter";
 
-const MIN_WITHDRAWAL = 0.1;
+const MIN_WITHDRAWAL = 0.2;
 const TON_IMG  = "https://assets.coingecko.com/coins/images/17980/standard/photo_2024-09-10_17.09.00.jpeg?1725963446";
 const USDT_IMG = "https://assets.coingecko.com/coins/images/325/large/Tether.png";
 

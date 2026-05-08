@@ -5,7 +5,7 @@ import { api, invalidateUserCaches } from "../lib/api";
 import { useTonAddress, useTonConnectUI, TonConnectButton } from "@tonconnect/ui-react";
 import { Wallet, Send, CheckCircle, ArrowLeft } from "lucide-react";
 
-const MIN_WITHDRAWAL = 0.1;
+const MIN_WITHDRAWAL = 0.2;
 
 function maskWallet(addr: string): string {
   if (!addr || addr.length < 10) return addr;
@@ -72,7 +72,7 @@ export default function WithdrawPage() {
     }
   };
 
-  const presets = [0.1, 0.5, 1, balance];
+  const presets = [0.2, 0.5, 1, balance];
 
   return (
     <div className="page-content px-3 pt-3 flex flex-col gap-3">

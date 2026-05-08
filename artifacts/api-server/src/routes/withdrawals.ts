@@ -9,7 +9,7 @@ import { requireSession } from "../middlewares/requireSession";
 
 const router = Router();
 
-const MIN_WITHDRAWAL = 0.1;
+const MIN_WITHDRAWAL = 0.2;
 const MAX_WITHDRAWAL = 1000;
 
 // TON address: EQ/UQ/kQ/0Q + 46 base64url chars
