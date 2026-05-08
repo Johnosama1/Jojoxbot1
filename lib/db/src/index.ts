@@ -4,12 +4,14 @@ import * as schema from "./schema";
 
 const { Pool } = pg;
 
-// NEON_DATABASE_URL is the cloud Neon database — works on Vercel even when Replit is closed.
-// DATABASE_URL is the Replit-provisioned local database — only available inside Replit.
-// We always prefer NEON_DATABASE_URL so the Vercel deployment is fully independent.
-const connectionString =
-  process.env.NEON_DATABASE_URL ||
-  process.env.DATABASE_URL;
+// On Vercel (production): use NEON_DATABASE_URL (cloud Postgres, reachable from anywhere).
+// On Replit (local dev): use DATABASE_URL (Replit-provisioned local Postgres, stable long-lived connection).
+// Fallback chain ensures both environments work correctly.
+const isVercel = !!process.env.VERCEL || !!process.env.VERCEL_ENV;
+
+const connectionString = isVercel
+  ? (process.env.NEON_DATABASE_URL || process.env.DATABASE_URL)
+  : (process.env.DATABASE_URL || process.env.NEON_DATABASE_URL);
 
 if (!connectionString) {
   throw new Error(
@@ -17,25 +19,25 @@ if (!connectionString) {
   );
 }
 
-const isServerless =
-  !!process.env.VERCEL ||
-  !!process.env.VERCEL_ENV ||
-  process.env.NODE_ENV === "production";
+const isNeon = connectionString.includes("neon.tech");
 
 export const pool = new Pool({
   connectionString,
-  // Serverless: keep pool tiny — each Vercel function invocation is isolated.
-  // Local dev: allow more connections for concurrent requests.
-  min: isServerless ? 0 : 1,
-  max: isServerless ? 3 : 10,
-  idleTimeoutMillis: isServerless ? 10_000 : 30_000,
+  min: isVercel ? 0 : 1,
+  max: isVercel ? 3 : 10,
+  idleTimeoutMillis: isVercel ? 10_000 : 60_000,
   connectionTimeoutMillis: 5_000,
-  keepAlive: !isServerless,
+  keepAlive: !isVercel,
   keepAliveInitialDelayMillis: 10_000,
-  // Neon requires SSL — safe to enable for all environments
-  ssl: connectionString.includes("neon.tech") || connectionString.includes("sslmode=require")
+  ssl: isNeon || connectionString.includes("sslmode=require")
     ? { rejectUnauthorized: false }
     : undefined,
+});
+
+// Prevent idle-connection drops from crashing the process.
+// The pool will create a fresh connection on the next query automatically.
+pool.on("error", (err) => {
+  console.error("[db] Pool connection error (will reconnect on next query):", err.message);
 });
 
 export const db = drizzle(pool, { schema });
