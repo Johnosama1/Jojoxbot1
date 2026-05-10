@@ -29,7 +29,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "PORT=23863 BASE_PATH=/ pnpm --filter @workspace/app run dev:watch"
+args = "bash artifacts/app/start-dev.sh"
 waitForPort = 23863
 
 [agent]
@@ -39,3 +39,11 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[[ports]]
+localPort = 8080
+externalPort = 80
+
+[[ports]]
+localPort = 23863
+externalPort = 3000

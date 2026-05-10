@@ -12,10 +12,10 @@ version = "1.0.0"
 [[services]]
 name = "web"
 paths = [ "/" ]
-localPort = 3000
+localPort = 23863
 
 [services.development]
-run = "pnpm --filter @workspace/app run dev:watch"
+run = "bash artifacts/app/start-dev.sh"
 
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/app", "run", "build" ]
@@ -27,5 +27,5 @@ from = "/*"
 to = "/index.html"
 
 [services.env]
-PORT = "3000"
+PORT = "23863"
 BASE_PATH = "/"
