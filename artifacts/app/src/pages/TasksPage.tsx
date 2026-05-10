@@ -63,8 +63,16 @@ export default function TasksPage() {
   const doneTasks = tasks.filter((t) => completed.includes(t.id));
 
   return (
-    <div className="page-content px-3 pt-3 flex flex-col gap-3">
+    <div className="page-content" style={{ display: "flex", flexDirection: "column" }}>
 
+      {/* ── Sticky Progress Bar wrapper ── */}
+      <div style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 10,
+        padding: "12px 12px 0",
+        background: "linear-gradient(to bottom, rgba(8,6,22,1) 85%, rgba(8,6,22,0))",
+      }}>
       {/* ── Hero Progress Card ── */}
       <div className="slide-up" style={{
         position: "relative",
@@ -133,6 +141,10 @@ export default function TasksPage() {
         </div>
 
       </div>
+      </div>{/* ── end sticky wrapper ── */}
+
+      {/* ── Scrollable tasks content ── */}
+      <div style={{ padding: "8px 12px 24px", display: "flex", flexDirection: "column", gap: 8 }}>
 
       {/* ── Section title ── */}
       {!loading && tasks.length > 0 && (
@@ -320,6 +332,7 @@ export default function TasksPage() {
       )}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>{/* ── end scrollable tasks content ── */}
     </div>
   );
 }

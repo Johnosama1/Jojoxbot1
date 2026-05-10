@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { createHash } from "crypto";
 import { db } from "@workspace/db";
-import { usersTable, wheelSlotsTable } from "@workspace/db/schema";
+import { usersTable, wheelSlotsTable, botSettingsTable } from "@workspace/db/schema";
 import { eq, sql, and } from "drizzle-orm";
 import { telegramAuth, spinRateLimit } from "../middlewares/telegramAuth";
 import { verifyAccessMiddleware } from "../middlewares/verifyAccess";
@@ -106,17 +106,23 @@ router.post("/:id/spin", requireSession, spinRateLimit, verifyAccessMiddleware, 
     winner = slots.find(s => s.probability > 0) ?? slots[0];
   }
 
+  // Apply admin-configured power multiplier
+  const powerSetting = await db.select().from(botSettingsTable).where(eq(botSettingsTable.key, "spin_power")).limit(1);
+  const power = powerSetting.length > 0 ? Math.max(1, parseInt(powerSetting[0].value) || 1) : 1;
+  const multipliedAmount = (parseFloat(winner.amount) * power).toFixed(6);
+
   await db
     .update(usersTable)
-    .set({ spins: sql`spins - 1`, balance: sql`balance + ${winner.amount}` })
+    .set({ spins: sql`spins - 1`, balance: sql`balance + ${multipliedAmount}` })
     .where(eq(usersTable.id, id));
-
 
   const [updated] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
   const slotIndex = slots.findIndex(s => s.id === winner!.id);
+  // Return winner with multiplied amount so frontend displays correct prize
+  const displayWinner = { ...winner, amount: multipliedAmount };
   res.setHeader("Cache-Control", "no-store");
   // Return full slots array so frontend always uses the correct order for animation
-  res.json({ winner, user: updated, slotIndex, slots });
+  res.json({ winner: displayWinner, user: updated, slotIndex, slots });
 });
 
 // ── Swap USDT balance → TON balance (live rate from CoinGecko) ───────

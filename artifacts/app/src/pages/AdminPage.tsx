@@ -469,6 +469,36 @@ export default function AdminPage() {
                   </div>
                 </div>
 
+                {/* Spin Power Multiplier */}
+                <div className="bg-purple-900/20 border border-purple-700/40 rounded-2xl p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-yellow-400 font-black text-base">⚡</span>
+                    <h3 className="text-white font-bold text-sm">مضاعف الجوائز (Power)</h3>
+                  </div>
+                  <p className="text-purple-400 text-xs mb-3">
+                    تضاعف جميع جوائز العجلة بالقيمة المحددة — مثال: Power ×2 يجعل الجائزة 1$ تصبح 2$
+                  </p>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((p) => (
+                      <button
+                        key={p}
+                        disabled={saving}
+                        onClick={() => saveSetting("spin_power", String(p))}
+                        className={`flex-1 py-2 rounded-xl text-sm font-black transition-all active:scale-95 ${
+                          (parseInt(settings["spin_power"]) || 1) === p
+                            ? "bg-yellow-400 text-black"
+                            : "bg-purple-800/50 text-purple-300"
+                        }`}
+                      >
+                        ×{p}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-purple-500 text-xs mt-2">
+                    Power الحالي: <span className="text-yellow-400 font-bold">×{parseInt(settings["spin_power"]) || 1}</span>
+                  </p>
+                </div>
+
                 {/* Withdraw mode */}
                 <div className="bg-purple-900/20 border border-purple-700/40 rounded-2xl p-4">
                   <h3 className="text-white font-bold text-sm mb-3">وضع السحب</h3>
