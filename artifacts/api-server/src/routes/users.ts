@@ -112,9 +112,23 @@ router.post("/:id/spin", requireSession, spinRateLimit, verifyAccessMiddleware, 
     winner = slots.find(s => s.probability > 0) ?? slots[0];
   }
 
-  // Apply admin-configured power multiplier
-  const powerSetting = await db.select().from(botSettingsTable).where(eq(botSettingsTable.key, "spin_power")).limit(1);
-  const power = powerSetting.length > 0 ? Math.max(1, parseInt(powerSetting[0].value) || 1) : 1;
+  // Apply admin-configured power multiplier (respecting boost schedule)
+  const [powerSetting, startSetting, endSetting] = await Promise.all([
+    db.select().from(botSettingsTable).where(eq(botSettingsTable.key, "spin_power")).limit(1),
+    db.select().from(botSettingsTable).where(eq(botSettingsTable.key, "boost_starts_at")).limit(1),
+    db.select().from(botSettingsTable).where(eq(botSettingsTable.key, "boost_ends_at")).limit(1),
+  ]);
+  const rawPower = powerSetting.length > 0 ? Math.max(1, parseInt(powerSetting[0].value) || 1) : 1;
+  const power = (() => {
+    if (rawPower <= 1) return 1;
+    const startsAt = startSetting[0]?.value;
+    const endsAt   = endSetting[0]?.value;
+    if (!startsAt && !endsAt) return rawPower; // no schedule = always active
+    const now   = Date.now();
+    const start = startsAt ? new Date(startsAt).getTime() : 0;
+    const end   = endsAt   ? new Date(endsAt).getTime()   : Infinity;
+    return (now >= start && now <= end) ? rawPower : 1;
+  })();
   const multipliedAmount = (parseFloat(winner.amount) * power).toFixed(6);
 
   await db

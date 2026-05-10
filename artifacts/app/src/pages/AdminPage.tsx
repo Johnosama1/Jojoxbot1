@@ -499,6 +499,94 @@ export default function AdminPage() {
                   </p>
                 </div>
 
+                {/* Boost Schedule */}
+                <div className="bg-purple-900/20 border border-purple-700/40 rounded-2xl p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-yellow-400 font-black text-base">🕐</span>
+                    <h3 className="text-white font-bold text-sm">جدولة وقت الـ Boost</h3>
+                  </div>
+                  <p className="text-purple-400 text-xs mb-3">
+                    اضبط وقت بداية ونهاية الـ Power Boost — اتركهما فارغين لتفعيله بشكل دائم
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    <div>
+                      <label className="text-purple-300 text-xs mb-1 block">بداية الـ Boost</label>
+                      <input
+                        type="datetime-local"
+                        value={settings["boost_starts_at"] ? new Date(settings["boost_starts_at"]).toISOString().slice(0, 16) : ""}
+                        onChange={e => setSettings(prev => ({
+                          ...prev,
+                          boost_starts_at: e.target.value ? new Date(e.target.value).toISOString() : "",
+                        }))}
+                        style={{ colorScheme: "dark" }}
+                        className="w-full bg-purple-800/50 text-white text-sm rounded-xl px-3 py-2 border border-purple-700/40 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-purple-300 text-xs mb-1 block">نهاية الـ Boost</label>
+                      <input
+                        type="datetime-local"
+                        value={settings["boost_ends_at"] ? new Date(settings["boost_ends_at"]).toISOString().slice(0, 16) : ""}
+                        onChange={e => setSettings(prev => ({
+                          ...prev,
+                          boost_ends_at: e.target.value ? new Date(e.target.value).toISOString() : "",
+                        }))}
+                        style={{ colorScheme: "dark" }}
+                        className="w-full bg-purple-800/50 text-white text-sm rounded-xl px-3 py-2 border border-purple-700/40 outline-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      disabled={saving}
+                      onClick={async () => {
+                        if (!user || saving) return;
+                        setSaving(true);
+                        try {
+                          await Promise.all([
+                            api.adminUpdateSetting(user.id, "boost_starts_at", settings["boost_starts_at"] || ""),
+                            api.adminUpdateSetting(user.id, "boost_ends_at",   settings["boost_ends_at"]   || ""),
+                          ]);
+                          flash("تم حفظ جدولة الـ Boost ✅");
+                        } catch { flash("فشل الحفظ", "err"); }
+                        setSaving(false);
+                      }}
+                      className="flex-1 py-2 rounded-xl text-sm font-bold bg-yellow-400 text-black transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      حفظ الجدول
+                    </button>
+                    <button
+                      disabled={saving}
+                      onClick={async () => {
+                        if (!user || saving) return;
+                        setSaving(true);
+                        try {
+                          setSettings(prev => ({ ...prev, boost_starts_at: "", boost_ends_at: "" }));
+                          await Promise.all([
+                            api.adminUpdateSetting(user.id, "boost_starts_at", ""),
+                            api.adminUpdateSetting(user.id, "boost_ends_at",   ""),
+                          ]);
+                          flash("تم مسح التوقيت — Boost دائم ✅");
+                        } catch { flash("فشل الحفظ", "err"); }
+                        setSaving(false);
+                      }}
+                      className="flex-1 py-2 rounded-xl text-sm font-bold bg-purple-800/50 text-purple-300 transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      مسح التوقيت
+                    </button>
+                  </div>
+                  {(settings["boost_starts_at"] || settings["boost_ends_at"]) && (
+                    <p className="text-purple-500 text-xs mt-2">
+                      {settings["boost_starts_at"] && <span>يبدأ: <span className="text-yellow-400">{new Date(settings["boost_starts_at"]).toLocaleString("ar-SA")}</span></span>}
+                      {settings["boost_starts_at"] && settings["boost_ends_at"] && " — "}
+                      {settings["boost_ends_at"] && <span>ينتهي: <span className="text-yellow-400">{new Date(settings["boost_ends_at"]).toLocaleString("ar-SA")}</span></span>}
+                    </p>
+                  )}
+                  {!settings["boost_starts_at"] && !settings["boost_ends_at"] && (parseInt(settings["spin_power"]) || 1) > 1 && (
+                    <p className="text-green-400 text-xs mt-2 font-bold">⚡ Boost نشط الآن (بلا توقيت)</p>
+                  )}
+                </div>
+
                 {/* Withdraw mode */}
                 <div className="bg-purple-900/20 border border-purple-700/40 rounded-2xl p-4">
                   <h3 className="text-white font-bold text-sm mb-3">وضع السحب</h3>
