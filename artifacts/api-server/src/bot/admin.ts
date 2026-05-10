@@ -933,18 +933,18 @@ export async function handleAdminText(bot: TelegramBot, msg: TelegramBot.Message
 
     // ── User search ──
     if (state.step === "user_search") {
-      clearState();
-      const info = await getAdminInfo(userId, undefined);
-      if (!info) return false;
+      const info = await getAdminInfo(userId, msg.from?.username);
+      if (!info) { clearState(); return false; }
       let u: typeof usersTable.$inferSelect | undefined;
       if (text.startsWith("@")) {
-        const uname = text.replace("@", "");
+        const uname = text.slice(1);
         u = (await db.select().from(usersTable).where(ilike(usersTable.username, uname)).limit(1))[0];
       } else {
         const targetId = parseInt(text);
         if (isNaN(targetId)) { await send("❌ أدخل ID رقمي صحيح أو @يوزرنيم"); return true; }
         u = (await db.select().from(usersTable).where(eq(usersTable.id, targetId)).limit(1))[0];
       }
+      clearState();
       if (!u) { await send("❌ لم يتم العثور على مستخدم بهذا المعرف"); return true; }
       await showUserCard(bot, chatId, u, info);
       return true;
