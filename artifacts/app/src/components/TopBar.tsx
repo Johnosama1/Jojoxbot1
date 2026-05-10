@@ -43,7 +43,7 @@ function StarSticker() {
       loop: true,
       autoplay: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: star2Data as any,
+      animationData: star2Data as object,
     });
     return () => anim.destroy();
   }, []);
@@ -60,7 +60,7 @@ function UsdtSticker() {
       loop: true,
       autoplay: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: usdtAnimData as any,
+      animationData: usdtAnimData as object,
     });
     return () => anim.destroy();
   }, []);
@@ -84,7 +84,7 @@ export default function TopBar() {
       loop: true,
       autoplay: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: capElectroData as any,
+      animationData: capElectroData as object,
     });
     return () => anim.destroy();
   }, []);

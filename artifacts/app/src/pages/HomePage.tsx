@@ -18,7 +18,7 @@ function ContestSticker() {
       loop: true,
       autoplay: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: contestData as any,
+      animationData: contestData as object,
     });
     return () => anim.destroy();
   }, []);
@@ -35,7 +35,7 @@ function UsdtSticker({ size = 36 }: { size?: number }) {
       loop: true,
       autoplay: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: usdtAnimData as any,
+      animationData: usdtAnimData as object,
     });
     return () => anim.destroy();
   }, []);

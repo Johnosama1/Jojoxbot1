@@ -103,10 +103,15 @@ router.post("/", withdrawLimiter, requireSession, verifyAccessMiddleware, async 
   res.json({ success: true, withdrawal: wd });
 });
 
-router.get("/:userId", async (req, res) => {
+router.get("/:userId", requireSession, async (req, res) => {
   const userId = parseInt(req.params.userId);
   if (isNaN(userId) || userId <= 0) {
     res.status(400).json({ error: "Invalid userId" }); return;
+  }
+
+  const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
+  if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== userId) {
+    res.status(403).json({ error: "Forbidden" }); return;
   }
 
   const withdrawals = await db

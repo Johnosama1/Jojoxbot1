@@ -96,10 +96,10 @@ const utf16Len = (s: string): number => {
 
 export interface MsgPart { text: string; emojiId?: string }
 
-export function buildMsg(parts: MsgPart[]): { text: string; entities: object[] } {
+export function buildMsg(parts: MsgPart[]): { text: string; entities: TelegramBot.MessageEntity[] } {
   let text = "";
   let offset = 0;
-  const entities: object[] = [];
+  const entities: TelegramBot.MessageEntity[] = [];
   for (const p of parts) {
     if (p.emojiId) {
       entities.push({ type: "custom_emoji", offset, length: utf16Len(p.text), custom_emoji_id: p.emojiId });

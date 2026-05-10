@@ -25,7 +25,7 @@ function UsdtLogo({ size = 32 }: { size?: number }) {
       loop: true,
       autoplay: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: usdtAnimData as any,
+      animationData: usdtAnimData as object,
     });
     return () => anim.destroy();
   }, []);

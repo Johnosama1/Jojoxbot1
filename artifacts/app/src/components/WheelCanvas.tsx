@@ -31,7 +31,7 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
       loop: true,
       autoplay: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: usdtAnimData as any,
+      animationData: usdtAnimData as object,
       rendererSettings: { clearCanvas: true },
     });
     anim.addEventListener("DOMLoaded", () => {

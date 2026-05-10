@@ -37,7 +37,12 @@ const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? "";
 // ── Parse + validate Telegram WebApp initData ─────────────────────────
 function parseInitData(initData: string): { valid: boolean; userId?: number } {
   try {
-    if (!BOT_TOKEN) return { valid: true, userId: undefined }; // dev fallback
+    if (!BOT_TOKEN) {
+      // In production, no token means fail closed — cannot verify identity
+      if (process.env.NODE_ENV === "production") return { valid: false };
+      // In dev, allow through without verification
+      return { valid: true, userId: undefined };
+    }
 
     const params = new URLSearchParams(initData);
     const hash = params.get("hash");
@@ -145,6 +150,10 @@ router.post("/recheck", async (req, res) => {
   const bodyUserId = req.body?.userId ? parseInt(String(req.body.userId)) : undefined;
 
   const parsed = parseInitData(initData);
+  if (!parsed.valid && process.env.NODE_ENV === "production") {
+    res.status(401).json({ error: "invalid_auth", message: "بيانات Telegram غير صالحة" });
+    return;
+  }
   const userId = (parsed.valid ? parsed.userId : undefined) ?? bodyUserId;
 
   if (!userId) {
