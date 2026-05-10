@@ -5,13 +5,13 @@
   "outputDirectory": "artifacts/app/dist/public",
   "framework": null,
   "functions": {
-    "api/vercel-entry.js": {
+    "api/index.js": {
       "memory": 1024,
       "maxDuration": 60
     }
   },
   "routes": [
-    { "src": "/api/(.*)", "dest": "/api/vercel-entry.js" },
+    { "src": "/api/(.*)", "dest": "/api/index.js" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]

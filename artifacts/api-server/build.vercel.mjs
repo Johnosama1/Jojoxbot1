@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm, mkdir } from "node:fs/promises";
+import { rm, mkdir, rename } from "node:fs/promises";
 
 globalThis.require = createRequire(import.meta.url);
 
@@ -11,9 +11,16 @@ const artifactDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(artifactDir, "..", "..");
 
 async function buildVercel() {
-  // Output goes to repo root /api/ so Vercel finds it at /api/index.js
+  // Build to a temp dir first, then rename the main bundle to index.js
+  // so Vercel auto-discovers it as the /api/* handler.
+  // We cannot use entryNames:"index" directly because esbuild-plugin-pino
+  // also emits an index.js worker, causing a path collision.
+  const tmpDir = path.resolve(repoRoot, ".api-tmp");
   const outDir = path.resolve(repoRoot, "api");
+
+  await rm(tmpDir, { recursive: true, force: true });
   await rm(outDir, { recursive: true, force: true });
+  await mkdir(tmpDir, { recursive: true });
   await mkdir(outDir, { recursive: true });
 
   const start = Date.now();
@@ -25,7 +32,7 @@ async function buildVercel() {
     platform: "node",
     bundle: true,
     format: "cjs",
-    outdir: outDir,
+    outdir: tmpDir,
     logLevel: "info",
 
     minify: true,
@@ -116,6 +123,15 @@ globalThis.require = __bannerCrReq(__filename);
 globalThis.__dirname = __bannerPath.dirname(__filename);`,
     },
   });
+
+  // Move all files from tmpDir → api/, renaming the main bundle to index.js
+  const { readdir, copyFile } = await import("node:fs/promises");
+  const tmpFiles = await readdir(tmpDir);
+  for (const file of tmpFiles) {
+    const destName = file === "vercel-entry.js" ? "index.js" : file;
+    await copyFile(path.join(tmpDir, file), path.join(outDir, destName));
+  }
+  await rm(tmpDir, { recursive: true, force: true });
 
   console.log(`Vercel build finished in ${Date.now() - start}ms → api/index.js`);
 }
