@@ -17,18 +17,14 @@ fi
 echo ""
 echo "🔄 Pushing to GitHub..."
 
-# Use credential store instead of embedding token in URL (avoids special char issues)
-git config --local credential.helper '!f() { echo "username=oauth2"; echo "password='"$GH_TOKEN"'"; }; f'
-git config --local url."https://github.com/".insteadOf "git@github.com:"
+# URL-encode the token to handle special characters safely
+ENCODED=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$GH_TOKEN")
+REMOTE_URL="https://oauth2:${ENCODED}@github.com/Johnosama1/Jojoxbot1.git"
 
-git push origin main
-
-# Clean up credentials after push
-git config --local --unset credential.helper 2>/dev/null || true
+git push "$REMOTE_URL" main
 
 echo ""
-echo "✅ Done! Code pushed to GitHub successfully."
-echo "   Vercel will auto-deploy in about 1-2 minutes."
+echo "✅ Done! Code is on GitHub."
+echo "   Vercel will auto-deploy in 1-2 minutes."
 echo ""
-echo "Check deploy status at:"
-echo "   https://vercel.com/johnosama1s-projects"
+echo "Check: https://vercel.com/johnosama1s-projects"
