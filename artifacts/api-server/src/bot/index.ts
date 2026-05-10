@@ -23,6 +23,7 @@ import {
   enforceSubscription,
   handleSubRecheckCallback,
   clearAllSubCache,
+  clearSubCache,
 } from "./subscription";
 import { isBotEnabled, clearBotEnabledCache, setBotEnabled } from "./control";
 
@@ -377,6 +378,9 @@ function setupBotHandlers() {
 
     try {
       if (await maybeBlocked(chatId, userId, username)) return;
+
+      // Clear subscription cache so /start always does a live channel check
+      clearSubCache(userId);
 
       const refParam = match?.[1]?.trim();
       let referredBy: number | undefined;

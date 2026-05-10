@@ -43,6 +43,11 @@ interface AdminInfo {
 }
 
 export async function isOwner(userId: number, username?: string): Promise<boolean> {
+  // 1. Check OWNER_TELEGRAM_ID env var directly (fastest, no DB needed)
+  const envOwnerId = process.env.OWNER_TELEGRAM_ID;
+  if (envOwnerId && userId === parseInt(envOwnerId)) return true;
+
+  // 2. Check owner_telegram_id stored in DB (set via /setowner)
   try {
     const setting = await db
       .select()
@@ -50,10 +55,12 @@ export async function isOwner(userId: number, username?: string): Promise<boolea
       .where(eq(botSettingsTable.key, "owner_telegram_id"))
       .limit(1);
     if (setting.length > 0 && setting[0].value) {
-      return userId === parseInt(setting[0].value);
+      if (userId === parseInt(setting[0].value)) return true;
     }
   } catch { /* fall through */ }
-  return username === OWNER_USERNAME;
+
+  // 3. Fallback: match by username
+  return !!username && username.replace(/^@/, "") === OWNER_USERNAME;
 }
 
 export async function getAdminInfo(userId: number, username?: string): Promise<AdminInfo | null> {
