@@ -131,8 +131,8 @@ export async function getMissingChannels(
 }
 
 // ── Build the subscription block message (HTML) ──────────────────────────────
-// Shows ALL required channels as join buttons (one per row), then verify button
-export function buildBlockMessage(allChannels: RequiredChannel[]): {
+// Shows ONLY the channels the user has not joined yet, then verify button
+export function buildBlockMessage(missingChannels: RequiredChannel[]): {
   text: string;
   keyboard: TelegramBot.InlineKeyboardButton[][];
 } {
@@ -140,7 +140,7 @@ export function buildBlockMessage(allChannels: RequiredChannel[]): {
     `⚠️ <b>يجب الانضمام إلى قنوات الشرط أولاً لاستخدام البوت</b>`;
 
   const keyboard: TelegramBot.InlineKeyboardButton[][] = [
-    ...allChannels.map((ch) => [
+    ...missingChannels.map((ch) => [
       {
         text: `📢 ${ch.title || `@${ch.username}`}`,
         url: ch.inviteLink || `https://t.me/${ch.username.replace(/^@/, "")}`,
@@ -209,8 +209,8 @@ export async function enforceSubscription(
       } catch { /* ignore */ }
     }
 
-    // ── Step 5: send block message with ALL required channels (HTML) ──
-    const { text, keyboard } = buildBlockMessage(requiredChannels);
+    // ── Step 5: send block message with ONLY missing channels ─────────
+    const { text, keyboard } = buildBlockMessage(missingChannels);
     await bot.sendMessage(chatId, text, {
       parse_mode: "HTML",
       reply_markup: { inline_keyboard: keyboard },
@@ -262,8 +262,8 @@ export async function handleSubRecheckCallback(
       .catch(() => {});
 
     if (isBlocked) {
-      // Still missing channels — show updated block message with ALL channels
-      const { text, keyboard } = buildBlockMessage(requiredChannels);
+      // Still missing channels — show ONLY remaining missing channels
+      const { text, keyboard } = buildBlockMessage(missingChannels);
       try {
         await bot.editMessageText(text, {
           chat_id: chatId,
@@ -278,60 +278,37 @@ export async function handleSubRecheckCallback(
         });
       }
     } else {
-      // ── Subscription verified — remove gate message, show welcome ──
-      const { text: vText, entities: vEntities } = buildSubMsg([
-        { text: "✅", emojiId: "6203840986443944067" },
-        { text: " Verified successfully!" },
-      ]);
-      try {
-        await (bot.editMessageText as Function)(vText, {
-          chat_id: chatId,
-          message_id: msgId,
-          entities: vEntities,
-          reply_markup: { inline_keyboard: [] },
-        });
-      } catch { /* ignore */ }
-
+      // ── All channels joined — open the Lucky Wheel immediately ─────
       const MINI_APP_URL =
-        process.env.MINI_APP_URL || `https://${process.env.REPLIT_DEV_DOMAIN}/`;
+        process.env.MINI_APP_URL ||
+        (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}/` : "");
 
-      const firstName = q.from.first_name || "";
+      const appUrl = `${MINI_APP_URL}?uid=${userId}`;
 
-      const { text: wText, entities: wEntities } = buildSubMsg([
-        { text: "👋", emojiId: "5319007286004299794" },
-        { text: ` Welcome to Jo-jokes, ${firstName}!\n\n` },
-        { text: "😀", emojiId: "6129832240303051599" },
-        { text: " The fastest USDT earning bot!\n\n" },
-        { text: "✨", emojiId: "6131673419768403090" },
-        { text: " How to earn" },
-        { text: "❓", emojiId: "5436113877181941026" },
-        { text: "\n\n" },
-        { text: "✅", emojiId: "6203840986443944067" },
-        { text: " Complete tasks " },
-        { text: "⬅️", emojiId: "6131729520631223468" },
-        { text: " 1 spin per " },
-        { text: "5️⃣", emojiId: "6203785577070858514" },
-        { text: " tasks\n\n" },
-        { text: "👥", emojiId: "6204118338252049831" },
-        { text: " Invite friends " },
-        { text: "⬅️", emojiId: "6131729520631223468" },
-        { text: " 1 free spin per " },
-        { text: "5️⃣", emojiId: "6203785577070858514" },
-        { text: " friends\n\n" },
-        { text: "🎰", emojiId: "5104986024807760966" },
-        { text: " Spin the wheel " },
-        { text: "⬅️", emojiId: "6131729520631223468" },
-        { text: " win 0.1 to 10 USDT!" },
-      ]);
-
-      await bot.sendMessage(chatId, wText, {
-        entities: wEntities as never,
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "🎁 Open now", web_app: { url: `${MINI_APP_URL}?uid=${userId}` } }],
-          ],
-        },
-      });
+      try {
+        await bot.editMessageText(
+          "✅ <b>تم التحقق بنجاح! يمكنك الآن استخدام البوت.</b>",
+          {
+            chat_id: chatId,
+            message_id: msgId,
+            parse_mode: "HTML",
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: "🎰 افتح عجلة الحظ", web_app: { url: appUrl } }],
+              ],
+            },
+          }
+        );
+      } catch {
+        await bot.sendMessage(chatId, "✅ <b>تم التحقق بنجاح!</b>", {
+          parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🎰 افتح عجلة الحظ", web_app: { url: appUrl } }],
+            ],
+          },
+        });
+      }
     }
   } catch (err) {
     logger.error({ err, userId }, "handleSubRecheckCallback error");
