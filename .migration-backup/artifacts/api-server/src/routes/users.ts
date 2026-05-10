@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { createHash } from "crypto";
 import { db } from "@workspace/db";
-import { usersTable, wheelSlotsTable } from "@workspace/db/schema";
+import { usersTable, wheelSlotsTable, botSettingsTable } from "@workspace/db/schema";
 import { eq, sql, and } from "drizzle-orm";
 import { telegramAuth, spinRateLimit } from "../middlewares/telegramAuth";
 import { verifyAccessMiddleware } from "../middlewares/verifyAccess";
@@ -26,44 +26,50 @@ router.post("/init", telegramAuth, async (req, res) => {
   const { id, username, first_name, last_name, photo_url } = req.body;
   if (!id) { res.status(400).json({ error: "Missing id" }); return; }
 
-  // Single upsert: insert new user OR update profile fields for existing user
-  const [user] = await db
-    .insert(usersTable)
-    .values({
-      id,
-      username: username || null,
-      firstName: first_name || "",
-      lastName: last_name || "",
-      photoUrl: photo_url || null,
-      spins: 3,
-    })
-    .onConflictDoUpdate({
-      target: usersTable.id,
-      set: {
-        username: sql`COALESCE(${username || null}, users.username)`,
-        firstName: sql`COALESCE(NULLIF(${first_name || ""}, ''), users.first_name)`,
-        lastName: sql`COALESCE(NULLIF(${last_name || ""}, ''), users.last_name)`,
-        photoUrl: sql`COALESCE(${photo_url || null}, users.photo_url)`,
-      },
-    })
-    .returning();
+  try {
+    // Single upsert: insert new user OR update profile fields for existing user
+    const [user] = await db
+      .insert(usersTable)
+      .values({
+        id,
+        username: username || null,
+        firstName: first_name || "",
+        lastName: last_name || "",
+        photoUrl: photo_url || null,
+        spins: 3,
+      })
+      .onConflictDoUpdate({
+        target: usersTable.id,
+        set: {
+          username: sql`COALESCE(${username || null}, users.username)`,
+          firstName: sql`COALESCE(NULLIF(${first_name || ""}, ''), users.first_name)`,
+          lastName: sql`COALESCE(NULLIF(${last_name || ""}, ''), users.last_name)`,
+          photoUrl: sql`COALESCE(${photo_url || null}, users.photo_url)`,
+        },
+      })
+      .returning();
 
-  if (user.isVisible === false) {
-    res.status(403).json({ error: "محظور", banned: true });
-    return;
-  }
-
-  // Record IP for informational purposes only (no auto-ban)
-  if (!user.ipVerifiedAt) {
-    const rawIp = normalizeIp(req.ip || req.socket.remoteAddress || "");
-    if (rawIp) {
-      const ipHash = hashIp(rawIp);
-      await db.update(usersTable).set({ ipHash }).where(eq(usersTable.id, user.id));
+    if (user.isVisible === false) {
+      res.status(403).json({ error: "محظور", banned: true });
+      return;
     }
-  }
 
-  res.setHeader("Cache-Control", "no-store");
-  res.json({ ...user, isVerified: user.ipVerifiedAt != null });
+    // Record IP for informational purposes only (no auto-ban)
+    if (!user.ipVerifiedAt) {
+      const rawIp = normalizeIp(req.ip || req.socket.remoteAddress || "");
+      if (rawIp) {
+        const ipHash = hashIp(rawIp);
+        await db.update(usersTable).set({ ipHash }).where(eq(usersTable.id, user.id)).catch(() => {});
+      }
+    }
+
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ ...user, isVerified: user.ipVerifiedAt != null });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[/users/init] DB error:", msg);
+    res.status(503).json({ error: "service_unavailable", message: "Server busy, please retry." });
+  }
 });
 
 router.get("/:id", async (req, res) => {
@@ -77,6 +83,10 @@ router.get("/:id", async (req, res) => {
 
 router.post("/:id/spin", requireSession, spinRateLimit, verifyAccessMiddleware, async (req, res) => {
   const id = parseInt(req.params.id);
+  const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
+  if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== id) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
 
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
@@ -102,23 +112,47 @@ router.post("/:id/spin", requireSession, spinRateLimit, verifyAccessMiddleware, 
     winner = slots.find(s => s.probability > 0) ?? slots[0];
   }
 
+  // Apply admin-configured power multiplier (respecting boost schedule)
+  const [powerSetting, startSetting, endSetting] = await Promise.all([
+    db.select().from(botSettingsTable).where(eq(botSettingsTable.key, "spin_power")).limit(1),
+    db.select().from(botSettingsTable).where(eq(botSettingsTable.key, "boost_starts_at")).limit(1),
+    db.select().from(botSettingsTable).where(eq(botSettingsTable.key, "boost_ends_at")).limit(1),
+  ]);
+  const rawPower = powerSetting.length > 0 ? Math.max(1, parseInt(powerSetting[0].value) || 1) : 1;
+  const power = (() => {
+    if (rawPower <= 1) return 1;
+    const startsAt = startSetting[0]?.value;
+    const endsAt   = endSetting[0]?.value;
+    if (!startsAt && !endsAt) return rawPower; // no schedule = always active
+    const now   = Date.now();
+    const start = startsAt ? new Date(startsAt).getTime() : 0;
+    const end   = endsAt   ? new Date(endsAt).getTime()   : Infinity;
+    return (now >= start && now <= end) ? rawPower : 1;
+  })();
+  const multipliedAmount = (parseFloat(winner.amount) * power).toFixed(6);
+
   await db
     .update(usersTable)
-    .set({ spins: sql`spins - 1`, balance: sql`balance + ${winner.amount}` })
+    .set({ spins: sql`spins - 1`, balance: sql`balance + ${multipliedAmount}` })
     .where(eq(usersTable.id, id));
-
 
   const [updated] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
   const slotIndex = slots.findIndex(s => s.id === winner!.id);
+  // Return winner with multiplied amount so frontend displays correct prize
+  const displayWinner = { ...winner, amount: multipliedAmount };
   res.setHeader("Cache-Control", "no-store");
   // Return full slots array so frontend always uses the correct order for animation
-  res.json({ winner, user: updated, slotIndex, slots });
+  res.json({ winner: displayWinner, user: updated, slotIndex, slots });
 });
 
 // ── Swap USDT balance → TON balance (live rate from CoinGecko) ───────
 router.post("/:id/swap", requireSession, verifyAccessMiddleware, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
+  const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
+  if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== id) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
 
   const { usdtAmount } = req.body;
   const amt = parseFloat(String(usdtAmount));
@@ -162,6 +196,10 @@ const TON_ADDRESS_RE = /^(EQ|UQ|kQ|0Q)[A-Za-z0-9_-]{46}$/;
 router.put("/:id/wallet", requireSession, verifyAccessMiddleware, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
+  const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
+  if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== id) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
 
   const { walletAddress } = req.body;
 

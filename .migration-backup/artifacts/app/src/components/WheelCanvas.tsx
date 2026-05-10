@@ -1,6 +1,5 @@
 import { useRef, useEffect, useState } from "react";
 import lottie from "lottie-web";
-import usdtAnimData from "../../public/usdt-anim.json";
 import { WheelSlot } from "../lib/api";
 
 interface WheelCanvasProps {
@@ -22,26 +21,35 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
 
   const [arrowState, setArrowState] = useState<"idle" | "thrown" | "landing">("idle");
 
-  // Load USDT Lottie animation onto hidden off-screen canvas renderer
+  // Load USDT Lottie animation onto hidden off-screen canvas renderer — deferred to avoid blocking first render
   useEffect(() => {
-    if (!usdtLottieRef.current) return;
-    const anim = lottie.loadAnimation({
-      container: usdtLottieRef.current,
-      renderer: "canvas",
-      loop: true,
-      autoplay: true,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: usdtAnimData as any,
-      rendererSettings: { clearCanvas: true },
-    });
-    anim.addEventListener("DOMLoaded", () => {
-      const c = usdtLottieRef.current?.querySelector("canvas");
-      if (c) usdtAnimCanvasRef.current = c as HTMLCanvasElement;
-    });
-    return () => { anim.destroy(); usdtAnimCanvasRef.current = null; };
+    let anim: ReturnType<typeof lottie.loadAnimation> | null = null;
+    const timer = setTimeout(() => {
+      if (!usdtLottieRef.current) return;
+      // Dynamic import keeps usdt-anim.json out of the initial bundle
+      import("../../public/usdt-anim.json").then((m) => {
+        if (!usdtLottieRef.current) return;
+        anim = lottie.loadAnimation({
+          container: usdtLottieRef.current,
+          renderer: "canvas",
+          loop: true,
+          autoplay: true,
+          animationData: m.default as object,
+          rendererSettings: { clearCanvas: true },
+        });
+        anim.addEventListener("DOMLoaded", () => {
+          const c = usdtLottieRef.current?.querySelector("canvas");
+          if (c) usdtAnimCanvasRef.current = c as HTMLCanvasElement;
+        });
+      });
+    }, 400);
+    return () => {
+      clearTimeout(timer);
+      if (anim) { anim.destroy(); usdtAnimCanvasRef.current = null; }
+    };
   }, []);
 
-  // Preload bot logo image once
+  // Preload bot logo image immediately — center logo must show as soon as wheel renders
   useEffect(() => {
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -259,11 +267,16 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
     if (spinning) return;
     setArrowState("idle");
     let frame = glowFrameRef.current;
-    const idle = () => {
+    let lastDraw = 0;
+    const IDLE_INTERVAL = 50; // ~20 fps — glow pulse is slow, 20fps is imperceptible from 60fps
+    const idle = (now: number) => {
+      animFrameRef.current = requestAnimationFrame(idle);
+      if (document.hidden) return; // pause when app is backgrounded
+      if (now - lastDraw < IDLE_INTERVAL) return;
+      lastDraw = now;
       frame++;
       glowFrameRef.current = frame;
       drawWheel(rotationRef.current, frame);
-      animFrameRef.current = requestAnimationFrame(idle);
     };
     animFrameRef.current = requestAnimationFrame(idle);
     return () => cancelAnimationFrame(animFrameRef.current);
@@ -294,7 +307,7 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
     winFlashRef.current = null;
     setArrowState("landing");
 
-    const SETTLE_MS  = 2800;
+    const SETTLE_MS  = 1500;
     const segAngle   = (2 * Math.PI) / slots.length;
     const finalAngle = (2 * Math.PI - winnerIndex * segAngle) - segAngle / 2;
     const SPIN_SPEED = (2 * Math.PI * 3.5) / 1000;
@@ -311,10 +324,10 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
       frame++;
       glowFrameRef.current = frame;
 
-      if (elapsed < 600) {
+      if (elapsed < 400) {
         rotationRef.current = (startRotation + SPIN_SPEED * elapsed) % (2 * Math.PI);
         drawWheel(rotationRef.current, frame);
-      } else if (elapsed < 600 + SETTLE_MS) {
+      } else if (elapsed < 400 + SETTLE_MS) {
         if (!settled) {
           settled         = true;
           settleStartRot  = rotationRef.current;
@@ -325,7 +338,7 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
         const eased = 1 - Math.pow(1 - t, 4);
         let diff = finalAngle - (settleStartRot % (2 * Math.PI));
         if (diff < 0) diff += 2 * Math.PI;
-        const totalTravel   = 2 * Math.PI * 3 + diff;
+        const totalTravel   = 2 * Math.PI * 2 + diff;
         rotationRef.current = settleStartRot + eased * totalTravel;
         drawWheel(rotationRef.current, frame);
       } else {

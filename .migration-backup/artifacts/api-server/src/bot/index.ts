@@ -96,10 +96,10 @@ const utf16Len = (s: string): number => {
 
 export interface MsgPart { text: string; emojiId?: string }
 
-export function buildMsg(parts: MsgPart[]): { text: string; entities: object[] } {
+export function buildMsg(parts: MsgPart[]): { text: string; entities: TelegramBot.MessageEntity[] } {
   let text = "";
   let offset = 0;
-  const entities: object[] = [];
+  const entities: TelegramBot.MessageEntity[] = [];
   for (const p of parts) {
     if (p.emojiId) {
       entities.push({ type: "custom_emoji", offset, length: utf16Len(p.text), custom_emoji_id: p.emojiId });
@@ -176,7 +176,8 @@ export async function processUpdateAndWait(update: TelegramBot.Update): Promise<
 // ── Welcome & menu ──────────────────────────────────────────────────────────
 
 export async function sendWelcomeMessage(chatId: number, userId: number, firstName: string) {
-  const MINI_APP_URL = process.env.MINI_APP_URL || "https://jojoxbot1-api-server.vercel.app";
+  const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
+  const MINI_APP_URL = process.env.MINI_APP_URL || (replitDomain ? `https://${replitDomain}` : "");
 
   const { text: welcomeText, entities: welcomeEntities } = buildMsg([
     { text: "👋", emojiId: "5319007286004299794" },

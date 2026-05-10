@@ -27,6 +27,11 @@ export function getWheelSlotsOnce(): Promise<WheelSlot[]> {
   return _slotsCache;
 }
 
+export type BoostStatus = { active: boolean; multiplier: number; endsAt: string | null };
+export async function getBoostStatus(): Promise<BoostStatus> {
+  return apiCall<BoostStatus>("/wheel/boost");
+}
+
 let _tasksCache: Promise<Task[]> | null = null;
 export function getTasksOnce(): Promise<Task[]> {
   if (!_tasksCache) _tasksCache = apiCall<Task[]>("/tasks");

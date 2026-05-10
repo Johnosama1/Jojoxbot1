@@ -6,28 +6,21 @@
   "scripts": {
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
-    "start": "node ./dist/index.mjs",
+    "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@ton/core": "^0.63.1",
-    "@ton/crypto": "^3.3.0",
-    "@ton/ton": "^16.2.4",
-    "@types/compression": "^1.8.1",
-    "@types/node-telegram-bot-api": "^0.64.14",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
-    "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
     "cors": "^2",
     "drizzle-orm": "catalog:",
     "express": "^5",
-    "express-rate-limit": "^8.4.1",
-    "helmet": "^8.1.0",
-    "node-telegram-bot-api": "^0.67.0",
     "pino": "^9",
     "pino-http": "^10"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "catalog:",

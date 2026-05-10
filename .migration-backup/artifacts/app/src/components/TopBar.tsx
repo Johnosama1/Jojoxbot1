@@ -1,9 +1,6 @@
 import { useUser } from "../lib/userContext";
 import { useEffect, useRef, useState } from "react";
 import lottie from "lottie-web";
-import usdtAnimData from "../../public/usdt-anim.json";
-import star2Data from "../../public/star2.json";
-import capElectroData from "../../public/cap-electro.json";
 import johnImg from "../../public/dev-john.jpg";
 import ammarImg from "../../public/dev-ammar.jpg";
 import { useWinModalOpen } from "../lib/winModal";
@@ -36,16 +33,19 @@ function DevAvatar({ src, name, gradient }: { src: string; name: string; gradien
 function StarSticker() {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!ref.current) return;
-    const anim = lottie.loadAnimation({
-      container: ref.current,
-      renderer: "svg",
-      loop: true,
-      autoplay: true,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: star2Data as any,
+    let anim: ReturnType<typeof lottie.loadAnimation> | null = null;
+    // Only shown in dev info popup — load on demand
+    import("../../public/star2.json").then((m) => {
+      if (!ref.current) return;
+      anim = lottie.loadAnimation({
+        container: ref.current,
+        renderer: "svg",
+        loop: true,
+        autoplay: true,
+        animationData: m.default as object,
+      });
     });
-    return () => anim.destroy();
+    return () => { if (anim) anim.destroy(); };
   }, []);
   return <div ref={ref} style={{ width: 18, height: 18, flexShrink: 0 }} />;
 }
@@ -53,16 +53,21 @@ function StarSticker() {
 function UsdtSticker() {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!ref.current) return;
-    const anim = lottie.loadAnimation({
-      container: ref.current,
-      renderer: "svg",
-      loop: true,
-      autoplay: true,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: usdtAnimData as any,
-    });
-    return () => anim.destroy();
+    let anim: ReturnType<typeof lottie.loadAnimation> | null = null;
+    // Defer by 500ms — TopBar is always mounted, so we defer to not block first paint
+    const timer = setTimeout(() => {
+      import("../../public/usdt-anim.json").then((m) => {
+        if (!ref.current) return;
+        anim = lottie.loadAnimation({
+          container: ref.current,
+          renderer: "svg",
+          loop: true,
+          autoplay: true,
+          animationData: m.default as object,
+        });
+      });
+    }, 500);
+    return () => { clearTimeout(timer); if (anim) anim.destroy(); };
   }, []);
   return <div ref={ref} style={{ width: 28, height: 28, flexShrink: 0, marginLeft: -4, marginRight: -2 }} />;
 }
@@ -77,16 +82,21 @@ export default function TopBar() {
   const balance = user ? parseFloat(user.balance).toFixed(2) : "0.00";
 
   useEffect(() => {
-    if (!stickerRef.current) return;
-    const anim = lottie.loadAnimation({
-      container: stickerRef.current,
-      renderer: "svg",
-      loop: true,
-      autoplay: true,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: capElectroData as any,
-    });
-    return () => anim.destroy();
+    let anim: ReturnType<typeof lottie.loadAnimation> | null = null;
+    // Defer cap-electro sticker by 600ms to avoid competing with first paint
+    const timer = setTimeout(() => {
+      import("../../public/cap-electro.json").then((m) => {
+        if (!stickerRef.current) return;
+        anim = lottie.loadAnimation({
+          container: stickerRef.current,
+          renderer: "svg",
+          loop: true,
+          autoplay: true,
+          animationData: m.default as object,
+        });
+      });
+    }, 600);
+    return () => { clearTimeout(timer); if (anim) anim.destroy(); };
   }, []);
 
   if (winModalOpen) return null;

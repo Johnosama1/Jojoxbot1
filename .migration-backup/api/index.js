@@ -4,9 +4,7 @@
 let _app = null;
 let _initError = null;
 
-// export default style handler (Vercel supports both module.exports and export default for CJS)
 module.exports = async function handler(req, res) {
-  // If a previous cold-start import failed, reset and retry
   if (_initError) {
     console.error("[vercel] Cached init error — retrying:", _initError?.message);
     _initError = null;

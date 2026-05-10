@@ -1,6 +1,5 @@
-import { lazy, Suspense, useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import lottie from "lottie-web";
-import maintenanceAnimData from "../public/maintenance-anim.json";
 import { useLocation, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TonConnectUIProvider } from "@tonconnect/ui-react";
@@ -21,7 +20,7 @@ const WalletPage      = lazy(() => import("./pages/WalletPage"));
 const queryClient = new QueryClient();
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const MANIFEST_URL = "https://jojoxbot1-api-server.vercel.app/api/tonconnect-manifest.json";
+const MANIFEST_URL = `${window.location.origin}/api/tonconnect-manifest.json`;
 
 function BannedScreen() {
   return (
@@ -50,18 +49,24 @@ function BannedScreen() {
 
 function MaintenanceLottie() {
   const ref = useRef<HTMLDivElement>(null);
+  const [animData, setAnimData] = useState<object | null>(null);
+
   useEffect(() => {
-    if (!ref.current) return;
+    // Load maintenance animation data only when maintenance screen is actually shown
+    import("../public/maintenance-anim.json").then((m) => setAnimData(m.default as object));
+  }, []);
+
+  useEffect(() => {
+    if (!ref.current || !animData) return;
     const anim = lottie.loadAnimation({
       container: ref.current,
       renderer: "svg",
       loop: true,
       autoplay: true,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: maintenanceAnimData as any,
+      animationData: animData,
     });
     return () => anim.destroy();
-  }, []);
+  }, [animData]);
   return (
     <div style={{ position: "relative", marginBottom: 16 }}>
       <div style={{

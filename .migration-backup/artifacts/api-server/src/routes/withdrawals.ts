@@ -9,7 +9,7 @@ import { requireSession } from "../middlewares/requireSession";
 
 const router = Router();
 
-const MIN_WITHDRAWAL = 0.2;
+const MIN_WITHDRAWAL = 0.1;
 const MAX_WITHDRAWAL = 1000;
 
 // TON address: EQ/UQ/kQ/0Q + 46 base64url chars
@@ -35,6 +35,11 @@ router.post("/", withdrawLimiter, requireSession, verifyAccessMiddleware, async 
   const numUserId = parseInt(String(userId));
   if (isNaN(numUserId) || numUserId <= 0) {
     res.status(400).json({ error: "معرّف مستخدم غير صحيح" }); return;
+  }
+
+  const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
+  if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== numUserId) {
+    res.status(403).json({ error: "Forbidden" }); return;
   }
 
   const cleanAddress = String(walletAddress).trim();
@@ -98,10 +103,15 @@ router.post("/", withdrawLimiter, requireSession, verifyAccessMiddleware, async 
   res.json({ success: true, withdrawal: wd });
 });
 
-router.get("/:userId", async (req, res) => {
+router.get("/:userId", requireSession, async (req, res) => {
   const userId = parseInt(req.params.userId);
   if (isNaN(userId) || userId <= 0) {
     res.status(400).json({ error: "Invalid userId" }); return;
+  }
+
+  const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
+  if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== userId) {
+    res.status(403).json({ error: "Forbidden" }); return;
   }
 
   const withdrawals = await db

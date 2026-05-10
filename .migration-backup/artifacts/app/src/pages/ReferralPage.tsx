@@ -23,7 +23,7 @@ export default function ReferralPage() {
       loop: true,
       autoplay: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: stickerMoneyData as any,
+      animationData: stickerMoneyData as object,
     });
     return () => anim.destroy();
   }, []);
@@ -36,7 +36,7 @@ export default function ReferralPage() {
       loop: true,
       autoplay: true,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: leaderboardStickerData as any,
+      animationData: leaderboardStickerData as object,
     });
     return () => anim.destroy();
   }, []);

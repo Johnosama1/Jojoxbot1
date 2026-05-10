@@ -282,7 +282,7 @@ router.post("/verify-device", telegramAuth, async (req, res) => {
           { text: "🚫", emojiId: "6132089060933505983" },
           { text: " تم حظر حسابك بسبب اكتشاف تعدد حسابات من نفس الجهاز/الشبكة." },
         ]);
-        await bot.sendMessage(userId!, banText, { entities: banEntities as any });
+        await bot.sendMessage(userId!, banText, { entities: banEntities });
       }
     } catch { /* user may have blocked bot */ }
   }
@@ -417,9 +417,7 @@ router.post("/verify-device", telegramAuth, async (req, res) => {
         { text: " تم فحص الجهاز بنجاح!\nيمكنك الآن الدخول إلى التطبيق وبدء الربح " },
         { text: "🎉", emojiId: "6129832240303051599" },
       ]);
-      await bot.sendMessage(userId, successText, {
-        entities: successEntities as any,
-      });
+      await bot.sendMessage(userId, successText, { entities: successEntities });
       await sendWelcomeMessage(userId, userId, user.firstName || "");
     }
   } catch { /* ignore */ }

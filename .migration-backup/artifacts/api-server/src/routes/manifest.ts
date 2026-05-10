@@ -29,8 +29,9 @@ function resolveAppUrl(req: Request): string {
     }
   }
 
-  // 5. Default to Vercel deployment
-  return "https://jojoxbot1-api-server.vercel.app";
+  // 5. Default to Replit domain or empty string
+  const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
+  return replitDomain ? `https://${replitDomain}` : "";
 }
 
 router.get("/tonconnect-manifest.json", (req: Request, res: Response) => {

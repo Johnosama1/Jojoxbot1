@@ -13,19 +13,18 @@ db.execute(sql`SELECT 1`).catch(() => {});
 
 // Determine the stable production webhook URL.
 // Priority:
-//   1. BOT_WEBHOOK_URL  — explicitly set in Vercel project env vars (preferred)
-//   2. VERCEL_PROJECT_PRODUCTION_URL — Vercel auto-var, always the production alias
-//   3. VERCEL_URL — Vercel auto-var, unique per deployment (fallback)
+//   1. BOT_WEBHOOK_URL  — explicitly set in env vars (most reliable, use this in Vercel)
+//   2. VERCEL_URL       — auto-set by Vercel on every deployment
+//   3. REPLIT_DOMAINS   — Replit-provided domain (Replit production deploy)
+const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
+const vercelDomain = process.env.VERCEL_URL; // e.g. "myapp.vercel.app" (no protocol)
 const webhookUrl =
   process.env.BOT_WEBHOOK_URL ||
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL
-    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}/api/webhook`
-    : process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}/api/webhook`
-    : "https://jojoxbot1-api-server.vercel.app/api/webhook");
+  (vercelDomain ? `https://${vercelDomain}/api/webhook` : null) ||
+  (replitDomain ? `https://${replitDomain}/api/webhook` : null);
 
-// Initialize bot in webhook mode — no polling, compatible with Vercel Serverless.
-initBotWebhook(webhookUrl);
+// Initialize bot in webhook mode only when a URL is available
+if (webhookUrl) initBotWebhook(webhookUrl);
 
 // Export app for Vercel — @vercel/node wraps it as a serverless handler
 export default app;

@@ -67,19 +67,32 @@ export async function sendTon(
   const keyPair = await mnemonicToPrivateKey(words);
   const client = getClient();
 
-  const { contract } = await detectWallet(client, keyPair.publicKey);
-  const wallet = client.open(contract as typeof contract);
+  const { contract, version } = await detectWallet(client, keyPair.publicKey);
+
+  type OpenedWallet =
+    | ReturnType<typeof client.open<WalletContractV5R1>>
+    | ReturnType<typeof client.open<WalletContractV4>>
+    | ReturnType<typeof client.open<WalletContractV3R2>>;
+
+  let wallet: OpenedWallet;
+  if (version === "V5R1") {
+    wallet = client.open(contract as WalletContractV5R1);
+  } else if (version === "V4") {
+    wallet = client.open(contract as WalletContractV4);
+  } else {
+    wallet = client.open(contract as WalletContractV3R2);
+  }
 
   let seqno = 0;
   try {
-    seqno = await (wallet as any).getSeqno();
+    seqno = await wallet.getSeqno();
   } catch {
     seqno = 0;
   }
 
   logger.info({ to: toAddress, amount: amountTon, seqno }, "Sending TON transfer");
 
-  await (wallet as any).sendTransfer({
+  await wallet.sendTransfer({
     secretKey: keyPair.secretKey,
     seqno,
     sendMode: SendMode.PAY_GAS_SEPARATELY + SendMode.IGNORE_ERRORS,
@@ -111,7 +124,7 @@ export async function getWalletAddress(): Promise<string | null> {
       const contracts = buildContracts(keyPair.publicKey);
       return { contract: contracts.V5R1, version: "V5R1" };
     });
-    return (contract as any).address.toString({ bounceable: false, testOnly: false });
+    return contract.address.toString({ bounceable: false, testOnly: false });
   } catch {
     return null;
   }

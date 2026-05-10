@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import lottie from "lottie-web";
-import usdtAnimData from "../../public/usdt-anim.json";
 import { useUser } from "../lib/userContext";
 import { api, swapUsdtToTon, invalidateUserCaches, getWithdrawalsOnce } from "../lib/api";
 import type { Withdrawal } from "../lib/api";
@@ -18,16 +17,18 @@ const USDT_IMG = "https://assets.coingecko.com/coins/images/325/large/Tether.png
 function UsdtLogo({ size = 32 }: { size?: number }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!ref.current) return;
-    const anim = lottie.loadAnimation({
-      container: ref.current,
-      renderer: "svg",
-      loop: true,
-      autoplay: true,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: usdtAnimData as any,
+    let anim: ReturnType<typeof lottie.loadAnimation> | null = null;
+    import("../../public/usdt-anim.json").then((m) => {
+      if (!ref.current) return;
+      anim = lottie.loadAnimation({
+        container: ref.current,
+        renderer: "svg",
+        loop: true,
+        autoplay: true,
+        animationData: m.default as object,
+      });
     });
-    return () => anim.destroy();
+    return () => { if (anim) anim.destroy(); };
   }, []);
   return <div ref={ref} style={{ width: size, height: size, flexShrink: 0 }} />;
 }

@@ -1,43 +1,29 @@
 import { useState, useRef, useEffect } from "react";
 import lottie from "lottie-web";
-import contestData from "../../public/lb-sticker2.json";
-import usdtAnimData from "../../public/usdt-anim.json";
 import { useUser } from "../lib/userContext";
-import { api, WheelSlot } from "../lib/api";
+import { api, WheelSlot, getBoostStatus, BoostStatus } from "../lib/api";
 import WheelCanvas from "../components/WheelCanvas";
 import { setWinModalOpen } from "../lib/winModal";
 import { collectDeviceFingerprint } from "../lib/deviceFingerprint";
 
-function ContestSticker() {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!ref.current) return;
-    const anim = lottie.loadAnimation({
-      container: ref.current,
-      renderer: "svg",
-      loop: true,
-      autoplay: true,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: contestData as any,
-    });
-    return () => anim.destroy();
-  }, []);
-  return <div ref={ref} style={{ width: 140, height: 140, flexShrink: 0 }} />;
-}
-
+// UsdtSticker: loads its animation JSON on-demand (only when win modal opens)
 function UsdtSticker({ size = 36 }: { size?: number }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!ref.current) return;
-    const anim = lottie.loadAnimation({
-      container: ref.current,
-      renderer: "svg",
-      loop: true,
-      autoplay: true,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: usdtAnimData as any,
+    let anim: ReturnType<typeof lottie.loadAnimation> | null = null;
+    // Dynamic import — keeps usdt-anim.json out of the initial JS bundle
+    import("../../public/usdt-anim.json").then((m) => {
+      if (!ref.current) return;
+      anim = lottie.loadAnimation({
+        container: ref.current!,
+        renderer: "svg",
+        loop: true,
+        autoplay: true,
+        animationData: m.default as object,
+      });
     });
-    return () => anim.destroy();
+    return () => { if (anim) anim.destroy(); };
   }, []);
   return <div ref={ref} style={{ width: size, height: size, flexShrink: 0 }} />;
 }
@@ -103,6 +89,12 @@ export default function HomePage() {
   const [error, setError]             = useState("");
   const [animSlots, setAnimSlots]     = useState<WheelSlot[] | null>(null);
 
+  /* ── Boost status ── */
+  const [boostStatus, setBoostStatus] = useState<BoostStatus | null>(null);
+  useEffect(() => {
+    getBoostStatus().then(setBoostStatus).catch(() => {});
+  }, []);
+
   /* ── Auto Spin state ── */
   const [autoSpinning, setAutoSpinning] = useState(false);
   const stopAutoRef      = useRef(false);
@@ -159,7 +151,7 @@ export default function HomePage() {
       spinEndResolveRef.current = null;
       resolve();
     } else {
-      setTimeout(() => setShowResult(true), 350);
+      setShowResult(true);
     }
   };
 
@@ -179,7 +171,7 @@ export default function HomePage() {
       await refresh();
       /* wait for the wheel animation to finish */
       await new Promise<void>(resolve => { spinEndResolveRef.current = resolve; });
-      if (showWinPopup) setTimeout(() => setShowResult(true), 350);
+      if (showWinPopup) setShowResult(true);
       return result.winner.amount;
     } catch (e: unknown) {
       setSpinning(false);
@@ -258,6 +250,37 @@ export default function HomePage() {
             onSpinEnd={handleSpinEnd}
           />
         </div>
+
+        {/* ⚡ Boost Active Banner */}
+        {boostStatus?.active && (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            gap: 6, width: "100%", maxWidth: 310,
+            padding: "8px 16px", borderRadius: 14,
+            background: "linear-gradient(135deg, rgba(251,191,36,0.18), rgba(245,158,11,0.12))",
+            border: "1px solid rgba(251,191,36,0.45)",
+            position: "relative", zIndex: 1,
+            animation: "pulse-gold 2s ease-in-out infinite",
+          }}>
+            <span style={{ fontSize: 16 }}>⚡</span>
+            <span style={{
+              color: "#fbbf24", fontWeight: 900, fontSize: 13, letterSpacing: 0.5,
+            }}>
+              {boostStatus.multiplier}x Power Boost Active!
+            </span>
+            {boostStatus.endsAt && (() => {
+              const ms = new Date(boostStatus.endsAt!).getTime() - Date.now();
+              if (ms <= 0) return null;
+              const h  = Math.floor(ms / 3600000);
+              const m  = Math.floor((ms % 3600000) / 60000);
+              return (
+                <span style={{ color: "rgba(251,191,36,0.65)", fontSize: 11, fontWeight: 700 }}>
+                  {h > 0 ? `${h}h ` : ""}{m}m left
+                </span>
+              );
+            })()}
+          </div>
+        )}
 
         {/* Error */}
         {error && (
