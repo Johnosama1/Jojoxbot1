@@ -11,6 +11,27 @@ env = { "CI" = "true" }
 [workflows]
 runButton = "Project"
 
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/app: Jojox Lucky Wheel"
+
+[[workflows.workflow]]
+name = "artifacts/app: Jojox Lucky Wheel"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=23863 BASE_PATH=/ pnpm --filter @workspace/app run dev:watch"
+waitForPort = 23863
+
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true
