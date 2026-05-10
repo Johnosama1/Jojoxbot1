@@ -159,7 +159,7 @@ export default function HomePage() {
       spinEndResolveRef.current = null;
       resolve();
     } else {
-      setTimeout(() => setShowResult(true), 350);
+      setShowResult(true);
     }
   };
 
@@ -179,7 +179,7 @@ export default function HomePage() {
       await refresh();
       /* wait for the wheel animation to finish */
       await new Promise<void>(resolve => { spinEndResolveRef.current = resolve; });
-      if (showWinPopup) setTimeout(() => setShowResult(true), 350);
+      if (showWinPopup) setShowResult(true);
       return result.winner.amount;
     } catch (e: unknown) {
       setSpinning(false);

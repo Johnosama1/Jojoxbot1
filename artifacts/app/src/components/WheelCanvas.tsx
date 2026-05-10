@@ -294,7 +294,7 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
     winFlashRef.current = null;
     setArrowState("landing");
 
-    const SETTLE_MS  = 2800;
+    const SETTLE_MS  = 1500;
     const segAngle   = (2 * Math.PI) / slots.length;
     const finalAngle = (2 * Math.PI - winnerIndex * segAngle) - segAngle / 2;
     const SPIN_SPEED = (2 * Math.PI * 3.5) / 1000;
@@ -311,10 +311,10 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
       frame++;
       glowFrameRef.current = frame;
 
-      if (elapsed < 600) {
+      if (elapsed < 400) {
         rotationRef.current = (startRotation + SPIN_SPEED * elapsed) % (2 * Math.PI);
         drawWheel(rotationRef.current, frame);
-      } else if (elapsed < 600 + SETTLE_MS) {
+      } else if (elapsed < 400 + SETTLE_MS) {
         if (!settled) {
           settled         = true;
           settleStartRot  = rotationRef.current;
@@ -325,7 +325,7 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
         const eased = 1 - Math.pow(1 - t, 4);
         let diff = finalAngle - (settleStartRot % (2 * Math.PI));
         if (diff < 0) diff += 2 * Math.PI;
-        const totalTravel   = 2 * Math.PI * 3 + diff;
+        const totalTravel   = 2 * Math.PI * 2 + diff;
         rotationRef.current = settleStartRot + eased * totalTravel;
         drawWheel(rotationRef.current, frame);
       } else {

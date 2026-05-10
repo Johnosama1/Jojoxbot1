@@ -147,7 +147,7 @@ export default function TasksPage() {
       <div style={{ padding: "8px 12px 24px", display: "flex", flexDirection: "column", gap: 8 }}>
 
       {/* ── Section title ── */}
-      {!loading && tasks.length > 0 && (
+      {!loading && activeTasks.length > 0 && (
         <div style={{
           display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "2px 4px", marginTop: 2,
@@ -161,7 +161,7 @@ export default function TasksPage() {
           <span style={{
             color: "rgba(255,255,255,0.40)", fontSize: 11, fontWeight: 600,
           }}>
-            {activeTasks.length} active · {doneTasks.length} done
+            {activeTasks.length} available
           </span>
         </div>
       )}
@@ -175,18 +175,24 @@ export default function TasksPage() {
             animation: "spin 0.75s linear infinite",
           }} />
         </div>
-      ) : tasks.length === 0 ? (
+      ) : activeTasks.length === 0 ? (
         <div style={{
           textAlign: "center", padding: "40px 18px", borderRadius: 22, marginTop: 4,
           background: "rgba(255,255,255,0.025)", border: "1px dashed rgba(255,255,255,0.10)",
         }}>
-          <div style={{ fontSize: 38, marginBottom: 10, opacity: 0.5 }}>📋</div>
-          <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: 700, margin: 0 }}>No tasks available</p>
-          <p style={{ color: "rgba(255,255,255,0.25)", fontSize: 11, marginTop: 5 }}>Check back soon for new rewards</p>
+          <div style={{ fontSize: 38, marginBottom: 10, opacity: 0.5 }}>
+            {tasks.length === 0 ? "📋" : "✅"}
+          </div>
+          <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: 700, margin: 0 }}>
+            {tasks.length === 0 ? "No tasks available" : "All tasks completed!"}
+          </p>
+          <p style={{ color: "rgba(255,255,255,0.25)", fontSize: 11, marginTop: 5 }}>
+            {tasks.length === 0 ? "Check back soon for new rewards" : "You've completed all available tasks"}
+          </p>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {[...activeTasks, ...doneTasks].map((task) => {
+          {activeTasks.map((task) => {
             const isDone = completed.includes(task.id);
             const isExpiring = task.expiresAt && new Date(task.expiresAt).getTime() - Date.now() < 3600000;
             const isOpened = urlOpened.has(task.id);
