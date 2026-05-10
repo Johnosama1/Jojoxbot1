@@ -1,43 +1,29 @@
 import { useState, useRef, useEffect } from "react";
 import lottie from "lottie-web";
-import contestData from "../../public/lb-sticker2.json";
-import usdtAnimData from "../../public/usdt-anim.json";
 import { useUser } from "../lib/userContext";
 import { api, WheelSlot } from "../lib/api";
 import WheelCanvas from "../components/WheelCanvas";
 import { setWinModalOpen } from "../lib/winModal";
 import { collectDeviceFingerprint } from "../lib/deviceFingerprint";
 
-function ContestSticker() {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!ref.current) return;
-    const anim = lottie.loadAnimation({
-      container: ref.current,
-      renderer: "svg",
-      loop: true,
-      autoplay: true,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: contestData as object,
-    });
-    return () => anim.destroy();
-  }, []);
-  return <div ref={ref} style={{ width: 140, height: 140, flexShrink: 0 }} />;
-}
-
+// UsdtSticker: loads its animation JSON on-demand (only when win modal opens)
 function UsdtSticker({ size = 36 }: { size?: number }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!ref.current) return;
-    const anim = lottie.loadAnimation({
-      container: ref.current,
-      renderer: "svg",
-      loop: true,
-      autoplay: true,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: usdtAnimData as object,
+    let anim: ReturnType<typeof lottie.loadAnimation> | null = null;
+    // Dynamic import — keeps usdt-anim.json out of the initial JS bundle
+    import("../../public/usdt-anim.json").then((m) => {
+      if (!ref.current) return;
+      anim = lottie.loadAnimation({
+        container: ref.current!,
+        renderer: "svg",
+        loop: true,
+        autoplay: true,
+        animationData: m.default as object,
+      });
     });
-    return () => anim.destroy();
+    return () => { if (anim) anim.destroy(); };
   }, []);
   return <div ref={ref} style={{ width: size, height: size, flexShrink: 0 }} />;
 }

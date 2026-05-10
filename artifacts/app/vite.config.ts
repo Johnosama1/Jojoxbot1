@@ -47,6 +47,8 @@ export default defineConfig({
           "vendor-router": ["wouter"],
           "vendor-query": ["@tanstack/react-query"],
           "vendor-icons": ["lucide-react"],
+          "vendor-lottie": ["lottie-web"],
+          "vendor-ton": ["@tonconnect/ui-react"],
         },
       },
     },

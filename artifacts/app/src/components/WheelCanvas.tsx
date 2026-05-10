@@ -1,6 +1,5 @@
 import { useRef, useEffect, useState } from "react";
 import lottie from "lottie-web";
-import usdtAnimData from "../../public/usdt-anim.json";
 import { WheelSlot } from "../lib/api";
 
 interface WheelCanvasProps {
@@ -22,31 +21,43 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
 
   const [arrowState, setArrowState] = useState<"idle" | "thrown" | "landing">("idle");
 
-  // Load USDT Lottie animation onto hidden off-screen canvas renderer
+  // Load USDT Lottie animation onto hidden off-screen canvas renderer — deferred to avoid blocking first render
   useEffect(() => {
-    if (!usdtLottieRef.current) return;
-    const anim = lottie.loadAnimation({
-      container: usdtLottieRef.current,
-      renderer: "canvas",
-      loop: true,
-      autoplay: true,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: usdtAnimData as object,
-      rendererSettings: { clearCanvas: true },
-    });
-    anim.addEventListener("DOMLoaded", () => {
-      const c = usdtLottieRef.current?.querySelector("canvas");
-      if (c) usdtAnimCanvasRef.current = c as HTMLCanvasElement;
-    });
-    return () => { anim.destroy(); usdtAnimCanvasRef.current = null; };
+    let anim: ReturnType<typeof lottie.loadAnimation> | null = null;
+    const timer = setTimeout(() => {
+      if (!usdtLottieRef.current) return;
+      // Dynamic import keeps usdt-anim.json out of the initial bundle
+      import("../../public/usdt-anim.json").then((m) => {
+        if (!usdtLottieRef.current) return;
+        anim = lottie.loadAnimation({
+          container: usdtLottieRef.current,
+          renderer: "canvas",
+          loop: true,
+          autoplay: true,
+          animationData: m.default as object,
+          rendererSettings: { clearCanvas: true },
+        });
+        anim.addEventListener("DOMLoaded", () => {
+          const c = usdtLottieRef.current?.querySelector("canvas");
+          if (c) usdtAnimCanvasRef.current = c as HTMLCanvasElement;
+        });
+      });
+    }, 400);
+    return () => {
+      clearTimeout(timer);
+      if (anim) { anim.destroy(); usdtAnimCanvasRef.current = null; }
+    };
   }, []);
 
-  // Preload bot logo image once
+  // Preload bot logo image — deferred so it doesn't compete with first render
   useEffect(() => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.src = "https://i.ibb.co/gZgFjFmZ/cropped-circle-image-1.png";
-    img.onload = () => { botImgRef.current = img; };
+    const timer = setTimeout(() => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = "https://i.ibb.co/gZgFjFmZ/cropped-circle-image-1.png";
+      img.onload = () => { botImgRef.current = img; };
+    }, 200);
+    return () => clearTimeout(timer);
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────
@@ -259,11 +270,16 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
     if (spinning) return;
     setArrowState("idle");
     let frame = glowFrameRef.current;
-    const idle = () => {
+    let lastDraw = 0;
+    const IDLE_INTERVAL = 50; // ~20 fps — glow pulse is slow, 20fps is imperceptible from 60fps
+    const idle = (now: number) => {
+      animFrameRef.current = requestAnimationFrame(idle);
+      if (document.hidden) return; // pause when app is backgrounded
+      if (now - lastDraw < IDLE_INTERVAL) return;
+      lastDraw = now;
       frame++;
       glowFrameRef.current = frame;
       drawWheel(rotationRef.current, frame);
-      animFrameRef.current = requestAnimationFrame(idle);
     };
     animFrameRef.current = requestAnimationFrame(idle);
     return () => cancelAnimationFrame(animFrameRef.current);
