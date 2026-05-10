@@ -57,8 +57,7 @@ function MaintenanceLottie() {
       renderer: "svg",
       loop: true,
       autoplay: true,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      animationData: maintenanceAnimData as any,
+      animationData: maintenanceAnimData as object,
     });
     return () => anim.destroy();
   }, []);
