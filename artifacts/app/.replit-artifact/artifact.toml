@@ -1,0 +1,26 @@
+kind = "web"
+previewPath = "/"
+title = "Jojox Lucky Wheel"
+version = "1.0.0"
+
+[[services]]
+localPort = 5173
+name = "web"
+paths = ["/"]
+
+[services.env]
+PORT = "5173"
+BASE_PATH = "/"
+
+[services.development]
+run = "pnpm --filter @workspace/app run dev"
+
+[services.production]
+serve = "static"
+
+[services.production.build]
+args = ["pnpm", "--filter", "@workspace/app", "run", "build"]
+
+[services.production.build.env]
+NODE_ENV = "production"
+BASE_PATH = "/"
