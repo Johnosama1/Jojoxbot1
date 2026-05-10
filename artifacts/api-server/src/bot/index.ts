@@ -368,7 +368,7 @@ export function initBotPolling() {
 function setupBotHandlers() {
 
   // ── /start ────────────────────────────────────────────────────────────────
-  bot.onText(/\/start(.*)/, wrapHandler(async (msg, match) => {
+  bot.onText(/\/start\s*(.*)/, wrapHandler(async (msg, match) => {
     const chatId = msg.chat.id;
     const userId = msg.from!.id;
     const username = msg.from?.username;
@@ -429,10 +429,14 @@ function setupBotHandlers() {
       await sendWelcomeMessage(chatId, userId, firstName);
     } catch (err) {
       logger.error({ err }, "Error in /start handler");
-      console.error("[/start] DB error — sending fallback reply:", err);
-      // Always reply so Telegram knows the update was processed
+      console.error("[/start] error — attempting fallback welcome:", err);
+      // Send welcome as fallback unless user is known banned — ensures Telegram always gets a reply
       try {
-        await sendWelcomeMessage(chatId, userId, firstName);
+        const [u] = await db.select({ isVisible: usersTable.isVisible })
+          .from(usersTable).where(eq(usersTable.id, userId)).limit(1).catch(() => [null]);
+        if (!u || u.isVisible !== false) {
+          await sendWelcomeMessage(chatId, userId, firstName);
+        }
       } catch (sendErr) {
         console.error("[/start] fallback sendWelcomeMessage failed:", sendErr);
       }
