@@ -37,6 +37,11 @@ router.post("/", withdrawLimiter, requireSession, verifyAccessMiddleware, async 
     res.status(400).json({ error: "معرّف مستخدم غير صحيح" }); return;
   }
 
+  const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
+  if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== numUserId) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
+
   const cleanAddress = String(walletAddress).trim();
   if (!TON_ADDRESS_RE.test(cleanAddress)) {
     res.status(400).json({ error: "عنوان محفظة TON غير صحيح. يجب أن يبدأ بـ EQ أو UQ ويتكون من 48 حرفاً." }); return;

@@ -51,9 +51,14 @@ router.post("/:taskId/complete", requireSession, verifyAccessMiddleware, async (
     return;
   }
 
+  const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
   const userId = parseInt(String(req.body.userId));
   if (isNaN(userId) || userId <= 0) {
     res.status(400).json({ error: "Missing or invalid userId" });
+    return;
+  }
+  if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== userId) {
+    res.status(403).json({ error: "Forbidden" });
     return;
   }
 

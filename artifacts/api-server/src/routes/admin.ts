@@ -44,22 +44,22 @@ async function isAdmin(userId: number): Promise<boolean> {
 }
 
 router.use(async (req: Request, res: Response, next: NextFunction) => {
-  const raw = req.headers["x-user-id"];
-  if (!raw || Array.isArray(raw)) {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
-  const userId = parseInt(raw);
-  if (isNaN(userId) || userId <= 0) {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
-  const ok = await isAdmin(userId);
-  if (!ok) {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
-  next();
+  // Admin identity must come from a verified session token, never a client header
+  const { requireSession } = await import("../middlewares/requireSession");
+  requireSession(req, res, async () => {
+    const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
+    const userId = sessionReq.sessionUserId;
+    if (!userId || isNaN(userId) || userId <= 0) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    const ok = await isAdmin(userId);
+    if (!ok) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    next();
+  });
 });
 
 router.get("/check", (_req, res) => {

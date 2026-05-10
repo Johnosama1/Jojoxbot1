@@ -77,6 +77,10 @@ router.get("/:id", async (req, res) => {
 
 router.post("/:id/spin", requireSession, spinRateLimit, verifyAccessMiddleware, async (req, res) => {
   const id = parseInt(req.params.id);
+  const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
+  if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== id) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
 
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
@@ -119,6 +123,10 @@ router.post("/:id/spin", requireSession, spinRateLimit, verifyAccessMiddleware, 
 router.post("/:id/swap", requireSession, verifyAccessMiddleware, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
+  const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
+  if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== id) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
 
   const { usdtAmount } = req.body;
   const amt = parseFloat(String(usdtAmount));
@@ -162,6 +170,10 @@ const TON_ADDRESS_RE = /^(EQ|UQ|kQ|0Q)[A-Za-z0-9_-]{46}$/;
 router.put("/:id/wallet", requireSession, verifyAccessMiddleware, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
+  const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
+  if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== id) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
 
   const { walletAddress } = req.body;
 
