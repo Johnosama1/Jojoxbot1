@@ -72,12 +72,16 @@ router.post("/init", telegramAuth, async (req, res) => {
   }
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", requireSession, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
+  const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
+  if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== id) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
-  res.setHeader("Cache-Control", "private, max-age=5");
+  res.setHeader("Cache-Control", "private, no-store");
   res.json({ ...user, isVerified: user.ipVerifiedAt != null });
 });
 
