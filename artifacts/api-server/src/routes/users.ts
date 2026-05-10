@@ -26,44 +26,50 @@ router.post("/init", telegramAuth, async (req, res) => {
   const { id, username, first_name, last_name, photo_url } = req.body;
   if (!id) { res.status(400).json({ error: "Missing id" }); return; }
 
-  // Single upsert: insert new user OR update profile fields for existing user
-  const [user] = await db
-    .insert(usersTable)
-    .values({
-      id,
-      username: username || null,
-      firstName: first_name || "",
-      lastName: last_name || "",
-      photoUrl: photo_url || null,
-      spins: 3,
-    })
-    .onConflictDoUpdate({
-      target: usersTable.id,
-      set: {
-        username: sql`COALESCE(${username || null}, users.username)`,
-        firstName: sql`COALESCE(NULLIF(${first_name || ""}, ''), users.first_name)`,
-        lastName: sql`COALESCE(NULLIF(${last_name || ""}, ''), users.last_name)`,
-        photoUrl: sql`COALESCE(${photo_url || null}, users.photo_url)`,
-      },
-    })
-    .returning();
+  try {
+    // Single upsert: insert new user OR update profile fields for existing user
+    const [user] = await db
+      .insert(usersTable)
+      .values({
+        id,
+        username: username || null,
+        firstName: first_name || "",
+        lastName: last_name || "",
+        photoUrl: photo_url || null,
+        spins: 3,
+      })
+      .onConflictDoUpdate({
+        target: usersTable.id,
+        set: {
+          username: sql`COALESCE(${username || null}, users.username)`,
+          firstName: sql`COALESCE(NULLIF(${first_name || ""}, ''), users.first_name)`,
+          lastName: sql`COALESCE(NULLIF(${last_name || ""}, ''), users.last_name)`,
+          photoUrl: sql`COALESCE(${photo_url || null}, users.photo_url)`,
+        },
+      })
+      .returning();
 
-  if (user.isVisible === false) {
-    res.status(403).json({ error: "محظور", banned: true });
-    return;
-  }
-
-  // Record IP for informational purposes only (no auto-ban)
-  if (!user.ipVerifiedAt) {
-    const rawIp = normalizeIp(req.ip || req.socket.remoteAddress || "");
-    if (rawIp) {
-      const ipHash = hashIp(rawIp);
-      await db.update(usersTable).set({ ipHash }).where(eq(usersTable.id, user.id));
+    if (user.isVisible === false) {
+      res.status(403).json({ error: "محظور", banned: true });
+      return;
     }
-  }
 
-  res.setHeader("Cache-Control", "no-store");
-  res.json({ ...user, isVerified: user.ipVerifiedAt != null });
+    // Record IP for informational purposes only (no auto-ban)
+    if (!user.ipVerifiedAt) {
+      const rawIp = normalizeIp(req.ip || req.socket.remoteAddress || "");
+      if (rawIp) {
+        const ipHash = hashIp(rawIp);
+        await db.update(usersTable).set({ ipHash }).where(eq(usersTable.id, user.id)).catch(() => {});
+      }
+    }
+
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ ...user, isVerified: user.ipVerifiedAt != null });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[/users/init] DB error:", msg);
+    res.status(503).json({ error: "service_unavailable", message: "Server busy, please retry." });
+  }
 });
 
 router.get("/:id", async (req, res) => {

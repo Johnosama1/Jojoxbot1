@@ -49,15 +49,12 @@ export default function WheelCanvas({ slots, spinning, winnerIndex, onSpinEnd }:
     };
   }, []);
 
-  // Preload bot logo image — deferred so it doesn't compete with first render
+  // Preload bot logo image immediately — center logo must show as soon as wheel renders
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.src = "https://i.ibb.co/gZgFjFmZ/cropped-circle-image-1.png";
-      img.onload = () => { botImgRef.current = img; };
-    }, 200);
-    return () => clearTimeout(timer);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = "https://i.ibb.co/gZgFjFmZ/cropped-circle-image-1.png";
+    img.onload = () => { botImgRef.current = img; };
   }, []);
 
   // ─────────────────────────────────────────────────────────────────────
