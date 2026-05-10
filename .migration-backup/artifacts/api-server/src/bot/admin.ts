@@ -183,7 +183,45 @@ export async function showAdminMenu(bot: TelegramBot, chatId: number, messageId?
     rows.push([{ text: "👮 المشرفون", callback_data: "adm:admins" }]);
   }
 
+  // ── BOOST button (owner only) ──
+  if (!info || info.isOwner) {
+    const [powerRow] = await db.select().from(botSettingsTable).where(eq(botSettingsTable.key, "spin_power")).limit(1);
+    const multiplier = Math.max(1, parseInt(powerRow?.value || "1") || 1);
+    const boostLabel = multiplier > 1 ? `⚡ BOOST — ×${multiplier} (مفعّل)` : "⚡ BOOST";
+    rows.push([{ text: boostLabel, callback_data: "adm:boost" }]);
+  }
+
   const keyboard: TelegramBot.InlineKeyboardMarkup = { inline_keyboard: rows };
+  await editOrSend(bot, chatId, text, keyboard, messageId);
+}
+
+// ─────────────────────────── BOOST MENU ───────────────────────────
+
+async function showBoostMenu(bot: TelegramBot, chatId: number, messageId?: number) {
+  const [powerRow] = await db.select().from(botSettingsTable).where(eq(botSettingsTable.key, "spin_power")).limit(1);
+  const current = Math.max(1, parseInt(powerRow?.value || "1") || 1);
+  const isActive = current > 1;
+
+  const text =
+    `⚡ <b>BOOST — مضاعفة الأرباح</b>\n\n` +
+    `الحالة: ${isActive ? `🟢 مفعّل — كل ربح يُضرب في <b>×${current}</b>` : "🔴 غير مفعّل (×1)"}\n\n` +
+    `اختر الضاعف المطلوب:\n` +
+    `(يُطبَّق فوراً على جميع اللفات)`;
+
+  const multiplierRow: TelegramBot.InlineKeyboardButton[] = [2, 3, 4, 5].map((n) => ({
+    text: current === n ? `✅ ×${n}` : `×${n}`,
+    callback_data: `adm:boost:set:${n}`,
+  }));
+
+  const keyboard: TelegramBot.InlineKeyboardMarkup = {
+    inline_keyboard: [
+      multiplierRow,
+      [
+        { text: current === 1 ? "✅ إيقاف (×1)" : "🔴 إيقاف الـ BOOST", callback_data: "adm:boost:off" },
+      ],
+      [{ text: "◀️ رجوع", callback_data: "adm:main" }],
+    ],
+  };
   await editOrSend(bot, chatId, text, keyboard, messageId);
 }
 
@@ -552,6 +590,31 @@ export async function handleAdminCallback(
         { parse_mode: "HTML" }
       );
       await showBotControlMenu(bot, chatId, msgId); return true;
+    }
+
+    // ── BOOST ──
+    if (data === "adm:boost") {
+      if (!info.isOwner) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; }
+      await showBoostMenu(bot, chatId, msgId); return true;
+    }
+    if (data.startsWith("adm:boost:set:") || data === "adm:boost:off") {
+      if (!info.isOwner) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; }
+      const multiplier = data === "adm:boost:off" ? 1 : parseInt(data.split(":")[3]);
+      if (isNaN(multiplier) || multiplier < 1 || multiplier > 5) { await bot.answerCallbackQuery(q.id, { text: "❌ قيمة غير صحيحة" }); return true; }
+      await db.insert(botSettingsTable).values({ key: "spin_power", value: String(multiplier) })
+        .onConflictDoUpdate({ target: botSettingsTable.key, set: { value: String(multiplier) } });
+      // clear boost schedule so it's always active
+      await db.delete(botSettingsTable).where(eq(botSettingsTable.key, "boost_starts_at")).catch(() => {});
+      await db.delete(botSettingsTable).where(eq(botSettingsTable.key, "boost_ends_at")).catch(() => {});
+      if (multiplier > 1) {
+        await bot.sendMessage(chatId,
+          `⚡ <b>BOOST مفعّل!</b>\nكل ربح سيُضرب في <b>×${multiplier}</b> الآن.\nالبانر ظاهر فوق العجلة لجميع المستخدمين.`,
+          { parse_mode: "HTML" }
+        );
+      } else {
+        await bot.sendMessage(chatId, "🔴 <b>تم إيقاف الـ BOOST.</b>", { parse_mode: "HTML" });
+      }
+      await showBoostMenu(bot, chatId, msgId); return true;
     }
 
     if (data === "adm:wheel") {
@@ -933,18 +996,18 @@ export async function handleAdminText(bot: TelegramBot, msg: TelegramBot.Message
 
     // ── User search ──
     if (state.step === "user_search") {
-      clearState();
-      const info = await getAdminInfo(userId, undefined);
-      if (!info) return false;
+      const info = await getAdminInfo(userId, msg.from?.username);
+      if (!info) { clearState(); return false; }
       let u: typeof usersTable.$inferSelect | undefined;
       if (text.startsWith("@")) {
-        const uname = text.replace("@", "");
+        const uname = text.slice(1);
         u = (await db.select().from(usersTable).where(ilike(usersTable.username, uname)).limit(1))[0];
       } else {
         const targetId = parseInt(text);
         if (isNaN(targetId)) { await send("❌ أدخل ID رقمي صحيح أو @يوزرنيم"); return true; }
         u = (await db.select().from(usersTable).where(eq(usersTable.id, targetId)).limit(1))[0];
       }
+      clearState();
       if (!u) { await send("❌ لم يتم العثور على مستخدم بهذا المعرف"); return true; }
       await showUserCard(bot, chatId, u, info);
       return true;

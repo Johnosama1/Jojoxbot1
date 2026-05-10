@@ -120,6 +120,7 @@ export default function LeaderboardPage() {
         flexDirection: "column",
         alignItems: "center",
         padding: "0 14px 24px",
+        overflowY: "auto",
       }}
     >
       {/* ── Contest sticker ── */}
@@ -176,7 +177,7 @@ export default function LeaderboardPage() {
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
           border: "1px solid rgba(255,255,255,0.09)",
-          overflow: "hidden",
+          overflow: "visible",
           boxShadow: "0 8px 32px rgba(0,0,0,0.45)",
         }}>
           {data.top.map((entry, idx) => {

@@ -5,7 +5,8 @@ import { api, invalidateUserCaches } from "../lib/api";
 import { useTonAddress, useTonConnectUI, TonConnectButton } from "@tonconnect/ui-react";
 import { Wallet, Send, CheckCircle, ArrowLeft } from "lucide-react";
 
-const MIN_WITHDRAWAL = 0.2;
+const MIN_WITHDRAWAL = 0.1;
+const MAX_WITHDRAWAL = 0.1;
 
 function maskWallet(addr: string): string {
   if (!addr || addr.length < 10) return addr;
@@ -57,6 +58,7 @@ export default function WithdrawPage() {
     setError(""); setSuccess(false);
     const amt = parseFloat(amount);
     if (isNaN(amt) || amt < MIN_WITHDRAWAL) { setError(`Minimum withdrawal: ${MIN_WITHDRAWAL} TON`); return; }
+    if (amt > MAX_WITHDRAWAL) { setError(`Maximum withdrawal: ${MAX_WITHDRAWAL} TON`); return; }
     if (amt > balance) { setError("Insufficient balance"); return; }
     setSubmitting(true);
     try {
@@ -72,7 +74,8 @@ export default function WithdrawPage() {
     }
   };
 
-  const presets = [0.2, 0.5, 1, balance];
+  const maxAllowed = Math.min(balance, MAX_WITHDRAWAL);
+  const presets = [0.05, 0.1, maxAllowed];
 
   return (
     <div className="page-content px-3 pt-3 flex flex-col gap-3">
@@ -233,7 +236,7 @@ export default function WithdrawPage() {
                     type="number" value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder={`${MIN_WITHDRAWAL}`}
-                    step="0.01" min={MIN_WITHDRAWAL} max={balance}
+                    step="0.01" min={MIN_WITHDRAWAL} max={Math.min(balance, MAX_WITHDRAWAL)}
                     disabled={!canWithdraw || submitting}
                     className="ton-input" style={{ paddingRight: 56, fontSize: 18, fontWeight: 800 }}
                   />
@@ -245,17 +248,17 @@ export default function WithdrawPage() {
               </div>
 
               {/* Quick presets */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
                 {presets.map((p, i) => {
                   const v = p > 0 ? p : 0;
-                  const disabled = !canWithdraw || submitting || v > balance || v < MIN_WITHDRAWAL;
-                  const isMax = i === 3;
+                  const disabled = !canWithdraw || submitting || v > balance || v < MIN_WITHDRAWAL || v > MAX_WITHDRAWAL;
+                  const isMax = i === presets.length - 1;
                   return (
                     <button
                       key={i}
                       type="button"
                       disabled={disabled}
-                      onClick={() => setAmount(v.toFixed(isMax ? 4 : 1))}
+                      onClick={() => setAmount(v.toFixed(isMax ? 2 : 2))}
                       style={{
                         padding: "8px 4px", borderRadius: 10,
                         background: isMax

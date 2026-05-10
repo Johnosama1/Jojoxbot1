@@ -161,6 +161,8 @@ export const api = {
       body: JSON.stringify({ deviceId }),
     }),
 
+  getUserReferrals: (userId: number) => apiCall<ReferralEntry[]>(`/users/${userId}/referrals`),
+
   getLeaderboard: (userId?: number) =>
     apiCall<{
       top: Array<{
@@ -207,11 +209,20 @@ export interface User {
   referralCount: number;
   tasksCompleted: number;
   referredBy: number | null;
+  inviterName: string | null;
   savedWalletAddress: string | null;
   createdAt: string;
   isVerified: boolean;
   rewardedSpins: number;
   isBlockedForLeaving: boolean;
+}
+
+export interface ReferralEntry {
+  id: number;
+  name: string;
+  username: string | null;
+  status: "pending" | "approved";
+  joinedAt: string;
 }
 
 export interface Task {

@@ -21,7 +21,7 @@ router.get("/leaderboard", async (req, res) => {
       .from(usersTable)
       .where(and(eq(usersTable.isVisible, true), gt(usersTable.referralCount, 0)))
       .orderBy(desc(usersTable.referralCount))
-      .limit(50);
+      .limit(20);
 
     const ranked = top.map((u, i) => ({ rank: i + 1, ...u }));
 

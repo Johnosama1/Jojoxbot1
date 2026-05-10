@@ -72,13 +72,65 @@ router.post("/init", telegramAuth, async (req, res) => {
   }
 });
 
-router.get("/:id", async (req, res) => {
+router.get("/:id", requireSession, async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
+  const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
+  if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== id) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, id)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
-  res.setHeader("Cache-Control", "private, max-age=5");
-  res.json({ ...user, isVerified: user.ipVerifiedAt != null });
+
+  // Fetch inviter name if referredBy is set
+  let inviterName: string | null = null;
+  if (user.referredBy) {
+    const [inviter] = await db
+      .select({ firstName: usersTable.firstName, username: usersTable.username })
+      .from(usersTable)
+      .where(eq(usersTable.id, user.referredBy))
+      .limit(1);
+    if (inviter) {
+      inviterName = inviter.firstName || (inviter.username ? `@${inviter.username}` : null);
+    }
+  }
+
+  res.setHeader("Cache-Control", "private, no-store");
+  res.json({ ...user, isVerified: user.ipVerifiedAt != null, inviterName });
+});
+
+// GET /users/:id/referrals — list users referred by this user with pending/approved status
+router.get("/:id/referrals", requireSession, async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
+  const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
+  if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== id) {
+    res.status(403).json({ error: "Forbidden" }); return;
+  }
+
+  const referred = await db
+    .select({
+      id: usersTable.id,
+      firstName: usersTable.firstName,
+      username: usersTable.username,
+      ipVerifiedAt: usersTable.ipVerifiedAt,
+      isBlockedForLeaving: usersTable.isBlockedForLeaving,
+      createdAt: usersTable.createdAt,
+    })
+    .from(usersTable)
+    .where(eq(usersTable.referredBy, id))
+    .orderBy(sql`created_at DESC`);
+
+  const result = referred.map(u => ({
+    id: u.id,
+    name: u.firstName || (u.username ? `@${u.username}` : `User #${u.id}`),
+    username: u.username,
+    status: (u.ipVerifiedAt != null && !u.isBlockedForLeaving) ? "approved" : "pending",
+    joinedAt: u.createdAt,
+  }));
+
+  res.setHeader("Cache-Control", "private, no-store");
+  res.json(result);
 });
 
 router.post("/:id/spin", requireSession, spinRateLimit, verifyAccessMiddleware, async (req, res) => {
