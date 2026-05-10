@@ -5,8 +5,19 @@ import { logger } from "./logger";
 const SESSION_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours
 
 function getKey(): Buffer {
-  const base = process.env.TELEGRAM_BOT_TOKEN ?? "dev_secret";
-  return crypto.createHmac("sha256", "SessionGate").update(base).digest();
+  const secret =
+    process.env.SESSION_TOKEN_SECRET ||
+    process.env.TELEGRAM_BOT_TOKEN;
+
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("SESSION_TOKEN_SECRET is required in production");
+    }
+    // Dev only — not used in production
+    return crypto.createHmac("sha256", "SessionGate").update("dev_only_not_for_prod").digest();
+  }
+
+  return crypto.createHmac("sha256", "SessionGate").update(secret).digest();
 }
 
 // ── Token format: base64url( userId:expiryMs:hmacHex ) ───────────────
