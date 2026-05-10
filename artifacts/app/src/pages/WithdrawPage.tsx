@@ -6,7 +6,7 @@ import { useTonAddress, useTonConnectUI, TonConnectButton } from "@tonconnect/ui
 import { Wallet, Send, CheckCircle, ArrowLeft } from "lucide-react";
 
 const MIN_WITHDRAWAL = 0.1;
-const MAX_WITHDRAWAL = 10000;
+const MAX_WITHDRAWAL = 0.1;
 
 function maskWallet(addr: string): string {
   if (!addr || addr.length < 10) return addr;
@@ -74,8 +74,8 @@ export default function WithdrawPage() {
     }
   };
 
-  const maxAllowed = balance;
-  const presets = [0.1, 0.5, 1];
+  const maxAllowed = Math.min(balance, MAX_WITHDRAWAL);
+  const presets = [0.05, 0.1, maxAllowed];
 
   return (
     <div className="page-content px-3 pt-3 flex flex-col gap-3">
