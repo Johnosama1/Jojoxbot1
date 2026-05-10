@@ -38,10 +38,10 @@ export function getBot(): TelegramBot {
   return bot;
 }
 
-// ── Serverless async handler tracking ────────────────────────────────────────
+// ── Async handler tracking ─────────────────────────────────────────────────────
 // node-telegram-bot-api fires handlers via EventEmitter (fire-and-forget).
-// In Vercel serverless, the function may terminate before async handlers finish.
-// We collect all handler promises and await them in processUpdateAndWait.
+// We collect all handler promises and await them in processUpdateAndWait
+// to ensure DB writes + sendMessage finish before the response is sent.
 const _handlerPromises: Promise<void>[] = [];
 
 function wrapHandler<T extends unknown[]>(
@@ -162,7 +162,7 @@ export async function processUpdateAndWait(update: TelegramBot.Update): Promise<
     (bot as unknown as { processUpdate: (u: TelegramBot.Update) => void }).processUpdate(update);
     // Give synchronous code one tick to register promises
     await new Promise<void>((resolve) => setImmediate(resolve));
-    // Now await every async handler so Vercel doesn't kill them mid-flight
+    // Now await every async handler before returning the response
     if (_handlerPromises.length > 0) {
       await Promise.allSettled([..._handlerPromises]);
     }

@@ -8,17 +8,17 @@ function resolveAppUrl(req: Request): string {
     return `https://${process.env.REPLIT_DEV_DOMAIN}`;
   }
 
-  // 2. Vercel production — stable alias URL (preferred over per-deployment URL)
+  // 2. Production stable alias URL
   if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
     return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
   }
 
-  // 3. Vercel per-deployment URL
+  // 3. Per-deployment URL fallback
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL}`;
   }
 
-  // 4. Explicit override (Replit production / custom domain)
+  // 4. Explicit override (production / custom domain)
   if (process.env.MINI_APP_URL) {
     try {
       const parsed = new URL(process.env.MINI_APP_URL);

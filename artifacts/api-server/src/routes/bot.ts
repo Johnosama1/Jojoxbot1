@@ -4,17 +4,17 @@ import { logger } from "../lib/logger";
 
 const router = Router();
 
-// Health check — always returns 200 so Vercel knows the function is alive
+// Health check — always returns 200
 router.get("/health", (_req, res) => {
   res.json({ ok: true, bot: !!getBot(), ts: Date.now() });
 });
 
 
 // POST /api/webhook — Telegram sends all updates here
-// We await processUpdateAndWait() BEFORE responding so Vercel does not
-// terminate the serverless function before DB writes + sendMessage finish.
+// We await processUpdateAndWait() BEFORE responding so the server
+// does not drop the request before DB writes + sendMessage finish.
 router.post("/webhook", async (req, res) => {
-  // ── Log every incoming update (visible in Vercel Function Logs) ───────
+  // ── Log every incoming update ──────────────────────────────────────────
   const update = req.body;
   const text = update?.message?.text || update?.callback_query?.data || "(no text)";
   const from = update?.message?.from?.username || update?.message?.from?.first_name || "unknown";
