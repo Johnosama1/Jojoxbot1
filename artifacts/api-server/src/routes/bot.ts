@@ -89,11 +89,12 @@ router.post("/webhook", async (req, res) => {
 
   // Lazy init — if cold-start missed initBotWebhook, do it now
   if (!botInstance) {
+    const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
     const webhookUrl =
       process.env.BOT_WEBHOOK_URL ||
-      "https://jojoxbot1-api-server.vercel.app/api/webhook";
+      (replitDomain ? `https://${replitDomain}/api/webhook` : null);
     logger.warn({ webhookUrl }, "Bot not initialized at request time — lazy init");
-    initBotWebhook(webhookUrl);
+    if (webhookUrl) initBotWebhook(webhookUrl);
     botInstance = getBot();
   }
 
