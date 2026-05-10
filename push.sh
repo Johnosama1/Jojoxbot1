@@ -17,8 +17,7 @@ fi
 echo ""
 echo "🔄 Pushing to GitHub..."
 
-# URL-encode the token to handle special characters safely
-ENCODED=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$GH_TOKEN")
+ENCODED=$(node -e "process.stdout.write(encodeURIComponent(process.argv[1]))" "$GH_TOKEN")
 REMOTE_URL="https://oauth2:${ENCODED}@github.com/Johnosama1/Jojoxbot1.git"
 
 git push "$REMOTE_URL" main
