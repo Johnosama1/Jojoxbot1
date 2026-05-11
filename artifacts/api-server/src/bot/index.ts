@@ -178,7 +178,11 @@ export async function processUpdateAndWait(update: TelegramBot.Update): Promise<
 
 export async function sendWelcomeMessage(chatId: number, userId: number, firstName: string) {
   const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
-  const MINI_APP_URL = process.env.MINI_APP_URL || (replitDomain ? `https://${replitDomain}` : "");
+  const vercelDomain = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  const MINI_APP_URL =
+    process.env.MINI_APP_URL ||
+    (replitDomain ? `https://${replitDomain}` : "") ||
+    (vercelDomain ? `https://${vercelDomain}` : "");
 
   const { text: welcomeText, entities: welcomeEntities } = buildMsg([
     { text: "👋", emojiId: "5319007286004299794" },

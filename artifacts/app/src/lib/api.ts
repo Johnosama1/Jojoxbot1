@@ -34,7 +34,12 @@ export async function getBoostStatus(): Promise<BoostStatus> {
 
 let _tasksCache: Promise<Task[]> | null = null;
 export function getTasksOnce(): Promise<Task[]> {
-  if (!_tasksCache) _tasksCache = apiCall<Task[]>("/tasks");
+  if (!_tasksCache) {
+    _tasksCache = apiCall<Task[]>("/tasks").catch((err) => {
+      _tasksCache = null;
+      throw err;
+    });
+  }
   return _tasksCache;
 }
 
@@ -72,13 +77,27 @@ export async function apiCall<T>(path: string, options?: RequestInit): Promise<T
   if (initData) baseHeaders["x-telegram-init-data"] = initData;
   if (_sessionToken) baseHeaders["x-session-token"] = _sessionToken;
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      ...baseHeaders,
-      ...(options?.headers as Record<string, string> | undefined),
-    },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        ...baseHeaders,
+        ...(options?.headers as Record<string, string> | undefined),
+      },
+    });
+  } catch (err) {
+    clearTimeout(timeout);
+    const e = new Error("Request timeout or network error") as Error & { status: number; body: unknown };
+    e.status = 0;
+    e.body = {};
+    throw e;
+  }
+  clearTimeout(timeout);
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "Unknown error" }));

@@ -279,9 +279,11 @@ export async function handleSubRecheckCallback(
       }
     } else {
       // ── All channels joined — open the Lucky Wheel immediately ─────
+      const vercelDomain = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
       const MINI_APP_URL =
         process.env.MINI_APP_URL ||
-        (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}/` : "");
+        (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}/` : "") ||
+        (vercelDomain ? `https://${vercelDomain}` : "");
 
       const appUrl = `${MINI_APP_URL}?uid=${userId}`;
 
