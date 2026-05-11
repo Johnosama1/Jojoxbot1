@@ -4,7 +4,7 @@ import { api, Task, getTasksOnce, getCompletedTasksOnce, invalidateUserCaches } 
 import { CheckCircle, ExternalLink, Clock, Zap, Sparkles } from "lucide-react";
 
 export default function TasksPage() {
-  const { user, refresh, initialized } = useUser();
+  const { user, refresh, initialized, retryInit } = useUser();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [completed, setCompleted] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
@@ -175,6 +175,29 @@ export default function TasksPage() {
             border: "2.5px solid rgba(251,191,36,0.70)", borderTopColor: "transparent",
             animation: "spin 0.75s linear infinite",
           }} />
+        </div>
+      ) : (initialized && !user) ? (
+        <div style={{
+          textAlign: "center", padding: "40px 18px", borderRadius: 22, marginTop: 4,
+          background: "rgba(255,255,255,0.025)", border: "1px dashed rgba(255,100,100,0.20)",
+        }}>
+          <div style={{ fontSize: 38, marginBottom: 10 }}>⚠️</div>
+          <p style={{ color: "rgba(255,255,255,0.70)", fontSize: 13, fontWeight: 700, margin: 0 }}>
+            Connection Error
+          </p>
+          <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 11, marginTop: 5, marginBottom: 16 }}>
+            Could not reach the server
+          </p>
+          <button
+            onClick={retryInit}
+            style={{
+              padding: "10px 24px", borderRadius: 12, border: "1px solid rgba(251,191,36,0.40)",
+              background: "rgba(251,191,36,0.10)", color: "#fbbf24", fontWeight: 700,
+              fontSize: 13, fontFamily: "inherit", cursor: "pointer",
+            }}
+          >
+            🔄 Retry Connection
+          </button>
         </div>
       ) : activeTasks.length === 0 ? (
         <div style={{

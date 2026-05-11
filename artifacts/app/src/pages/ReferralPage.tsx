@@ -8,7 +8,7 @@ import stickerMoneyData from "../../public/sticker-money.json";
 import leaderboardStickerData from "../../public/leaderboard-sticker.json";
 
 export default function ReferralPage() {
-  const { user, initialized } = useUser();
+  const { user, initialized, retryInit } = useUser();
   const [copied, setCopied] = useState(false);
   const [botUsername, setBotUsername] = useState("Jojox1bot");
   const [referrals, setReferrals] = useState<ReferralEntry[]>([]);
@@ -225,7 +225,7 @@ export default function ReferralPage() {
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             margin: 0, fontFamily: "monospace", direction: "ltr", textAlign: "left",
           }}>
-            {refLink || (loadFailed ? "⚠️ Connection error — restart app" : "Loading...")}
+            {refLink || (loadFailed ? "⚠️ Connection error" : "Loading...")}
           </p>
           <button
             onClick={handleCopy}
@@ -244,6 +244,20 @@ export default function ReferralPage() {
             {copied ? <><CheckCheck size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
           </button>
         </div>
+
+        {/* Retry button when connection failed */}
+        {loadFailed && (
+          <button
+            onClick={retryInit}
+            style={{
+              width: "100%", padding: "11px", borderRadius: 14, border: "1px solid rgba(251,191,36,0.40)",
+              background: "rgba(251,191,36,0.10)", color: "#fbbf24", fontWeight: 700,
+              fontSize: 13, fontFamily: "inherit", cursor: "pointer",
+            }}
+          >
+            🔄 Retry Connection
+          </button>
+        )}
 
         {/* ── Referrals list ── */}
         <div style={{

@@ -21,6 +21,7 @@ interface UserContextType {
   loading: boolean;
   initialized: boolean;
   refresh: () => Promise<void>;
+  retryInit: () => void;
   isAdmin: boolean;
   banned: boolean;
   slots: WheelSlot[];
@@ -34,6 +35,7 @@ const UserContext = createContext<UserContextType>({
   loading: true,
   initialized: false,
   refresh: async () => {},
+  retryInit: () => {},
   isAdmin: false,
   banned: false,
   slots: [],
@@ -214,14 +216,49 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (e instanceof Error && e.message === "محظور") {
         setBanned(true);
         setSessionState("banned");
+        setLoading(false);
+        setInitialized(true);
+        hideSplash();
       } else {
-        console.error("Failed to init user", e);
+        console.warn("Failed to init user — retrying in 4s:", e);
+        // Auto-retry once after 4 seconds (handles Neon DB cold start)
+        setTimeout(async () => {
+          try {
+            initTelegramApp();
+            const tgUser = getTelegramUser() ?? getMockUser();
+            const freshUser = await api.initUser({
+              id: tgUser.id,
+              username: tgUser.username ?? undefined,
+              first_name: tgUser.first_name ?? undefined,
+              last_name: tgUser.last_name ?? undefined,
+              photo_url: tgUser.photo_url ?? undefined,
+            });
+            const freshSlots = await getWheelSlotsOnce().catch(() => [] as WheelSlot[]);
+            setUser(freshUser);
+            setSlots(freshSlots as WheelSlot[]);
+            writeCache(`user:${freshUser.id}`, freshUser);
+            writeCache("slots", freshSlots);
+            await doIssueSession(freshUser.id);
+          } catch (retryErr) {
+            console.error("Retry also failed:", retryErr);
+          } finally {
+            setLoading(false);
+            setInitialized(true);
+            hideSplash();
+            setSessionState((prev) => prev === "pending" ? "ready" : prev);
+          }
+        }, 4000);
+        return; // don't set initialized yet — let retry handle it
       }
-      setLoading(false);
-      setInitialized(true);
-      hideSplash();
-      setSessionState((prev) => prev === "pending" ? "ready" : prev);
     }
+  };
+
+  const retryInit = () => {
+    setLoading(true);
+    setInitialized(false);
+    setUser(null);
+    setSessionState("pending");
+    init();
   };
 
   const refresh = async () => {
@@ -241,7 +278,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <UserContext.Provider value={{
-      user, loading, initialized, refresh, isAdmin: isAdminState, banned, slots,
+      user, loading, initialized, refresh, retryInit, isAdmin: isAdminState, banned, slots,
       sessionState, blockedInfo, recheckSession,
     }}>
       {children}
