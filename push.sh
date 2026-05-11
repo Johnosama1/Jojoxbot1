@@ -24,6 +24,9 @@ git push --force "$REMOTE_URL" main
 
 echo ""
 echo "✅ Done! Code is on GitHub."
-echo "   Vercel will auto-deploy in 1-2 minutes."
+echo "   Vercel will auto-deploy in ~2 minutes."
 echo ""
-echo "Check: https://vercel.com/johnosama1s-projects"
+echo "📋 After Vercel deploys, register the webhook:"
+echo "   bash register-webhook.sh"
+echo ""
+echo "Check deployment: https://vercel.com/johnosama1s-projects"
