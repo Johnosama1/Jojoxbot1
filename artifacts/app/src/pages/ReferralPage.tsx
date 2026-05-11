@@ -8,7 +8,7 @@ import stickerMoneyData from "../../public/sticker-money.json";
 import leaderboardStickerData from "../../public/leaderboard-sticker.json";
 
 export default function ReferralPage() {
-  const { user } = useUser();
+  const { user, initialized } = useUser();
   const [copied, setCopied] = useState(false);
   const [botUsername, setBotUsername] = useState("Jojox1bot");
   const [referrals, setReferrals] = useState<ReferralEntry[]>([]);
@@ -57,6 +57,7 @@ export default function ReferralPage() {
   const refLink = user ? `https://t.me/${botUsername}?start=ref_${user.id}` : "";
   const progress = user ? user.referralCount % 5 : 0;
   const remaining = 5 - progress;
+  const loadFailed = initialized && !user;
 
   const handleCopy = async () => {
     if (!refLink) return;
@@ -224,7 +225,7 @@ export default function ReferralPage() {
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             margin: 0, fontFamily: "monospace", direction: "ltr", textAlign: "left",
           }}>
-            {refLink || "Loading..."}
+            {refLink || (loadFailed ? "⚠️ Connection error — restart app" : "Loading...")}
           </p>
           <button
             onClick={handleCopy}

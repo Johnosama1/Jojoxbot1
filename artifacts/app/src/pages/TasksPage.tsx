@@ -4,7 +4,7 @@ import { api, Task, getTasksOnce, getCompletedTasksOnce, invalidateUserCaches } 
 import { CheckCircle, ExternalLink, Clock, Zap, Sparkles } from "lucide-react";
 
 export default function TasksPage() {
-  const { user, refresh } = useUser();
+  const { user, refresh, initialized } = useUser();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [completed, setCompleted] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
@@ -13,7 +13,8 @@ export default function TasksPage() {
   const [message, setMessage] = useState<{ taskId: number; text: string; type: "success" | "error" } | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!initialized) return;
+    if (!user) { setLoading(false); return; }
     Promise.all([getTasksOnce(), getCompletedTasksOnce(user.id)])
       .then(([t, c]) => {
         setTasks(t);
@@ -21,7 +22,7 @@ export default function TasksPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [user]);
+  }, [user, initialized]);
 
   const handleOpenUrl = (task: Task) => {
     window.open(task.url!, "_blank");
