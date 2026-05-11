@@ -9,9 +9,42 @@ import app from "./app";
 import { initBotWebhook } from "./bot";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { wheelSlotsTable } from "@workspace/db/schema";
 
-// Warm-up DB connection (fire and forget)
-db.execute(sql`SELECT 1`).catch(() => {});
+// ── v2 wheel slots (matches wheel.ts DEFAULT_SLOTS_V2) ───────────────
+const DEFAULT_SLOTS_V2 = [
+  { amount: "0.050", probability: 80, displayOrder: 1 },
+  { amount: "0.075", probability: 2,  displayOrder: 2 },
+  { amount: "0.100", probability: 0,  displayOrder: 3 },
+  { amount: "0.200", probability: 0,  displayOrder: 4 },
+  { amount: "0.500", probability: 0,  displayOrder: 5 },
+  { amount: "1.000", probability: 0,  displayOrder: 6 },
+  { amount: "2.000", probability: 0,  displayOrder: 7 },
+  { amount: "4.000", probability: 0,  displayOrder: 8 },
+];
+
+// Run startup migrations (fire and forget — non-blocking)
+async function runStartupMigrations() {
+  try {
+    await db.execute(sql`SELECT 1`); // warm-up
+
+    // Migrate wheel slots to v2 if still on old v1 seed
+    const slots = await db.select().from(wheelSlotsTable);
+    const amounts = slots.map((s: { amount: string }) => s.amount);
+    const isV1 = slots.length > 0 && slots.length <= 7 &&
+      amounts.some((a: string) => a === "0.05" || a === "0.10" || a === "0.25");
+
+    if (slots.length === 0 || isV1) {
+      if (slots.length > 0) await db.delete(wheelSlotsTable);
+      await db.insert(wheelSlotsTable).values(DEFAULT_SLOTS_V2);
+      console.log("[startup] Wheel slots migrated to v2");
+    }
+  } catch (e) {
+    console.warn("[startup] Migration skipped:", e instanceof Error ? e.message : e);
+  }
+}
+
+runStartupMigrations();
 
 // Webhook URL priority:
 //   1. BOT_WEBHOOK_URL  — explicit override (most reliable, set this in Vercel env)
