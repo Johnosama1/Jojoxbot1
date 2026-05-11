@@ -95,7 +95,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [isAdminState, setIsAdminState] = useState(false);
 
   // ── Issue (or re-issue) session token ─────────────────────────────
-  const doIssueSession = async (userId: number) => {
+  const doIssueSession = async (userId: number, retryCount = 0) => {
     setSessionState("issuing");
     try {
       const result = await api.issueSession(userId);
@@ -111,16 +111,24 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           setBanned(true);
           setSessionState("banned");
         } else {
-          // subscription_blocked
           setBlockedInfo({
             missingChannels: err.body?.missingChannels ?? [],
             requiredChannels: err.body?.requiredChannels ?? [],
           });
           setSessionState("blocked");
         }
+      } else if (err?.status === 401 && err.body?.error === "invalid_auth" && retryCount < 2) {
+        // initData might not be ready yet — retry after a short delay
+        console.warn(`Session auth failed (invalid_auth), retry #${retryCount + 1} in 800ms…`);
+        await new Promise(r => setTimeout(r, 800));
+        return doIssueSession(userId, retryCount + 1);
+      } else if (err?.status === 0) {
+        // Network error — fail open (server unreachable)
+        console.warn("Session issue: network error — fail open", e);
+        setSessionState("ready");
       } else {
-        // Network error or server down — fail open to avoid locking out users
-        console.warn("Session issue failed (fail-open):", e);
+        // Other unexpected error — fail open to avoid locking out users
+        console.warn("Session issue failed (fail-open):", err?.body?.error ?? e);
         setSessionState("ready");
       }
     }
@@ -155,7 +163,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const init = async () => {
     try {
       // ── Clear storage on version bump ──────────────────────────────
-      const APP_VER = "3.0";
+      const APP_VER = "3.1";
       const VER_KEY = "jjx_app_ver";
       if (localStorage.getItem(VER_KEY) !== APP_VER) {
         localStorage.clear();

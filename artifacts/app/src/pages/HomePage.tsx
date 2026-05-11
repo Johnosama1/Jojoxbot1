@@ -81,7 +81,7 @@ function SecurityOverlay({ state }: { state: "checking" | "banned" }) {
 }
 
 export default function HomePage() {
-  const { user, refresh, slots: contextSlots, initialized } = useUser();
+  const { user, refresh, slots: contextSlots, initialized, recheckSession } = useUser();
   const [spinning, setSpinning]       = useState(false);
   const [winnerIndex, setWinnerIndex] = useState<number | null>(null);
   const [showResult, setShowResult]   = useState(false);
@@ -187,7 +187,18 @@ export default function HomePage() {
     try {
       await runOneSpin(true);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Spin failed");
+      const err = e as { status?: number; body?: { error?: string } };
+      // Session expired or missing — re-auth silently and retry once
+      if (err?.status === 401 && (err?.body?.error === "session_required" || err?.body?.error === "session_expired")) {
+        try {
+          await recheckSession();
+          await runOneSpin(true);
+        } catch (retryErr: unknown) {
+          setError(retryErr instanceof Error ? retryErr.message : "Spin failed");
+        }
+      } else {
+        setError(e instanceof Error ? e.message : "Spin failed");
+      }
     }
   };
 
