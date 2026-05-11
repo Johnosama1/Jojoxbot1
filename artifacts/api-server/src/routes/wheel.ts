@@ -13,16 +13,27 @@ export function invalidateWheelCache() {
   _cache = null;
 }
 
-// Default slots shown when DB is empty (admin can override via panel)
-const DEFAULT_SLOTS = [
-  { amount: "0.05", probability: 30, displayOrder: 1 },
-  { amount: "0.10", probability: 25, displayOrder: 2 },
-  { amount: "0.25", probability: 20, displayOrder: 3 },
-  { amount: "0.50", probability: 12, displayOrder: 4 },
-  { amount: "1.00", probability: 8,  displayOrder: 5 },
-  { amount: "2.00", probability: 4,  displayOrder: 6 },
-  { amount: "4.00", probability: 1,  displayOrder: 7 },
+// ── v2 wheel configuration (admin can override via panel) ────────────
+// Probabilities are out of 100. Slots with 0% appear on wheel visually
+// but are never awarded — the spin engine falls back to the first
+// non-zero slot for any remainder.
+const DEFAULT_SLOTS_V2 = [
+  { amount: "0.050", probability: 80, displayOrder: 1 },
+  { amount: "0.075", probability: 2,  displayOrder: 2 },
+  { amount: "0.100", probability: 0,  displayOrder: 3 },
+  { amount: "0.200", probability: 0,  displayOrder: 4 },
+  { amount: "0.500", probability: 0,  displayOrder: 5 },
+  { amount: "1.000", probability: 0,  displayOrder: 6 },
+  { amount: "2.000", probability: 0,  displayOrder: 7 },
+  { amount: "4.000", probability: 0,  displayOrder: 8 },
 ];
+
+// Detect whether existing DB slots are the old v1 seed (needs migration)
+function isV1Seed(slots: { amount: string; probability: number }[]): boolean {
+  if (slots.length !== 7) return false;
+  const amounts = slots.map(s => s.amount);
+  return amounts.includes("0.05") && !amounts.includes("0.050");
+}
 
 router.get("/", async (_req, res) => {
   const now = Date.now();
@@ -37,9 +48,13 @@ router.get("/", async (_req, res) => {
   try {
     let slots = await db.select().from(wheelSlotsTable).orderBy(wheelSlotsTable.displayOrder);
 
-    // Auto-seed default slots if table is empty (fresh DB)
-    if (slots.length === 0) {
-      slots = await db.insert(wheelSlotsTable).values(DEFAULT_SLOTS).returning();
+    // Auto-seed: fresh DB or detected old v1 seed → replace with v2
+    if (slots.length === 0 || isV1Seed(slots)) {
+      if (slots.length > 0) {
+        // Clear old v1 slots before re-seeding
+        await db.delete(wheelSlotsTable);
+      }
+      slots = await db.insert(wheelSlotsTable).values(DEFAULT_SLOTS_V2).returning();
     }
 
     _cache = { data: slots, ts: now };
@@ -49,7 +64,7 @@ router.get("/", async (_req, res) => {
   } catch (err) {
     // DB not reachable — return defaults so UI doesn't break
     res.setHeader("Cache-Control", "no-store");
-    res.json(DEFAULT_SLOTS.map((s, i) => ({ id: i + 1, ...s })));
+    res.json(DEFAULT_SLOTS_V2.map((s, i) => ({ id: i + 1, ...s })));
   }
 });
 

@@ -76,11 +76,17 @@ export default function ReferralPage() {
   };
 
   const shareLink = () => {
-    const text = `🎰 Play the Lucky Wheel on Jo-jokes and win TON!\n\n🎡 Win from 0.05 to 4 TON per spin\n🎁 Join with my link:\n${refLink}`;
-    window.open(
-      `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(text)}`,
-      "_blank"
-    );
+    const text = `🎰 العب عجلة الحظ على Jo-jokes واربح USDT!\n\n🎡 فرصة تكسب من 0.05 إلى 4 USDT في كل دوران\n🎁 اشترك عبر رابطي:\n${refLink}`;
+    if (window.Telegram?.WebApp?.openTelegramLink) {
+      window.Telegram.WebApp.openTelegramLink(
+        `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(text)}`
+      );
+    } else {
+      window.open(
+        `https://t.me/share/url?url=${encodeURIComponent(refLink)}&text=${encodeURIComponent(text)}`,
+        "_blank"
+      );
+    }
   };
 
   const approvedCount = referrals.filter(r => r.status === "approved").length;
