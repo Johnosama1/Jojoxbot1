@@ -13,6 +13,17 @@ export function invalidateWheelCache() {
   _cache = null;
 }
 
+// Default slots shown when DB is empty (admin can override via panel)
+const DEFAULT_SLOTS = [
+  { amount: "0.05", probability: 30, displayOrder: 1 },
+  { amount: "0.10", probability: 25, displayOrder: 2 },
+  { amount: "0.25", probability: 20, displayOrder: 3 },
+  { amount: "0.50", probability: 12, displayOrder: 4 },
+  { amount: "1.00", probability: 8,  displayOrder: 5 },
+  { amount: "2.00", probability: 4,  displayOrder: 6 },
+  { amount: "4.00", probability: 1,  displayOrder: 7 },
+];
+
 router.get("/", async (_req, res) => {
   const now = Date.now();
 
@@ -23,12 +34,23 @@ router.get("/", async (_req, res) => {
     return;
   }
 
-  const slots = await db.select().from(wheelSlotsTable).orderBy(wheelSlotsTable.displayOrder);
-  _cache = { data: slots, ts: now };
+  try {
+    let slots = await db.select().from(wheelSlotsTable).orderBy(wheelSlotsTable.displayOrder);
 
-  res.setHeader("Cache-Control", "public, max-age=60");
-  res.setHeader("X-Cache", "MISS");
-  res.json(slots);
+    // Auto-seed default slots if table is empty (fresh DB)
+    if (slots.length === 0) {
+      slots = await db.insert(wheelSlotsTable).values(DEFAULT_SLOTS).returning();
+    }
+
+    _cache = { data: slots, ts: now };
+    res.setHeader("Cache-Control", "public, max-age=60");
+    res.setHeader("X-Cache", "MISS");
+    res.json(slots);
+  } catch (err) {
+    // DB not reachable — return defaults so UI doesn't break
+    res.setHeader("Cache-Control", "no-store");
+    res.json(DEFAULT_SLOTS.map((s, i) => ({ id: i + 1, ...s })));
+  }
 });
 
 // ── Public boost status (no auth needed — used by frontend) ────────

@@ -69,7 +69,7 @@ export function spinRateLimit(req: Request, res: Response, next: NextFunction) {
 }
 
 export function telegramAuth(req: Request, res: Response, next: NextFunction) {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const token = process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN;
 
   // If no token configured — skip in dev only
   if (!token) {
