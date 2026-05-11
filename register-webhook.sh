@@ -18,11 +18,25 @@ if [ -z "$TOKEN" ]; then
   exit 1
 fi
 
-echo "Enter your Vercel production URL (e.g. jojoxbot1.vercel.app):"
-read -p "Domain (no https://): " VERCEL_DOMAIN
+echo "Enter your Vercel domain (e.g. jojoxbot1-api-server.vercel.app):"
+echo "⚠️  Only the domain — NOT a GitHub URL!"
+read -p "Domain: " VERCEL_DOMAIN
 
 if [ -z "$VERCEL_DOMAIN" ]; then
   echo "❌ No domain entered. Aborting."
+  exit 1
+fi
+
+# Strip https:// or http:// prefix if user accidentally included it
+VERCEL_DOMAIN="${VERCEL_DOMAIN#https://}"
+VERCEL_DOMAIN="${VERCEL_DOMAIN#http://}"
+# Strip trailing slashes and .git
+VERCEL_DOMAIN="${VERCEL_DOMAIN%%/*}"
+VERCEL_DOMAIN="${VERCEL_DOMAIN%.git}"
+
+# Validate it looks like a vercel domain
+if [[ "$VERCEL_DOMAIN" == *"github.com"* ]]; then
+  echo "❌ That's a GitHub URL — please enter your Vercel domain (e.g. jojoxbot1-api-server.vercel.app)"
   exit 1
 fi
 
