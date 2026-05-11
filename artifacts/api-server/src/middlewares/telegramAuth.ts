@@ -116,3 +116,28 @@ export function telegramAuth(req: Request, res: Response, next: NextFunction) {
   (req as Request & { telegramUserId?: number }).telegramUserId = userId;
   next();
 }
+
+// ── softTelegramAuth ──────────────────────────────────────────────────
+// Like telegramAuth but NEVER blocks — attaches telegramUserId if valid,
+// continues regardless. Used for /users/init so first-open always works.
+export function softTelegramAuth(req: Request, res: Response, next: NextFunction) {
+  const token = process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN;
+  const initData = req.headers["x-telegram-init-data"] as string | undefined;
+
+  if (token && initData) {
+    const { valid, userId } = verifyTelegramHash(initData, token);
+    if (valid && userId) {
+      (req as Request & { telegramUserId?: number }).telegramUserId = userId;
+
+      // Verify userId in initData matches body id (security: prevent spoofing)
+      const bodyId = req.body?.id ? parseInt(String(req.body.id)) : undefined;
+      if (bodyId && userId !== bodyId) {
+        res.status(403).json({ error: "User ID mismatch" });
+        return;
+      }
+    }
+  }
+
+  // Always pass through — session token system handles security for sensitive routes
+  next();
+}

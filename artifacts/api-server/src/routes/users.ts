@@ -3,7 +3,7 @@ import { createHash } from "crypto";
 import { db } from "@workspace/db";
 import { usersTable, wheelSlotsTable, botSettingsTable } from "@workspace/db/schema";
 import { eq, sql, and } from "drizzle-orm";
-import { telegramAuth, spinRateLimit } from "../middlewares/telegramAuth";
+import { telegramAuth, softTelegramAuth, spinRateLimit } from "../middlewares/telegramAuth";
 import { verifyAccessMiddleware } from "../middlewares/verifyAccess";
 import { requireSession } from "../middlewares/requireSession";
 
@@ -22,7 +22,7 @@ function normalizeIp(raw: string): string {
 }
 
 // ── Single-query upsert init — fast path for returning users ─────────
-router.post("/init", telegramAuth, async (req, res) => {
+router.post("/init", softTelegramAuth, async (req, res) => {
   const { id, username, first_name, last_name, photo_url } = req.body;
   if (!id) { res.status(400).json({ error: "Missing id" }); return; }
 

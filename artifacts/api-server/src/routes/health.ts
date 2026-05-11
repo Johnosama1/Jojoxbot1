@@ -35,7 +35,7 @@ router.get("/debug", async (_req, res) => {
       DATABASE_URL: process.env.DATABASE_URL ? "✅ set" : "❌ missing",
       TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN ? "✅ set" : "❌ missing",
       BOT_TOKEN: process.env.BOT_TOKEN ? "✅ set" : "❌ missing",
-      SESSION_SECRET: process.env.SESSION_SECRET ? "✅ set" : "❌ missing",
+      SESSION_TOKEN_SECRET: process.env.SESSION_TOKEN_SECRET ? "✅ set" : "— (using BOT_TOKEN fallback)",
       BOT_WEBHOOK_URL: process.env.BOT_WEBHOOK_URL || "❌ missing",
       MINI_APP_URL: process.env.MINI_APP_URL || "— (using Vercel auto-detect)",
       VERCEL_URL: process.env.VERCEL_URL || "— (not Vercel)",
