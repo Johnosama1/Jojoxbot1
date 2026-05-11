@@ -15,12 +15,12 @@ if [ -z "$GH_TOKEN" ]; then
 fi
 
 echo ""
-echo "🔄 Pushing to GitHub..."
+echo "🔄 Pushing to GitHub (force)..."
 
 ENCODED=$(node -e "process.stdout.write(encodeURIComponent(process.argv[1]))" "$GH_TOKEN")
 REMOTE_URL="https://oauth2:${ENCODED}@github.com/Johnosama1/Jojoxbot1.git"
 
-git push "$REMOTE_URL" main
+git push --force "$REMOTE_URL" main
 
 echo ""
 echo "✅ Done! Code is on GitHub."
