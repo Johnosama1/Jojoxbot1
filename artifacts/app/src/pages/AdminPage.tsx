@@ -435,6 +435,43 @@ export default function AdminPage() {
             {/* ─── SETTINGS ─── */}
             {tab === "settings" && (
               <div className="space-y-4">
+                {/* Referral Commission Threshold */}
+                <div className="bg-purple-900/20 border border-purple-700/40 rounded-2xl p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-yellow-400 font-black text-base">👥</span>
+                    <h3 className="text-white font-bold text-sm">حد عمولة الإحالة</h3>
+                  </div>
+                  <p className="text-purple-400 text-xs mb-3">
+                    عدد الإحالات المطلوبة للحصول على دورة مجانية — القيمة الحالية: <span className="text-yellow-400 font-bold">{parseInt(settings["referral_threshold"]) || 5}</span>
+                  </p>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={settings["referral_threshold"] ?? "5"}
+                      onChange={e => setSettings(prev => ({ ...prev, referral_threshold: e.target.value }))}
+                      className="flex-1 bg-purple-800/50 text-white text-sm rounded-xl px-3 py-2 border border-purple-700/40 outline-none"
+                      placeholder="مثال: 5"
+                    />
+                    <button
+                      disabled={saving}
+                      onClick={async () => {
+                        const raw = settings["referral_threshold"] ?? "5";
+                        const val = parseInt(raw);
+                        if (isNaN(val) || val < 1) { flash("يجب أن يكون الرقم 1 على الأقل", "err"); return; }
+                        await saveSetting("referral_threshold", String(val));
+                      }}
+                      className="px-4 py-2 rounded-xl text-sm font-bold bg-yellow-400 text-black transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      حفظ
+                    </button>
+                  </div>
+                  <p className="text-purple-500 text-xs mt-2">
+                    كل {parseInt(settings["referral_threshold"]) || 5} إحالات ناجحة = دورة مجانية واحدة للمُحيل
+                  </p>
+                </div>
+
                 {/* Bot enabled toggle */}
                 <div className="bg-purple-900/20 border border-purple-700/40 rounded-2xl p-4">
                   <div className="flex items-center justify-between gap-3">

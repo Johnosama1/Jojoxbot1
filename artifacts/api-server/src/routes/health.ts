@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
+import { getSetting } from "../lib/settingsCache";
 
 const router: IRouter = Router();
 
@@ -10,9 +11,12 @@ router.get("/healthz", (_req, res) => {
   res.json(data);
 });
 
-router.get("/config", (_req, res) => {
+router.get("/config", async (_req, res) => {
+  const raw = await getSetting("referral_threshold").catch(() => null);
+  const referralThreshold = Math.max(1, parseInt(raw ?? "5") || 5);
   res.json({
     botUsername: process.env.BOT_USERNAME || "Jojox1bot",
+    referralThreshold,
   });
 });
 

@@ -11,6 +11,7 @@ export default function ReferralPage() {
   const { user, initialized, retryInit } = useUser();
   const [copied, setCopied] = useState(false);
   const [botUsername, setBotUsername] = useState("Jojox1bot");
+  const [referralThreshold, setReferralThreshold] = useState(5);
   const [referrals, setReferrals] = useState<ReferralEntry[]>([]);
   const [loadingReferrals, setLoadingReferrals] = useState(false);
   const stickerRef = useRef<HTMLDivElement>(null);
@@ -42,7 +43,10 @@ export default function ReferralPage() {
   }, []);
 
   useEffect(() => {
-    api.getConfig().then((c) => setBotUsername(c.botUsername)).catch(() => {});
+    api.getConfig().then((c) => {
+      setBotUsername(c.botUsername);
+      if (c.referralThreshold && c.referralThreshold > 0) setReferralThreshold(c.referralThreshold);
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -55,8 +59,8 @@ export default function ReferralPage() {
   }, [user?.id]);
 
   const refLink = user ? `https://t.me/${botUsername}?start=ref_${user.id}` : "";
-  const progress = user ? user.referralCount % 5 : 0;
-  const remaining = 5 - progress;
+  const progress = user ? user.referralCount % referralThreshold : 0;
+  const remaining = referralThreshold - progress;
   const loadFailed = initialized && !user;
 
   const handleCopy = async () => {

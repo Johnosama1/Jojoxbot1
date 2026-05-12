@@ -16,6 +16,7 @@ import { getBot } from "../bot";
 import { getChannelPhotoUrl } from "../bot/admin";
 import { setBotEnabled, clearBotEnabledCache } from "../bot/control";
 import { clearAllSubCache } from "../bot/subscription";
+import { invalidateSetting } from "../lib/settingsCache";
 
 const router = Router();
 
@@ -218,6 +219,9 @@ router.put("/settings", async (req, res) => {
   }
   if (key === "required_channels") {
     clearAllSubCache();
+  }
+  if (key === "referral_threshold") {
+    invalidateSetting("referral_threshold");
   }
   res.json({ key, value });
 });

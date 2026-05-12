@@ -384,7 +384,10 @@ router.post("/verify-device", telegramAuth, async (req, res) => {
 
     if (refUser && refUser.isVisible !== false) {
       const newCount = (refUser.referralCount || 0) + 1;
-      const extraSpin = newCount % 5 === 0 ? 1 : 0;
+      const { getSetting } = await import("../lib/settingsCache");
+      const rawThreshold = await getSetting("referral_threshold").catch(() => null);
+      const threshold = Math.max(1, parseInt(rawThreshold ?? "5") || 5);
+      const extraSpin = newCount % threshold === 0 ? 1 : 0;
       await db
         .update(usersTable)
         .set({
@@ -392,7 +395,7 @@ router.post("/verify-device", telegramAuth, async (req, res) => {
           spins: sql`spins + ${extraSpin}`,
         })
         .where(eq(usersTable.id, user.referredBy));
-      logger.info({ referrerId: user.referredBy, newCount, extraSpin }, "Referral credited after successful verification");
+      logger.info({ referrerId: user.referredBy, newCount, threshold, extraSpin }, "Referral credited after successful verification");
 
       if (extraSpin > 0) {
         try {
