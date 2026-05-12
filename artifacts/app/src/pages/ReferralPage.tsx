@@ -181,6 +181,7 @@ export default function ReferralPage() {
         minHeight: 0,
         overflowY: "auto",
         WebkitOverflowScrolling: "touch" as never,
+        touchAction: "pan-y",
         padding: "4px 16px calc(80px + env(safe-area-inset-bottom, 0px) + 12px)",
         display: "flex",
         flexDirection: "column",
@@ -287,10 +288,13 @@ export default function ReferralPage() {
           background: "rgba(10,8,28,0.60)",
           backdropFilter: "blur(18px)",
           border: "1px solid rgba(255,255,255,0.09)",
+          display: "flex",
+          flexDirection: "column",
           overflow: "hidden",
         }}>
-          {/* Section header */}
+          {/* Section header — always visible */}
           <div style={{
+            flexShrink: 0,
             padding: "12px 16px 10px",
             borderBottom: "1px solid rgba(255,255,255,0.07)",
             display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -331,91 +335,99 @@ export default function ReferralPage() {
             </div>
           </div>
 
-          {loadingReferrals && (
-            <div style={{ padding: "24px", textAlign: "center" }}>
-              <div style={{
-                width: 24, height: 24, borderRadius: "50%",
-                border: "2px solid rgba(251,191,36,0.50)", borderTopColor: "transparent",
-                animation: "spin 0.75s linear infinite", margin: "0 auto",
-              }} />
-            </div>
-          )}
-
-          {!loadingReferrals && referrals.length === 0 && (
-            <div style={{
-              padding: "28px 16px", textAlign: "center",
-              color: "rgba(255,255,255,0.30)", fontSize: 12,
-            }}>
-              <Users size={28} style={{ color: "rgba(255,255,255,0.12)", marginBottom: 8 }} />
-              <p style={{ margin: 0 }}>No referrals yet — share your link to invite friends!</p>
-            </div>
-          )}
-
-          {!loadingReferrals && referrals.map((r, idx) => {
-            const isApproved = r.status === "approved";
-            const isLast = idx === referrals.length - 1;
-            // Extract first alphabetic/numeric char, skipping emojis
-            const initial = (r.name.match(/[a-zA-Z0-9\u0600-\u06FF\u0400-\u04FF]/)?.[0] ?? Array.from(r.name)[0] ?? "?").toUpperCase();
-            return (
-              <div key={r.id} style={{
-                display: "flex", alignItems: "center", gap: 10,
-                padding: "11px 16px",
-                borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.05)",
-                background: idx % 2 === 0 ? "rgba(255,255,255,0.015)" : "transparent",
-              }}>
-                {/* Avatar: photo or letter */}
+          {/* Scrollable items area */}
+          <div style={{
+            overflowY: "auto",
+            WebkitOverflowScrolling: "touch" as never,
+            touchAction: "pan-y",
+            maxHeight: "calc(100dvh - 380px)",
+            minHeight: 56,
+          }}>
+            {loadingReferrals && (
+              <div style={{ padding: "24px", textAlign: "center" }}>
                 <div style={{
-                  width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
-                  background: isApproved
-                    ? "linear-gradient(135deg, rgba(16,185,129,0.30), rgba(16,185,129,0.10))"
-                    : "linear-gradient(135deg, rgba(251,191,36,0.30), rgba(251,191,36,0.10))",
-                  border: `1.5px solid ${isApproved ? "rgba(16,185,129,0.50)" : "rgba(251,191,36,0.50)"}`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  overflow: "hidden",
-                  boxShadow: `0 0 8px ${isApproved ? "rgba(16,185,129,0.20)" : "rgba(251,191,36,0.18)"}`,
-                }}>
-                  {r.photoUrl ? (
-                    <img
-                      src={r.photoUrl}
-                      alt={r.name}
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                    />
-                  ) : (
-                    <span style={{ color: isApproved ? "#34d399" : "#fbbf24", fontSize: 16, fontWeight: 900, lineHeight: 1 }}>
-                      {initial}
-                    </span>
-                  )}
-                </div>
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{
-                    color: "#fff", fontWeight: 700, fontSize: 13, margin: 0,
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  }}>
-                    {r.name}
-                  </p>
-                  <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, margin: "1px 0 0",
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {r.username ? `@${r.username}` : new Date(r.joinedAt).toLocaleDateString()}
-                  </p>
-                </div>
-
-                {/* Status badge */}
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 4,
-                  padding: "5px 10px", borderRadius: 999, flexShrink: 0,
-                  background: isApproved ? "rgba(16,185,129,0.14)" : "rgba(251,191,36,0.12)",
-                  border: `1px solid ${isApproved ? "rgba(16,185,129,0.32)" : "rgba(251,191,36,0.28)"}`,
-                  color: isApproved ? "#34d399" : "#fbbf24",
-                  fontSize: 10, fontWeight: 700,
-                }}>
-                  {isApproved ? <UserCheck size={11} /> : <Clock size={11} />}
-                  {isApproved ? "Successful" : "Pending Review"}
-                </div>
+                  width: 24, height: 24, borderRadius: "50%",
+                  border: "2px solid rgba(251,191,36,0.50)", borderTopColor: "transparent",
+                  animation: "spin 0.75s linear infinite", margin: "0 auto",
+                }} />
               </div>
-            );
-          })}
+            )}
+
+            {!loadingReferrals && referrals.length === 0 && (
+              <div style={{
+                padding: "28px 16px", textAlign: "center",
+                color: "rgba(255,255,255,0.30)", fontSize: 12,
+              }}>
+                <Users size={28} style={{ color: "rgba(255,255,255,0.12)", marginBottom: 8 }} />
+                <p style={{ margin: 0 }}>No referrals yet — share your link to invite friends!</p>
+              </div>
+            )}
+
+            {!loadingReferrals && referrals.map((r, idx) => {
+              const isApproved = r.status === "approved";
+              const isLast = idx === referrals.length - 1;
+              const initial = (r.name.match(/[a-zA-Z0-9\u0600-\u06FF\u0400-\u04FF]/)?.[0] ?? Array.from(r.name)[0] ?? "?").toUpperCase();
+              return (
+                <div key={r.id} style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "11px 16px",
+                  borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.05)",
+                  background: idx % 2 === 0 ? "rgba(255,255,255,0.015)" : "transparent",
+                }}>
+                  {/* Avatar: photo or letter */}
+                  <div style={{
+                    width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+                    background: isApproved
+                      ? "linear-gradient(135deg, rgba(16,185,129,0.30), rgba(16,185,129,0.10))"
+                      : "linear-gradient(135deg, rgba(251,191,36,0.30), rgba(251,191,36,0.10))",
+                    border: `1.5px solid ${isApproved ? "rgba(16,185,129,0.50)" : "rgba(251,191,36,0.50)"}`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    overflow: "hidden",
+                    boxShadow: `0 0 8px ${isApproved ? "rgba(16,185,129,0.20)" : "rgba(251,191,36,0.18)"}`,
+                  }}>
+                    {r.photoUrl ? (
+                      <img
+                        src={r.photoUrl}
+                        alt={r.name}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                      />
+                    ) : (
+                      <span style={{ color: isApproved ? "#34d399" : "#fbbf24", fontSize: 16, fontWeight: 900, lineHeight: 1 }}>
+                        {initial}
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{
+                      color: "#fff", fontWeight: 700, fontSize: 13, margin: 0,
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                    }}>
+                      {r.name}
+                    </p>
+                    <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, margin: "1px 0 0",
+                      overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {r.username ? `@${r.username}` : new Date(r.joinedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+
+                  {/* Status badge */}
+                  <div style={{
+                    display: "flex", alignItems: "center", gap: 4,
+                    padding: "5px 10px", borderRadius: 999, flexShrink: 0,
+                    background: isApproved ? "rgba(16,185,129,0.14)" : "rgba(251,191,36,0.12)",
+                    border: `1px solid ${isApproved ? "rgba(16,185,129,0.32)" : "rgba(251,191,36,0.28)"}`,
+                    color: isApproved ? "#34d399" : "#fbbf24",
+                    fontSize: 10, fontWeight: 700,
+                  }}>
+                    {isApproved ? <UserCheck size={11} /> : <Clock size={11} />}
+                    {isApproved ? "Successful" : "Pending Review"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
 
