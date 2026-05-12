@@ -64,15 +64,14 @@ export default function TasksPage() {
   const doneTasks = tasks.filter((t) => completed.includes(t.id));
 
   return (
-    <div className="page-content" style={{ display: "flex", flexDirection: "column" }}>
+    <div className="page-content" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-      {/* ── Sticky Progress Bar wrapper ── */}
+      {/* ── Fixed Progress Card (always visible, never scrolls) ── */}
       <div style={{
-        position: "sticky",
-        top: 0,
+        flexShrink: 0,
         zIndex: 10,
-        padding: "12px 12px 0",
-        background: "linear-gradient(to bottom, rgba(8,6,22,1) 85%, rgba(8,6,22,0))",
+        padding: "12px 12px 8px",
+        background: "transparent",
       }}>
       {/* ── Hero Progress Card ── */}
       <div className="slide-up" style={{
@@ -142,10 +141,14 @@ export default function TasksPage() {
         </div>
 
       </div>
-      </div>{/* ── end sticky wrapper ── */}
+      </div>{/* ── end fixed wrapper ── */}
 
       {/* ── Scrollable tasks content ── */}
-      <div style={{ padding: "8px 12px 24px", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{
+        flex: 1, overflowY: "auto",
+        padding: "4px 12px calc(80px + env(safe-area-inset-bottom, 0px) + 12px)",
+        display: "flex", flexDirection: "column", gap: 8,
+      }}>
 
       {/* ── Section title ── */}
       {!loading && activeTasks.length > 0 && (
