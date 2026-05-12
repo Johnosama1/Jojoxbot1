@@ -103,7 +103,7 @@ export default function ReferralPage() {
         top: 0,
         zIndex: 10,
         padding: "10px 16px 8px",
-        background: "linear-gradient(to bottom, rgba(8,6,22,1) 88%, rgba(8,6,22,0))",
+        background: "transparent",
         flexShrink: 0,
       }}>
         {/* Title row */}
@@ -213,7 +213,7 @@ export default function ReferralPage() {
           <button
             onClick={() => setLocation("/leaderboard")}
             style={{
-              flexShrink: 0, width: 48, borderRadius: 14,
+              flexShrink: 0, width: 46, borderRadius: 14,
               border: "1px solid rgba(255,255,255,0.12)",
               cursor: "pointer", padding: 0,
               background: "rgba(255,255,255,0.05)",
@@ -224,38 +224,42 @@ export default function ReferralPage() {
             <img
               src="/sad-icon.png"
               alt="leaderboard"
-              style={{ width: 32, height: 32, objectFit: "contain", filter: "brightness(0) invert(1)", pointerEvents: "none" }}
+              style={{ width: 30, height: 30, objectFit: "contain", filter: "brightness(0) invert(1)", pointerEvents: "none" }}
             />
           </button>
 
-          {/* Ref link — separate */}
+          {/* Ref link — separate, shows short preview but copies full link */}
           <div style={{
-            flex: 1, display: "flex", alignItems: "center", gap: 8, padding: "9px 12px",
+            flex: 1, display: "flex", alignItems: "center", gap: 6, padding: "7px 10px",
             borderRadius: 14, background: "rgba(255,255,255,0.04)",
             border: "1px solid rgba(255,255,255,0.10)", backdropFilter: "blur(14px)",
+            minWidth: 0,
           }}>
             <p style={{
-              color: "rgba(255,255,255,0.50)", fontSize: 11, flex: 1,
+              color: "rgba(255,255,255,0.45)", fontSize: 9.5, flex: 1,
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
               margin: 0, fontFamily: "monospace", direction: "ltr", textAlign: "left",
+              letterSpacing: 0,
             }}>
-              {refLink || (loadFailed ? "⚠️ Connection error" : "Loading...")}
+              {refLink
+                ? refLink.replace("https://t.me/", "t.me/").replace(/\?start=.*/, "?start=…")
+                : (loadFailed ? "⚠️ Connection error" : "Loading…")}
             </p>
             <button
               onClick={handleCopy}
               disabled={!refLink}
               style={{
-                padding: "6px 11px", borderRadius: 9, border: "none",
+                padding: "5px 10px", borderRadius: 8, border: "none",
                 cursor: refLink ? "pointer" : "not-allowed",
                 background: copied ? "rgba(16,185,129,0.22)" : "rgba(255,255,255,0.10)",
                 flexShrink: 0, transition: "all 0.2s",
-                display: "flex", alignItems: "center", gap: 4,
+                display: "flex", alignItems: "center", gap: 3,
                 color: copied ? "#34d399" : "rgba(255,255,255,0.70)",
-                fontSize: 11, fontWeight: 700, fontFamily: "inherit",
+                fontSize: 10, fontWeight: 700, fontFamily: "inherit",
                 opacity: refLink ? 1 : 0.5,
               }}
             >
-              {copied ? <><CheckCheck size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
+              {copied ? <><CheckCheck size={11} /> Copied</> : <><Copy size={11} /> Copy</>}
             </button>
           </div>
         </div>
@@ -273,41 +277,6 @@ export default function ReferralPage() {
             🔄 Retry Connection
           </button>
         )}
-
-        {/* ── Referral Count Banner ── */}
-        <div style={{
-          borderRadius: 16,
-          background: "linear-gradient(135deg, rgba(16,185,129,0.14), rgba(8,6,22,0.80))",
-          border: "1px solid rgba(16,185,129,0.28)",
-          backdropFilter: "blur(18px)",
-          padding: "14px 18px",
-          display: "flex", alignItems: "center", gap: 12,
-        }}>
-          <div style={{
-            width: 42, height: 42, borderRadius: 14, flexShrink: 0,
-            background: "rgba(16,185,129,0.18)", border: "1px solid rgba(16,185,129,0.35)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 0 14px rgba(16,185,129,0.20)",
-          }}>
-            <Users size={20} color="#34d399" />
-          </div>
-          <div>
-            <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1.5 }}>
-              Referral Count
-            </div>
-            <div style={{ color: "#34d399", fontSize: 28, fontWeight: 900, lineHeight: 1.1 }}>
-              {approvedCount}
-              <span style={{ color: "rgba(255,255,255,0.30)", fontSize: 12, fontWeight: 600, marginLeft: 6 }}>
-                successful
-              </span>
-            </div>
-            {pendingCount > 0 && (
-              <div style={{ color: "rgba(251,191,36,0.70)", fontSize: 10, fontWeight: 600, marginTop: 2 }}>
-                + {pendingCount} pending review
-              </div>
-            )}
-          </div>
-        </div>
 
         {/* ── Referrals list ── */}
         <div style={{
