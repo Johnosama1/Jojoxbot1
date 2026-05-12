@@ -229,9 +229,9 @@ export default function ReferralPage() {
             minWidth: 0, height: 30,
           }}>
             <p style={{
-              color: "rgba(255,255,255,0.40)", fontSize: 9, flex: 1,
+              color: "rgba(255,255,255,0.65)", fontSize: 11.5, flex: 1,
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              margin: 0, fontFamily: "monospace", direction: "ltr",
+              margin: 0, fontFamily: "monospace", direction: "ltr", fontWeight: 600,
             }}>
               {refLink
                 ? refLink.replace("https://t.me/", "t.me/").replace(/\?start=.*/, "?start=…")
