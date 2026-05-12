@@ -25,8 +25,24 @@ const DEFAULT_SLOTS_V2 = [
 
 // Run startup migrations (fire and forget — non-blocking)
 async function runStartupMigrations() {
+  // Log which DB we are connecting to (helps debug Vercel vs Replit)
+  const dbUrl = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL || "";
+  const dbLabel = process.env.NEON_DATABASE_URL
+    ? "NEON_DATABASE_URL"
+    : process.env.DATABASE_URL
+      ? "DATABASE_URL"
+      : "MISSING";
+  const dbHost = dbUrl ? new URL(dbUrl).hostname : "—";
+  console.log(`[startup] DB source: ${dbLabel} → host: ${dbHost}`);
+
+  if (!process.env.NEON_DATABASE_URL && !process.env.DATABASE_URL) {
+    console.error("[startup] CRITICAL: No database URL configured! Set NEON_DATABASE_URL in Vercel env vars.");
+    return;
+  }
+
   try {
     await db.execute(sql`SELECT 1`); // warm-up
+    console.log("[startup] DB connection OK");
 
     // Migrate wheel slots to v2 if still on old v1 seed
     const slots = await db.select().from(wheelSlotsTable);

@@ -6,6 +6,7 @@ import {
   withdrawalsTable,
 } from "@workspace/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { getSetting } from "../lib/settingsCache";
 import { logger } from "../lib/logger";
 import { executeAutoWithdrawal, isTonConfigured } from "../lib/withdrawalProcessor";
 import { getWalletAddress, getWalletBalance } from "../lib/tonSender";
@@ -417,6 +418,43 @@ function setupBotHandlers() {
             spins: 0,
           })
           .onConflictDoNothing();
+
+        // ── Referral reward for inviter ───────────────────────────────────────
+        if (referredBy) {
+          try {
+            const rawThreshold = await getSetting("referral_threshold").catch(() => null);
+            const refThreshold = Math.max(1, parseInt(rawThreshold ?? "5") || 5);
+
+            // Atomically increment inviter's referralCount
+            const [inviter] = await db
+              .update(usersTable)
+              .set({ referralCount: sql`referral_count + 1` })
+              .where(eq(usersTable.id, referredBy))
+              .returning({ id: usersTable.id, referralCount: usersTable.referralCount });
+
+            if (inviter) {
+              const newCount = inviter.referralCount;
+              const earnedSpin = newCount % refThreshold === 0;
+
+              if (earnedSpin) {
+                await db
+                  .update(usersTable)
+                  .set({ spins: sql`spins + 1` })
+                  .where(eq(usersTable.id, referredBy));
+              }
+
+              // Notify inviter
+              try {
+                const notifyText = earnedSpin
+                  ? `🎉 <b>مبروك!</b> صديق جديد انضم عبر رابطك!\n🎰 حصلت على لفة مجانية! (${newCount}/${refThreshold} إحالة)`
+                  : `👥 صديق جديد انضم عبر رابطك! (${newCount}/${refThreshold} إحالة)`;
+                await bot.sendMessage(referredBy, notifyText, { parse_mode: "HTML" });
+              } catch { /* inviter may have blocked the bot */ }
+            }
+          } catch (refErr) {
+            logger.error({ refErr }, "Referral reward processing error");
+          }
+        }
       } else {
         await db
           .update(usersTable)
