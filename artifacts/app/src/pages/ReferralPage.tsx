@@ -95,7 +95,7 @@ export default function ReferralPage() {
   return (
     <div
       className="page-content"
-      style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}
+      style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}
     >
       {/* ── Sticky Header ── */}
       <div style={{
@@ -340,6 +340,8 @@ export default function ReferralPage() {
           {!loadingReferrals && referrals.map((r, idx) => {
             const isApproved = r.status === "approved";
             const isLast = idx === referrals.length - 1;
+            // Extract first alphabetic/numeric char, skipping emojis
+            const initial = (r.name.match(/[a-zA-Z0-9\u0600-\u06FF\u0400-\u04FF]/)?.[0] ?? Array.from(r.name)[0] ?? "?").toUpperCase();
             return (
               <div key={r.id} style={{
                 display: "flex", alignItems: "center", gap: 10,
@@ -349,11 +351,14 @@ export default function ReferralPage() {
               }}>
                 {/* Avatar: photo or letter */}
                 <div style={{
-                  width: 38, height: 38, borderRadius: "50%", flexShrink: 0,
-                  background: isApproved ? "rgba(16,185,129,0.18)" : "rgba(251,191,36,0.15)",
-                  border: `1.5px solid ${isApproved ? "rgba(16,185,129,0.40)" : "rgba(251,191,36,0.35)"}`,
+                  width: 40, height: 40, borderRadius: "50%", flexShrink: 0,
+                  background: isApproved
+                    ? "linear-gradient(135deg, rgba(16,185,129,0.30), rgba(16,185,129,0.10))"
+                    : "linear-gradient(135deg, rgba(251,191,36,0.30), rgba(251,191,36,0.10))",
+                  border: `1.5px solid ${isApproved ? "rgba(16,185,129,0.50)" : "rgba(251,191,36,0.50)"}`,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   overflow: "hidden",
+                  boxShadow: `0 0 8px ${isApproved ? "rgba(16,185,129,0.20)" : "rgba(251,191,36,0.18)"}`,
                 }}>
                   {r.photoUrl ? (
                     <img
@@ -363,8 +368,8 @@ export default function ReferralPage() {
                       onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                     />
                   ) : (
-                    <span style={{ color: isApproved ? "#34d399" : "#fbbf24", fontSize: 15, fontWeight: 800 }}>
-                      {r.name.charAt(0).toUpperCase()}
+                    <span style={{ color: isApproved ? "#34d399" : "#fbbf24", fontSize: 16, fontWeight: 900, lineHeight: 1 }}>
+                      {initial}
                     </span>
                   )}
                 </div>
@@ -376,8 +381,9 @@ export default function ReferralPage() {
                   }}>
                     {r.name}
                   </p>
-                  <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, margin: "1px 0 0" }}>
-                    {new Date(r.joinedAt).toLocaleDateString()}
+                  <p style={{ color: "rgba(255,255,255,0.35)", fontSize: 10, margin: "1px 0 0",
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {r.username ? `@${r.username}` : new Date(r.joinedAt).toLocaleDateString()}
                   </p>
                 </div>
 
