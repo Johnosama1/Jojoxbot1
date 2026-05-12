@@ -1,0 +1,159 @@
+Apply the following referral system update carefully WITHOUT breaking the existing server, Telegram bot, database, API, wallet system, or Vercel deployment.
+
+IMPORTANT:
+
+* Do NOT redesign the whole UI.
+* Do NOT break any existing functionality.
+* Keep the bot working on the server exactly like now.
+* Keep all backend/server connections stable.
+* Do NOT break deployment or webhook behavior.
+* All changes must remain compatible with the current production server and Vercel setup.
+
+====================================
+REFERRAL PAGE UPDATE
+====================
+
+Remove the current old referrals section completely.
+
+Replace it with a new referrals tracking system with the following behavior:
+
+====================================
+
+1. REFERRALS COUNT
+   ====================================
+
+At the top of the referrals page show:
+
+* "Referral Count"
+* and next to it the total number count.
+
+Example:
+Referral Count: 12
+
+This number must count ONLY successful referrals.
+
+====================================
+2) REFERRAL USERS LIST
+======================
+
+Under the referral count, display a live list of invited users.
+
+For each invited user show:
+
+* profile picture
+* username/display name
+* referral status
+
+Statuses:
+
+1. Successful
+2. Pending Review
+
+====================================
+3) SUCCESSFUL STATUS
+====================
+
+Show:
+"Successful"
+
+with GREEN color.
+
+A referral becomes successful ONLY IF:
+
+* the invited user opened the bot
+* joined all required channels
+* passed mandatory verification
+* entered the bot successfully
+
+ONLY then:
+
+* count the referral
+* reward the inviter
+* mark the referral as successful
+
+====================================
+4) PENDING REVIEW STATUS
+========================
+
+Show:
+"Pending Review"
+
+for users who:
+
+* clicked the invite link
+  BUT:
+* did not open the bot fully
+  OR
+* did not join required channels
+  OR
+* did not finish verification
+
+Pending referrals must:
+
+* NOT increase the referral count
+* NOT give rewards
+* NOT count as completed referrals
+
+====================================
+5) AUTO STATUS UPDATE
+=====================
+
+The system must automatically update statuses in real time.
+
+Examples:
+
+* If the user joins channels later → status changes automatically to Successful.
+* If verification completes → reward gets added automatically.
+
+====================================
+6) DATABASE + BACKEND
+=====================
+
+Carefully update:
+
+* database logic
+* referral tracking
+* Telegram verification flow
+* referral rewards system
+
+WITHOUT breaking:
+
+* existing users
+* old referral data
+* wallet balances
+* server performance
+
+====================================
+7) SERVER + DEPLOYMENT SAFETY
+=============================
+
+VERY IMPORTANT:
+
+Do NOT break:
+
+* Telegram bot
+* webhook
+* Express server
+* API routes
+* Vercel deployment
+* production build
+* environment variables
+
+The bot MUST continue working on the server normally after the update.
+
+====================================
+8) FINAL VERIFICATION
+=====================
+
+After implementation:
+
+* run full production build
+* verify no TypeScript errors
+* verify no deployment errors
+* verify referral tracking works
+* verify successful referrals count correctly
+* verify pending referrals do NOT count
+* verify rewards only happen after verification
+* verify server remains stable
+
+Do NOT stop until everything works correctly and production-ready.

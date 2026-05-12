@@ -113,6 +113,7 @@ router.get("/:id/referrals", requireSession, async (req, res) => {
       id: usersTable.id,
       firstName: usersTable.firstName,
       username: usersTable.username,
+      photoUrl: usersTable.photoUrl,
       ipVerifiedAt: usersTable.ipVerifiedAt,
       isBlockedForLeaving: usersTable.isBlockedForLeaving,
       createdAt: usersTable.createdAt,
@@ -125,6 +126,7 @@ router.get("/:id/referrals", requireSession, async (req, res) => {
     id: u.id,
     name: u.firstName || (u.username ? `@${u.username}` : `User #${u.id}`),
     username: u.username,
+    photoUrl: u.photoUrl ?? null,
     status: (u.ipVerifiedAt != null && !u.isBlockedForLeaving) ? "approved" : "pending",
     joinedAt: u.createdAt,
   }));

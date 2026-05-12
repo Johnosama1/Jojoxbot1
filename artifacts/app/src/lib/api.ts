@@ -241,6 +241,7 @@ export interface ReferralEntry {
   id: number;
   name: string;
   username: string | null;
+  photoUrl: string | null;
   status: "pending" | "approved";
   joinedAt: string;
 }

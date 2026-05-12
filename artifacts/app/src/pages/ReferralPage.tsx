@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useUser } from "../lib/userContext";
 import { api, ReferralEntry } from "../lib/api";
-import { Share2, Copy, CheckCheck, UserCheck, Clock, User } from "lucide-react";
+import { Share2, Copy, CheckCheck, UserCheck, Clock, User, Users } from "lucide-react";
 import { useLocation } from "wouter";
 import lottie from "lottie-web";
 import stickerMoneyData from "../../public/sticker-money.json";
@@ -265,6 +265,41 @@ export default function ReferralPage() {
           </button>
         )}
 
+        {/* ── Referral Count Banner ── */}
+        <div style={{
+          borderRadius: 16,
+          background: "linear-gradient(135deg, rgba(16,185,129,0.14), rgba(8,6,22,0.80))",
+          border: "1px solid rgba(16,185,129,0.28)",
+          backdropFilter: "blur(18px)",
+          padding: "14px 18px",
+          display: "flex", alignItems: "center", gap: 12,
+        }}>
+          <div style={{
+            width: 42, height: 42, borderRadius: 14, flexShrink: 0,
+            background: "rgba(16,185,129,0.18)", border: "1px solid rgba(16,185,129,0.35)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 0 14px rgba(16,185,129,0.20)",
+          }}>
+            <Users size={20} color="#34d399" />
+          </div>
+          <div>
+            <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1.5 }}>
+              Referral Count
+            </div>
+            <div style={{ color: "#34d399", fontSize: 28, fontWeight: 900, lineHeight: 1.1 }}>
+              {approvedCount}
+              <span style={{ color: "rgba(255,255,255,0.30)", fontSize: 12, fontWeight: 600, marginLeft: 6 }}>
+                successful
+              </span>
+            </div>
+            {pendingCount > 0 && (
+              <div style={{ color: "rgba(251,191,36,0.70)", fontSize: 10, fontWeight: 600, marginTop: 2 }}>
+                + {pendingCount} pending review
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* ── Referrals list ── */}
         <div style={{
           borderRadius: 18,
@@ -280,7 +315,7 @@ export default function ReferralPage() {
             display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
             <span style={{ color: "#fff", fontWeight: 800, fontSize: 13 }}>
-              Your Referrals
+              Invited Users
             </span>
             <div style={{ display: "flex", gap: 6 }}>
               {approvedCount > 0 && (
@@ -289,7 +324,7 @@ export default function ReferralPage() {
                   background: "rgba(16,185,129,0.18)", border: "1px solid rgba(16,185,129,0.35)",
                   color: "#34d399",
                 }}>
-                  {approvedCount} approved
+                  {approvedCount} successful
                 </span>
               )}
               {pendingCount > 0 && (
@@ -316,10 +351,11 @@ export default function ReferralPage() {
 
           {!loadingReferrals && referrals.length === 0 && (
             <div style={{
-              padding: "24px 16px", textAlign: "center",
+              padding: "28px 16px", textAlign: "center",
               color: "rgba(255,255,255,0.30)", fontSize: 12,
             }}>
-              No referrals yet — share your link to invite friends!
+              <Users size={28} style={{ color: "rgba(255,255,255,0.12)", marginBottom: 8 }} />
+              <p style={{ margin: 0 }}>No referrals yet — share your link to invite friends!</p>
             </div>
           )}
 
@@ -329,20 +365,32 @@ export default function ReferralPage() {
             return (
               <div key={r.id} style={{
                 display: "flex", alignItems: "center", gap: 10,
-                padding: "10px 16px",
+                padding: "11px 16px",
                 borderBottom: isLast ? "none" : "1px solid rgba(255,255,255,0.05)",
                 background: idx % 2 === 0 ? "rgba(255,255,255,0.015)" : "transparent",
               }}>
+                {/* Avatar: photo or letter */}
                 <div style={{
-                  width: 34, height: 34, borderRadius: "50%", flexShrink: 0,
+                  width: 38, height: 38, borderRadius: "50%", flexShrink: 0,
                   background: isApproved ? "rgba(16,185,129,0.18)" : "rgba(251,191,36,0.15)",
                   border: `1.5px solid ${isApproved ? "rgba(16,185,129,0.40)" : "rgba(251,191,36,0.35)"}`,
                   display: "flex", alignItems: "center", justifyContent: "center",
+                  overflow: "hidden",
                 }}>
-                  <span style={{ color: isApproved ? "#34d399" : "#fbbf24", fontSize: 13, fontWeight: 800 }}>
-                    {r.name.charAt(0).toUpperCase()}
-                  </span>
+                  {r.photoUrl ? (
+                    <img
+                      src={r.photoUrl}
+                      alt={r.name}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                    />
+                  ) : (
+                    <span style={{ color: isApproved ? "#34d399" : "#fbbf24", fontSize: 15, fontWeight: 800 }}>
+                      {r.name.charAt(0).toUpperCase()}
+                    </span>
+                  )}
                 </div>
+
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{
                     color: "#fff", fontWeight: 700, fontSize: 13, margin: 0,
@@ -354,16 +402,18 @@ export default function ReferralPage() {
                     {new Date(r.joinedAt).toLocaleDateString()}
                   </p>
                 </div>
+
+                {/* Status badge */}
                 <div style={{
                   display: "flex", alignItems: "center", gap: 4,
-                  padding: "4px 10px", borderRadius: 999, flexShrink: 0,
+                  padding: "5px 10px", borderRadius: 999, flexShrink: 0,
                   background: isApproved ? "rgba(16,185,129,0.14)" : "rgba(251,191,36,0.12)",
                   border: `1px solid ${isApproved ? "rgba(16,185,129,0.32)" : "rgba(251,191,36,0.28)"}`,
                   color: isApproved ? "#34d399" : "#fbbf24",
                   fontSize: 10, fontWeight: 700,
                 }}>
                   {isApproved ? <UserCheck size={11} /> : <Clock size={11} />}
-                  {isApproved ? "Approved" : "Pending"}
+                  {isApproved ? "Successful" : "Pending Review"}
                 </div>
               </div>
             );
