@@ -40,6 +40,7 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "..", "..", "dist", "public"),
     emptyOutDir: true,
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks: {
@@ -49,6 +50,7 @@ export default defineConfig({
           "vendor-icons": ["lucide-react"],
           "vendor-lottie": ["lottie-web"],
           "vendor-ton": ["@tonconnect/ui-react"],
+          "vendor-framer": ["framer-motion"],
         },
       },
     },
