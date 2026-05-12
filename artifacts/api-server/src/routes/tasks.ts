@@ -113,7 +113,10 @@ router.post("/:taskId/complete", requireSession, verifyAccessMiddleware, async (
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
   if (user) {
     const newTasksCompleted = (user.tasksCompleted || 0) + 1;
-    const extraSpin = newTasksCompleted % 5 === 0 ? 1 : 0;
+    const { getSetting } = await import("../lib/settingsCache");
+    const rawTaskThreshold = await getSetting("task_threshold").catch(() => null);
+    const taskThreshold = Math.max(1, parseInt(rawTaskThreshold ?? "5") || 5);
+    const extraSpin = newTasksCompleted % taskThreshold === 0 ? 1 : 0;
     await db
       .update(usersTable)
       .set({ tasksCompleted: newTasksCompleted, spins: sql`spins + ${extraSpin}` })

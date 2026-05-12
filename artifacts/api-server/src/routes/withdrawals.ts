@@ -6,10 +6,10 @@ import { eq, sql, desc } from "drizzle-orm";
 import { sendWithdrawalNotification } from "../bot";
 import { verifyAccessMiddleware } from "../middlewares/verifyAccess";
 import { requireSession } from "../middlewares/requireSession";
+import { getSetting } from "../lib/settingsCache";
 
 const router = Router();
 
-const MIN_WITHDRAWAL = 0.1;
 const MAX_WITHDRAWAL = 10000;
 
 // TON address: EQ/UQ/kQ/0Q + 46 base64url chars
@@ -46,6 +46,9 @@ router.post("/", withdrawLimiter, requireSession, verifyAccessMiddleware, async 
   if (!TON_ADDRESS_RE.test(cleanAddress)) {
     res.status(400).json({ error: "عنوان محفظة TON غير صحيح. يجب أن يبدأ بـ EQ أو UQ ويتكون من 48 حرفاً." }); return;
   }
+
+  const rawMin = await getSetting("min_withdrawal").catch(() => null);
+  const MIN_WITHDRAWAL = Math.max(0.01, parseFloat(rawMin ?? "0.1") || 0.1);
 
   const amt = parseFloat(String(amount));
   if (isNaN(amt) || amt < MIN_WITHDRAWAL || amt > MAX_WITHDRAWAL) {

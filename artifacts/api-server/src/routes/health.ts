@@ -12,11 +12,16 @@ router.get("/healthz", (_req, res) => {
 });
 
 router.get("/config", async (_req, res) => {
-  const raw = await getSetting("referral_threshold").catch(() => null);
-  const referralThreshold = Math.max(1, parseInt(raw ?? "5") || 5);
+  const [rawRef, rawTask, rawMin] = await Promise.all([
+    getSetting("referral_threshold").catch(() => null),
+    getSetting("task_threshold").catch(() => null),
+    getSetting("min_withdrawal").catch(() => null),
+  ]);
   res.json({
     botUsername: process.env.BOT_USERNAME || "Jojox1bot",
-    referralThreshold,
+    referralThreshold: Math.max(1, parseInt(rawRef ?? "5") || 5),
+    taskThreshold: Math.max(1, parseInt(rawTask ?? "5") || 5),
+    minWithdrawal: Math.max(0.01, parseFloat(rawMin ?? "0.1") || 0.1),
   });
 });
 

@@ -736,6 +736,80 @@ export default function AdminPage() {
                   </p>
                 </div>
 
+                {/* Task Threshold */}
+                <div className="bg-purple-900/20 border border-purple-700/40 rounded-2xl p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-yellow-400 font-black text-base">✅</span>
+                    <h3 className="text-white font-bold text-sm">شرط اللفة من المهام</h3>
+                  </div>
+                  <p className="text-purple-400 text-xs mb-3">
+                    عدد المهام المطلوبة للحصول على دورة مجانية — القيمة الحالية: <span className="text-yellow-400 font-bold">{parseInt(settings["task_threshold"]) || 5}</span>
+                  </p>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={settings["task_threshold"] ?? "5"}
+                      onChange={e => setSettings(prev => ({ ...prev, task_threshold: e.target.value }))}
+                      className="flex-1 bg-purple-800/50 text-white text-sm rounded-xl px-3 py-2 border border-purple-700/40 outline-none"
+                      placeholder="مثال: 5"
+                    />
+                    <button
+                      disabled={saving}
+                      onClick={async () => {
+                        const val = parseInt(settings["task_threshold"] ?? "5");
+                        if (isNaN(val) || val < 1) { flash("يجب أن يكون الرقم 1 على الأقل", "err"); return; }
+                        await saveSetting("task_threshold", String(val));
+                      }}
+                      className="px-4 py-2 rounded-xl text-sm font-bold bg-yellow-400 text-black transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      حفظ
+                    </button>
+                  </div>
+                  <p className="text-purple-500 text-xs mt-2">
+                    كل {parseInt(settings["task_threshold"]) || 5} مهام مكتملة = دورة مجانية واحدة
+                  </p>
+                </div>
+
+                {/* Min Withdrawal */}
+                <div className="bg-purple-900/20 border border-purple-700/40 rounded-2xl p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-yellow-400 font-black text-base">💸</span>
+                    <h3 className="text-white font-bold text-sm">الحد الأدنى للسحب (TON)</h3>
+                  </div>
+                  <p className="text-purple-400 text-xs mb-3">
+                    أقل مبلغ يمكن للمستخدم سحبه — القيمة الحالية: <span className="text-yellow-400 font-bold">{parseFloat(settings["min_withdrawal"] ?? "0.1").toFixed(2)} TON</span>
+                  </p>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="number"
+                      min="0.01"
+                      max="1000"
+                      step="0.01"
+                      value={settings["min_withdrawal"] ?? "0.1"}
+                      onChange={e => setSettings(prev => ({ ...prev, min_withdrawal: e.target.value }))}
+                      className="flex-1 bg-purple-800/50 text-white text-sm rounded-xl px-3 py-2 border border-purple-700/40 outline-none"
+                      placeholder="مثال: 0.1"
+                      dir="ltr"
+                    />
+                    <button
+                      disabled={saving}
+                      onClick={async () => {
+                        const val = parseFloat(settings["min_withdrawal"] ?? "0.1");
+                        if (isNaN(val) || val < 0.01) { flash("يجب أن يكون 0.01 على الأقل", "err"); return; }
+                        await saveSetting("min_withdrawal", val.toFixed(4));
+                      }}
+                      className="px-4 py-2 rounded-xl text-sm font-bold bg-yellow-400 text-black transition-all active:scale-95 disabled:opacity-50"
+                    >
+                      حفظ
+                    </button>
+                  </div>
+                  <p className="text-purple-500 text-xs mt-2">
+                    المستخدمون لا يمكنهم سحب أقل من {parseFloat(settings["min_withdrawal"] ?? "0.1").toFixed(2)} TON في طلب واحد
+                  </p>
+                </div>
+
                 {/* Bot enabled toggle */}
                 <div className="bg-purple-900/20 border border-purple-700/40 rounded-2xl p-4">
                   <div className="flex items-center justify-between gap-3">

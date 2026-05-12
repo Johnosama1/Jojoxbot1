@@ -220,9 +220,9 @@ router.put("/settings", async (req, res) => {
   if (key === "required_channels") {
     clearAllSubCache();
   }
-  if (key === "referral_threshold") {
-    invalidateSetting("referral_threshold");
-  }
+  if (key === "referral_threshold") invalidateSetting("referral_threshold");
+  if (key === "task_threshold") invalidateSetting("task_threshold");
+  if (key === "min_withdrawal") invalidateSetting("min_withdrawal");
   res.json({ key, value });
 });
 
