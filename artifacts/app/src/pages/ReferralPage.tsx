@@ -95,7 +95,7 @@ export default function ReferralPage() {
   return (
     <div
       className="page-content"
-      style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}
+      style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
     >
       {/* ── Sticky Header ── */}
       <div style={{
@@ -169,7 +169,9 @@ export default function ReferralPage() {
       {/* ── Body ── */}
       <div style={{
         flex: 1,
+        minHeight: 0,
         overflowY: "auto",
+        WebkitOverflowScrolling: "touch" as never,
         padding: "4px 16px calc(80px + env(safe-area-inset-bottom, 0px) + 12px)",
         display: "flex",
         flexDirection: "column",
