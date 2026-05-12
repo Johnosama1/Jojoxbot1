@@ -124,20 +124,6 @@ export default function ReferralPage() {
               </p>
             )}
           </div>
-          <button
-            onClick={() => setLocation("/leaderboard")}
-            style={{
-              width: 44, height: 44, flexShrink: 0,
-              borderRadius: 14,
-              border: "1px solid rgba(251,191,36,0.35)",
-              cursor: "pointer",
-              background: "linear-gradient(135deg,rgba(251,191,36,0.18),rgba(180,120,0,0.22))",
-              display: "flex", alignItems: "center", justifyContent: "center", padding: 0,
-              overflow: "hidden",
-            }}
-          >
-            <div ref={leaderboardStickerRef} style={{ width: 34, height: 34, pointerEvents: "none" }} />
-          </button>
         </div>
 
         {/* Progress bar */}
@@ -221,43 +207,57 @@ export default function ReferralPage() {
           </button>
         </div>
 
-        {/* Ref link row */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 8, padding: "9px 12px",
-          borderRadius: 14, background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.10)", backdropFilter: "blur(14px)",
-        }}>
-          <img
-            src="/sad-icon.png"
-            alt=""
-            style={{
-              width: 30, height: 30, objectFit: "contain", flexShrink: 0,
-              filter: "brightness(0) invert(1)",
-            }}
-          />
-          <p style={{
-            color: "rgba(255,255,255,0.50)", fontSize: 11, flex: 1,
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            margin: 0, fontFamily: "monospace", direction: "ltr", textAlign: "left",
-          }}>
-            {refLink || (loadFailed ? "⚠️ Connection error" : "Loading...")}
-          </p>
+        {/* Leaderboard button + Ref link row (separate side by side) */}
+        <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+          {/* Leaderboard button — separate */}
           <button
-            onClick={handleCopy}
-            disabled={!refLink}
+            onClick={() => setLocation("/leaderboard")}
             style={{
-              padding: "6px 11px", borderRadius: 9, border: "none",
-              cursor: refLink ? "pointer" : "not-allowed",
-              background: copied ? "rgba(16,185,129,0.22)" : "rgba(255,255,255,0.10)",
-              flexShrink: 0, transition: "all 0.2s",
-              display: "flex", alignItems: "center", gap: 4,
-              color: copied ? "#34d399" : "rgba(255,255,255,0.70)",
-              fontSize: 11, fontWeight: 700, fontFamily: "inherit",
-              opacity: refLink ? 1 : 0.5,
+              flexShrink: 0, width: 48, borderRadius: 14,
+              border: "1px solid rgba(255,255,255,0.12)",
+              cursor: "pointer", padding: 0,
+              background: "rgba(255,255,255,0.05)",
+              backdropFilter: "blur(14px)",
+              display: "flex", alignItems: "center", justifyContent: "center",
             }}
           >
-            {copied ? <><CheckCheck size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
+            <img
+              src="/sad-icon.png"
+              alt="leaderboard"
+              style={{ width: 32, height: 32, objectFit: "contain", filter: "brightness(0) invert(1)", pointerEvents: "none" }}
+            />
           </button>
+
+          {/* Ref link — separate */}
+          <div style={{
+            flex: 1, display: "flex", alignItems: "center", gap: 8, padding: "9px 12px",
+            borderRadius: 14, background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(255,255,255,0.10)", backdropFilter: "blur(14px)",
+          }}>
+            <p style={{
+              color: "rgba(255,255,255,0.50)", fontSize: 11, flex: 1,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              margin: 0, fontFamily: "monospace", direction: "ltr", textAlign: "left",
+            }}>
+              {refLink || (loadFailed ? "⚠️ Connection error" : "Loading...")}
+            </p>
+            <button
+              onClick={handleCopy}
+              disabled={!refLink}
+              style={{
+                padding: "6px 11px", borderRadius: 9, border: "none",
+                cursor: refLink ? "pointer" : "not-allowed",
+                background: copied ? "rgba(16,185,129,0.22)" : "rgba(255,255,255,0.10)",
+                flexShrink: 0, transition: "all 0.2s",
+                display: "flex", alignItems: "center", gap: 4,
+                color: copied ? "#34d399" : "rgba(255,255,255,0.70)",
+                fontSize: 11, fontWeight: 700, fontFamily: "inherit",
+                opacity: refLink ? 1 : 0.5,
+              }}
+            >
+              {copied ? <><CheckCheck size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
+            </button>
+          </div>
         </div>
 
         {/* Retry button when connection failed */}
