@@ -94,17 +94,22 @@ export default function ReferralPage() {
 
   return (
     <div
-      className="page-content"
-      style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        flex: 1,
+        minHeight: 0,
+        overflow: "hidden",
+        position: "relative",
+        zIndex: 3,
+      }}
     >
-      {/* ── Sticky Header ── */}
+      {/* ── Header ── */}
       <div style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 10,
-        padding: "10px 16px 8px",
-        background: "transparent",
         flexShrink: 0,
+        zIndex: 10,
+        padding: "calc(max(env(safe-area-inset-top, 0px), 10px) + 10px) 16px 8px",
+        background: "transparent",
       }}>
         {/* Title row */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
