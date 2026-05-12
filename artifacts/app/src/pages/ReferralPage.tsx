@@ -166,11 +166,11 @@ export default function ReferralPage() {
         </div>
       </div>
 
-      {/* ── Scrollable body ── */}
+      {/* ── Body ── */}
       <div style={{
         flex: 1,
-        overflowY: "auto",
-        padding: "4px 16px calc(80px + env(safe-area-inset-bottom, 0px) + 12px)",
+        overflow: "hidden",
+        padding: "4px 16px 0",
         display: "flex",
         flexDirection: "column",
         gap: 8,
@@ -272,11 +272,15 @@ export default function ReferralPage() {
 
         {/* ── Referrals list ── */}
         <div style={{
+          flex: 1,
           borderRadius: 18,
           background: "rgba(10,8,28,0.60)",
           backdropFilter: "blur(18px)",
           border: "1px solid rgba(255,255,255,0.09)",
           overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          marginBottom: `calc(80px + env(safe-area-inset-bottom, 0px) + 8px)`,
         }}>
           {/* Section header */}
           <div style={{
@@ -320,6 +324,8 @@ export default function ReferralPage() {
             </div>
           </div>
 
+          {/* Scrollable list */}
+          <div style={{ flex: 1, overflowY: "auto" }}>
           {loadingReferrals && (
             <div style={{ padding: "24px", textAlign: "center" }}>
               <div style={{
@@ -405,6 +411,7 @@ export default function ReferralPage() {
               </div>
             );
           })}
+          </div>
         </div>
       </div>
 
