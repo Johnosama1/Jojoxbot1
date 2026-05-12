@@ -278,38 +278,77 @@ export async function handleSubRecheckCallback(
         });
       }
     } else {
-      // ── All channels joined — open the Lucky Wheel immediately ─────
+      // ── All channels joined — delete the verification message and send the full welcome ─────
+      try { await bot.deleteMessage(chatId, msgId); } catch { /* ignore */ }
+
+      // Look up user's first name
+      let firstName = q.from.first_name || "there";
+      try {
+        const rows = await db.select({ firstName: usersTable.firstName }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+        if (rows[0]?.firstName) firstName = rows[0].firstName;
+      } catch { /* ignore */ }
+
       const vercelDomain = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
       const MINI_APP_URL =
         process.env.MINI_APP_URL ||
         (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}/` : "") ||
         (vercelDomain ? `https://${vercelDomain}` : "");
-
       const appUrl = `${MINI_APP_URL}?uid=${userId}`;
 
+      const { text: welcomeText, entities: welcomeEntities } = buildSubMsg([
+        { text: "👋", emojiId: "5319007286004299794" },
+        { text: ` Welcome to Jo-jokes, ${firstName}!\n\n` },
+        { text: "😀", emojiId: "6129832240303051599" },
+        { text: " The fastest USDT earning bot!\n\n" },
+        { text: "✨", emojiId: "6131673419768403090" },
+        { text: " How to earn" },
+        { text: "❓", emojiId: "5436113877181941026" },
+        { text: "\n\n" },
+        { text: "✅", emojiId: "6203840986443944067" },
+        { text: " Complete tasks " },
+        { text: "⬅️", emojiId: "6131729520631223468" },
+        { text: " 1 spin per " },
+        { text: "5️⃣", emojiId: "6203785577070858514" },
+        { text: " tasks\n\n" },
+        { text: "👥", emojiId: "6204118338252049831" },
+        { text: " Invite friends " },
+        { text: "⬅️", emojiId: "6131729520631223468" },
+        { text: " 1 free spin per " },
+        { text: "5️⃣", emojiId: "6203785577070858514" },
+        { text: " friends\n\n" },
+        { text: "🎰", emojiId: "5104986024807760966" },
+        { text: " Spin the wheel " },
+        { text: "⬅️", emojiId: "6131729520631223468" },
+        { text: " win 0.1 to 10 USDT!" },
+      ]);
+
       try {
-        await bot.editMessageText(
-          "✅ <b>تم التحقق بنجاح! يمكنك الآن استخدام البوت.</b>",
+        await bot.sendMessage(chatId, welcomeText, {
+          entities: welcomeEntities as never,
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: "🎁 Open now", web_app: { url: appUrl } }],
+            ],
+          },
+        });
+      } catch {
+        await bot.sendMessage(
+          chatId,
+          `👋 <b>Welcome to Jo-jokes, ${firstName}!</b>\n\n` +
+          `🎁 The fastest USDT earning bot!\n\n` +
+          `✨ <b>How to earn</b>\n\n` +
+          `✅ Complete tasks « 1 spin per 5 tasks\n\n` +
+          `👥 Invite friends « 1 free spin per 5 friends\n\n` +
+          `🎰 Spin the wheel « win 0.1 to 10 USDT!`,
           {
-            chat_id: chatId,
-            message_id: msgId,
             parse_mode: "HTML",
             reply_markup: {
               inline_keyboard: [
-                [{ text: "🎰 افتح عجلة الحظ", web_app: { url: appUrl } }],
+                [{ text: "🎁 Open now", web_app: { url: appUrl } }],
               ],
             },
           }
         );
-      } catch {
-        await bot.sendMessage(chatId, "✅ <b>تم التحقق بنجاح!</b>", {
-          parse_mode: "HTML",
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: "🎰 افتح عجلة الحظ", web_app: { url: appUrl } }],
-            ],
-          },
-        });
       }
     }
   } catch (err) {

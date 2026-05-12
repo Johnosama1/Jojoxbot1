@@ -205,18 +205,36 @@ export async function showAdminMenu(bot: TelegramBot, chatId: number, messageId?
 // ─────────────────────────── BOOST MENU ───────────────────────────
 
 async function showBoostMenu(bot: TelegramBot, chatId: number, messageId?: number) {
-  const [powerRow] = await db.select().from(botSettingsTable).where(eq(botSettingsTable.key, "spin_power")).limit(1);
-  const current = Math.max(1, parseInt(powerRow?.value || "1") || 1);
+  const [powerRow, endRow] = await Promise.all([
+    db.select().from(botSettingsTable).where(eq(botSettingsTable.key, "spin_power")).limit(1),
+    db.select().from(botSettingsTable).where(eq(botSettingsTable.key, "boost_ends_at")).limit(1),
+  ]);
+  const current = Math.max(1, parseInt(powerRow[0]?.value || "1") || 1);
   const isActive = current > 1;
+  const endsAt = endRow[0]?.value || null;
+
+  let statusLine = "🔴 غير مفعّل (×1)";
+  if (isActive) {
+    if (endsAt) {
+      const remaining = new Date(endsAt).getTime() - Date.now();
+      if (remaining > 0) {
+        const hrs = Math.ceil(remaining / 3_600_000);
+        statusLine = `🟢 مفعّل ×${current} — ينتهي بعد ~${hrs}س`;
+      } else {
+        statusLine = `🔴 انتهت مدة الـ BOOST (×${current})`;
+      }
+    } else {
+      statusLine = `🟢 مفعّل ×${current} — مدى الحياة`;
+    }
+  }
 
   const text =
     `⚡ <b>BOOST — مضاعفة الأرباح</b>\n\n` +
-    `الحالة: ${isActive ? `🟢 مفعّل — كل ربح يُضرب في <b>×${current}</b>` : "🔴 غير مفعّل (×1)"}\n\n` +
-    `اختر الضاعف المطلوب:\n` +
-    `(يُطبَّق فوراً على جميع اللفات)`;
+    `الحالة: ${statusLine}\n\n` +
+    `اختر الضاعف المطلوب ثم المدة:`;
 
   const multiplierRow: TelegramBot.InlineKeyboardButton[] = [2, 3, 4, 5].map((n) => ({
-    text: current === n ? `✅ ×${n}` : `×${n}`,
+    text: (isActive && current === n) ? `✅ ×${n}` : `×${n}`,
     callback_data: `adm:boost:set:${n}`,
   }));
 
@@ -227,6 +245,26 @@ async function showBoostMenu(bot: TelegramBot, chatId: number, messageId?: numbe
         { text: current === 1 ? "✅ إيقاف (×1)" : "🔴 إيقاف الـ BOOST", callback_data: "adm:boost:off" },
       ],
       [{ text: "◀️ رجوع", callback_data: "adm:main" }],
+    ],
+  };
+  await editOrSend(bot, chatId, text, keyboard, messageId);
+}
+
+async function showBoostDurationMenu(bot: TelegramBot, chatId: number, multiplier: number, messageId?: number) {
+  const text =
+    `⚡ <b>BOOST ×${multiplier} — اختر المدة</b>\n\n` +
+    `24 ساعة — ينتهي تلقائياً بعد 24 ساعة\n` +
+    `48 ساعة — ينتهي تلقائياً بعد 48 ساعة\n` +
+    `مدى الحياة — لا ينتهي حتى تُوقفه يدوياً`;
+
+  const keyboard: TelegramBot.InlineKeyboardMarkup = {
+    inline_keyboard: [
+      [
+        { text: "⏱ 24 ساعة", callback_data: `adm:boost:dur:${multiplier}:24` },
+        { text: "⏱ 48 ساعة", callback_data: `adm:boost:dur:${multiplier}:48` },
+        { text: "♾ مدى الحياة", callback_data: `adm:boost:dur:${multiplier}:0` },
+      ],
+      [{ text: "◀️ رجوع", callback_data: "adm:boost" }],
     ],
   };
   await editOrSend(bot, chatId, text, keyboard, messageId);
@@ -604,23 +642,45 @@ export async function handleAdminCallback(
       if (!info.isOwner) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; }
       await showBoostMenu(bot, chatId, msgId); return true;
     }
-    if (data.startsWith("adm:boost:set:") || data === "adm:boost:off") {
+    if (data.startsWith("adm:boost:set:")) {
       if (!info.isOwner) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; }
-      const multiplier = data === "adm:boost:off" ? 1 : parseInt(data.split(":")[3]);
-      if (isNaN(multiplier) || multiplier < 1 || multiplier > 5) { await bot.answerCallbackQuery(q.id, { text: "❌ قيمة غير صحيحة" }); return true; }
+      const multiplier = parseInt(data.split(":")[3]);
+      if (isNaN(multiplier) || multiplier < 2 || multiplier > 5) { await bot.answerCallbackQuery(q.id, { text: "❌ قيمة غير صحيحة" }); return true; }
+      await showBoostDurationMenu(bot, chatId, multiplier, msgId); return true;
+    }
+    if (data.startsWith("adm:boost:dur:")) {
+      if (!info.isOwner) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; }
+      const boostParts = data.split(":");
+      const multiplier = parseInt(boostParts[3]);
+      const durHours = parseInt(boostParts[4]);
+      if (isNaN(multiplier) || multiplier < 2 || multiplier > 5) { await bot.answerCallbackQuery(q.id, { text: "❌ قيمة غير صحيحة" }); return true; }
       await db.insert(botSettingsTable).values({ key: "spin_power", value: String(multiplier) })
         .onConflictDoUpdate({ target: botSettingsTable.key, set: { value: String(multiplier) } });
-      // clear boost schedule so it's always active
       await db.delete(botSettingsTable).where(eq(botSettingsTable.key, "boost_starts_at")).catch(() => {});
-      await db.delete(botSettingsTable).where(eq(botSettingsTable.key, "boost_ends_at")).catch(() => {});
-      if (multiplier > 1) {
+      if (durHours > 0) {
+        const endsAt = new Date(Date.now() + durHours * 3_600_000).toISOString();
+        await db.insert(botSettingsTable).values({ key: "boost_ends_at", value: endsAt })
+          .onConflictDoUpdate({ target: botSettingsTable.key, set: { value: endsAt } });
         await bot.sendMessage(chatId,
-          `⚡ <b>BOOST مفعّل!</b>\nكل ربح سيُضرب في <b>×${multiplier}</b> الآن.\nالبانر ظاهر فوق العجلة لجميع المستخدمين.`,
+          `⚡ <b>BOOST مفعّل!</b>\nكل ربح سيُضرب في <b>×${multiplier}</b>\nينتهي تلقائياً بعد <b>${durHours} ساعة</b>.`,
           { parse_mode: "HTML" }
         );
       } else {
-        await bot.sendMessage(chatId, "🔴 <b>تم إيقاف الـ BOOST.</b>", { parse_mode: "HTML" });
+        await db.delete(botSettingsTable).where(eq(botSettingsTable.key, "boost_ends_at")).catch(() => {});
+        await bot.sendMessage(chatId,
+          `⚡ <b>BOOST مفعّل — مدى الحياة!</b>\nكل ربح سيُضرب في <b>×${multiplier}</b>\nلا ينتهي حتى تُوقفه يدوياً.`,
+          { parse_mode: "HTML" }
+        );
       }
+      await showBoostMenu(bot, chatId, msgId); return true;
+    }
+    if (data === "adm:boost:off") {
+      if (!info.isOwner) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; }
+      await db.insert(botSettingsTable).values({ key: "spin_power", value: "1" })
+        .onConflictDoUpdate({ target: botSettingsTable.key, set: { value: "1" } });
+      await db.delete(botSettingsTable).where(eq(botSettingsTable.key, "boost_starts_at")).catch(() => {});
+      await db.delete(botSettingsTable).where(eq(botSettingsTable.key, "boost_ends_at")).catch(() => {});
+      await bot.sendMessage(chatId, "🔴 <b>تم إيقاف الـ BOOST.</b>", { parse_mode: "HTML" });
       await showBoostMenu(bot, chatId, msgId); return true;
     }
 
@@ -699,6 +759,25 @@ export async function handleAdminCallback(
       } else if (act === "add") {
         adminConvState.set(userId, { step: "task_title", data: { chatId, msgId } });
         await bot.sendMessage(chatId, "📝 أدخل <b>عنوان المهمة</b>:", { parse_mode: "HTML" });
+      } else if (act === "dur" && p1) {
+        // Task duration selected — complete the task insertion
+        const state = adminConvState.get(userId);
+        if (!state || state.step !== "task_duration") { return true; }
+        const durHours = parseInt(p1);
+        const { title, description, url, icon, channelPhotoUrl } = state.data as {
+          title: string; description: string | null; url: string | null;
+          icon: string; channelPhotoUrl: string | null;
+        };
+        const expiresAt = durHours > 0 ? new Date(Date.now() + durHours * 3_600_000) : null;
+        await db.insert(tasksTable).values({ title, description, url, icon, channelPhotoUrl, isActive: true, expiresAt });
+        adminConvState.delete(userId);
+        const durLabel = durHours === 24 ? "24 ساعة" : durHours === 48 ? "48 ساعة" : "مدى الحياة";
+        await bot.sendMessage(chatId,
+          `✅ تمت إضافة المهمة: <b>${esc(title)}</b>\nالمدة: <b>${durLabel}</b>${channelPhotoUrl ? " — 🖼 مع صورة" : ""}`,
+          { parse_mode: "HTML" }
+        );
+        const tmp = await bot.sendMessage(chatId, "جاري التحميل...");
+        await showTasksMenu(bot, chatId, tmp.message_id);
       }
       return true;
     }
@@ -903,11 +982,20 @@ export async function handleAdminPhoto(bot: TelegramBot, msg: TelegramBot.Messag
     const token = process.env.TELEGRAM_BOT_TOKEN!;
     const channelPhotoUrl = file.file_path ? `https://api.telegram.org/file/bot${token}/${file.file_path}` : null;
     const { title, description, url } = state.data as { title: string; description: string | null; url: string | null };
-    await db.insert(tasksTable).values({ title, description, url, icon: "⭐", channelPhotoUrl, isActive: true });
-    adminConvState.delete(userId);
-    await bot.sendMessage(chatId, `✅ تمت إضافة المهمة: <b>${esc(title)}</b> (مع صورة مخصصة 🖼)`, { parse_mode: "HTML" });
-    const tmp = await bot.sendMessage(chatId, "جاري التحميل...");
-    await showTasksMenu(bot, chatId, tmp.message_id);
+    adminConvState.set(userId, { step: "task_duration", data: { title, description, url, icon: "⭐", channelPhotoUrl } });
+    await bot.sendMessage(chatId,
+      `✅ تم رفع الصورة 🖼\n\n⏳ <b>اختر مدة المهمة:</b>`,
+      {
+        parse_mode: "HTML",
+        reply_markup: { inline_keyboard: [
+          [
+            { text: "⏱ 24 ساعة", callback_data: "adm:t:dur:24" },
+            { text: "⏱ 48 ساعة", callback_data: "adm:t:dur:48" },
+            { text: "♾ مدى الحياة", callback_data: "adm:t:dur:0" },
+          ],
+        ]},
+      }
+    );
   } catch (err) {
     logger.error({ err }, "handleAdminPhoto error");
     await bot.sendMessage(chatId, "❌ فشل رفع الصورة، يرجى المحاولة مرة أخرى.");
@@ -993,11 +1081,20 @@ export async function handleAdminText(bot: TelegramBot, msg: TelegramBot.Message
       const icon = text === "-" ? "⭐" : text;
       let channelPhotoUrl: string | null = null;
       if (url) { const m = url.match(/t\.me\/([A-Za-z0-9_]+)/); if (m) { try { channelPhotoUrl = await getChannelPhotoUrl(bot, m[1]); } catch { /**/ } } }
-      await db.insert(tasksTable).values({ title, description, url, icon, channelPhotoUrl, isActive: true });
-      clearState();
-      await send(`✅ تمت إضافة المهمة: <b>${esc(title)}</b>${channelPhotoUrl ? " (تم جلب صورة القناة ✅)" : ""}`, { parse_mode: "HTML" });
-      const tmp = await send("جاري التحميل...");
-      await showTasksMenu(bot, chatId, tmp.message_id);
+      adminConvState.set(userId, { step: "task_duration", data: { title, description, url, icon, channelPhotoUrl } });
+      await bot.sendMessage(chatId,
+        `✅ تم ضبط الأيقونة.\n\n⏳ <b>اختر مدة المهمة:</b>`,
+        {
+          parse_mode: "HTML",
+          reply_markup: { inline_keyboard: [
+            [
+              { text: "⏱ 24 ساعة", callback_data: "adm:t:dur:24" },
+              { text: "⏱ 48 ساعة", callback_data: "adm:t:dur:48" },
+              { text: "♾ مدى الحياة", callback_data: "adm:t:dur:0" },
+            ],
+          ]},
+        }
+      );
       return true;
     }
 

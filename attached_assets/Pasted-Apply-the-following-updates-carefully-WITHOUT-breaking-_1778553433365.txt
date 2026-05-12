@@ -1,0 +1,181 @@
+Apply the following updates carefully WITHOUT breaking anything in the existing server, API, database, wallet system, referral system, auth system, or Telegram bot integration.
+
+IMPORTANT:
+- Do NOT redesign anything.
+- Do NOT change working logic unless requested below.
+- Keep all current server connections and production behavior stable.
+- Make the new changes fully compatible with the existing backend and Vercel deployment.
+- Do NOT break database structure.
+- Do NOT remove existing security systems.
+- Preserve all current functionality.
+
+====================================
+1) TON WITHDRAW MINIMUM
+====================================
+
+Update the TON withdraw system.
+
+Required behavior:
+- Minimum TON withdrawal must be exactly:
+0.1 TON
+
+- Users must NOT be able to withdraw less than 0.1 TON.
+- Reject any value below 0.1.
+- The UI must clearly guide the user.
+
+IMPORTANT UI CHANGE:
+The quick amount buttons at the bottom must make 0.1 TON the primary easy option.
+
+Keep buttons like:
+- 0.1
+- 0.5
+- 1
+- MAX
+
+But ensure:
+- 0.1 is selected/highlighted properly
+- withdrawal flow becomes easier and clearer for users
+
+Also verify:
+- frontend validation
+- backend validation
+- API validation
+- database handling
+
+Everything must enforce the same minimum consistently.
+
+====================================
+2) TELEGRAM CHANNEL VERIFICATION FLOW
+====================================
+
+Current behavior:
+After a user joins required channels and verification succeeds, the bot sends:
+"✅ تم التحقق بنجاح! يمكنك الآن استخدام البوت."
+
+Required behavior:
+AFTER successful verification:
+- Do NOT show that verification success message anymore.
+- Immediately send the FULL welcome/start message directly.
+
+Meaning:
+After joining channels successfully, the user should instantly see:
+- the normal welcome/start message
+- bot introduction
+- buttons
+- wheel/open app button
+- all normal onboarding behavior
+
+It should feel exactly like a normal successful /start experience.
+
+====================================
+3) RESTORE OLD MULTI-ACCOUNT PROTECTION
+====================================
+
+Carefully restore the OLD anti-multi-account protection system exactly like before.
+
+Required behavior:
+- When a NEW account is created,
+- while loading/opening the app/background,
+- the system must check device identity/fingerprint/session info.
+
+If the system detects:
+- same device
+- same phone/device fingerprint
+- duplicated device usage
+- suspicious multi-account creation
+
+Then:
+- instantly ban the new account automatically.
+
+IMPORTANT:
+- Restore the previous detection logic if it still exists in old code/history.
+- Keep compatibility with current auth system.
+- Do NOT break legitimate users.
+- Do NOT block normal reconnects/logins for the same account.
+- Only block suspicious second accounts from the same device.
+
+====================================
+4) BOOST DURATION SYSTEM
+====================================
+
+Upgrade the BOOST system.
+
+Current behavior:
+The user only selects the boost speed.
+
+Required behavior:
+AFTER the user selects the boost speed,
+the system must ask:
+
+"How long do you want the boost to run?"
+
+Add selectable duration options:
+- 24 hours
+- 48 hours
+- Lifetime (until manually removed)
+
+The user must be able to choose the duration before confirming the boost.
+
+====================================
+5) TASKS/MISSIONS PANEL UPDATE
+====================================
+
+Inside the bot admin tasks/missions management section:
+
+Add duration controls for tasks/boosts.
+
+When creating or editing tasks,
+allow selecting:
+- 24 hours
+- 48 hours
+- Lifetime
+
+Meaning:
+- temporary tasks can expire automatically
+- lifetime tasks remain active until manually removed
+
+IMPORTANT:
+- Add proper database support if needed
+- Ensure expiration logic works automatically
+- Do NOT break existing tasks
+- Existing tasks should continue working normally
+
+====================================
+6) STABILITY + SERVER COMPATIBILITY
+====================================
+
+VERY IMPORTANT:
+All changes must work correctly with:
+- existing backend
+- Telegram bot
+- Express server
+- Vercel deployment
+- database
+- wallet system
+- TON logic
+- production environment
+
+Do NOT introduce:
+- routing issues
+- API conflicts
+- deployment errors
+- TypeScript errors
+- build failures
+- environment variable problems
+
+====================================
+7) FINAL VERIFICATION
+====================================
+
+After implementing:
+- run full production build
+- verify no TypeScript errors
+- verify no API errors
+- verify withdrawal system works
+- verify welcome flow works
+- verify anti-multi-account system works
+- verify boost duration system works
+- verify task expiration logic works
+- verify deployment remains stable
+
+Do NOT stop until everything is fully working and production-ready.
