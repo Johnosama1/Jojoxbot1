@@ -223,10 +223,10 @@ export default function ReferralPage() {
           </button>
 
           <div style={{
-            flex: 1, display: "flex", alignItems: "center", gap: 5, padding: "6px 9px",
-            borderRadius: 11, background: "rgba(255,255,255,0.04)",
+            flex: 1, display: "flex", alignItems: "center", gap: 5, padding: "4px 8px",
+            borderRadius: 10, background: "rgba(255,255,255,0.04)",
             border: "1px solid rgba(255,255,255,0.10)", backdropFilter: "blur(14px)",
-            minWidth: 0, height: 38,
+            minWidth: 0, height: 30,
           }}>
             <p style={{
               color: "rgba(255,255,255,0.40)", fontSize: 9, flex: 1,
