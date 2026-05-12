@@ -1,0 +1,81 @@
+Delete the current "vercel.json" completely and replace it ONLY with this exact configuration:
+
+{
+  "version": 2,
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm run build",
+  "outputDirectory": "dist/public"
+}
+
+After replacing it, fix ALL compatibility and deployment problems across the entire project so everything works correctly on the server without errors.
+
+Important requirements:
+
+1. Vercel compatibility:
+
+- Make sure the whole project structure is fully compatible with Vercel.
+- Fix all broken paths, imports, aliases, build configs, environment handling, and output folders.
+- Ensure the frontend builds correctly into "dist/public".
+- Remove anything conflicting with the new simple "vercel.json".
+
+2. Fix all server/build/runtime errors:
+
+- Fix every build error.
+- Fix every deployment error.
+- Fix every runtime/server error.
+- Fix dependency conflicts.
+- Fix pnpm issues.
+- Fix missing modules/imports.
+- Fix incorrect file paths.
+- Fix TypeScript/JavaScript config problems.
+- Fix API routing issues.
+- Fix static asset serving issues.
+
+3. Important:
+
+- Do NOT just explain the problems.
+- Actually solve them completely.
+- Verify the project works after every fix.
+- Do not leave partial fixes or TODOs.
+
+4. Deployment behavior:
+
+- The project must deploy successfully on Vercel from the first try.
+- No failed builds.
+- No “function not found”.
+- No output directory errors.
+- No API/server crashes.
+- No blank white pages.
+- No hydration/build mismatch issues.
+
+5. Backend/frontend compatibility:
+
+- Make sure frontend and backend work together correctly after deployment.
+- Ensure API requests work on production server.
+- Ensure environment variables are handled safely.
+- Ensure production mode works exactly like local mode.
+
+6. Preserve all bot systems:
+   Do NOT break or remove:
+
+- Admin panel
+- Spin wheel
+- Referral system
+- Tasks/channels system
+- Withdraw system
+- Authentication
+- Database connection
+- Telegram integration
+- Existing UI
+
+7. Final verification:
+   Before finishing:
+
+- Run full build checks.
+- Run production server checks.
+- Verify all routes/pages work.
+- Verify APIs return correct responses.
+- Verify deployment works on Vercel without any errors.
+
+The goal is:
+A fully working production-ready deployment running correctly on the server only, with zero errors and complete compatibility between all tools, configs, frontend, backend, and Vercel.
