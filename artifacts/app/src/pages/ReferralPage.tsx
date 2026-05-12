@@ -284,9 +284,20 @@ export default function ReferralPage() {
             borderBottom: "1px solid rgba(255,255,255,0.07)",
             display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
-            <span style={{ color: "#fff", fontWeight: 800, fontSize: 13 }}>
-              Invited Users
-            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ color: "#fff", fontWeight: 800, fontSize: 13 }}>
+                Invited Users
+              </span>
+              {referrals.length > 0 && (
+                <span style={{
+                  padding: "2px 8px", borderRadius: 999, fontSize: 10, fontWeight: 800,
+                  background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.18)",
+                  color: "rgba(255,255,255,0.80)",
+                }}>
+                  {referrals.length}
+                </span>
+              )}
+            </div>
             <div style={{ display: "flex", gap: 6 }}>
               {approvedCount > 0 && (
                 <span style={{
