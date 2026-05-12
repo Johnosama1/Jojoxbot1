@@ -133,9 +133,10 @@ export default function ReferralPage() {
               cursor: "pointer",
               background: "linear-gradient(135deg,rgba(251,191,36,0.18),rgba(180,120,0,0.22))",
               display: "flex", alignItems: "center", justifyContent: "center", padding: 0,
+              overflow: "hidden",
             }}
           >
-            <div ref={leaderboardStickerRef} style={{ width: 34, height: 34, pointerEvents: "none" }} />
+            <img src="/sad-icon.png" alt="leaderboard" style={{ width: 40, height: 40, objectFit: "cover", pointerEvents: "none", borderRadius: 12 }} />
           </button>
         </div>
 
