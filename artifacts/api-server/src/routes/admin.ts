@@ -9,7 +9,7 @@ import {
   botSettingsTable,
   withdrawalsTable,
 } from "@workspace/db/schema";
-import { eq, count } from "drizzle-orm";
+import { eq, count, sql } from "drizzle-orm";
 import { invalidateWheelCache } from "./wheel";
 import { invalidateTasksCache } from "./tasks";
 import { getBot } from "../bot";
@@ -262,6 +262,187 @@ router.delete("/admins/:id", async (req, res) => {
 router.get("/withdrawals", async (_req, res) => {
   const list = await db.select().from(withdrawalsTable).orderBy(withdrawalsTable.createdAt);
   res.json(list);
+});
+
+router.get("/withdrawals/:id/audit", async (req, res) => {
+  const wdId = parseInt(req.params.id);
+  if (isNaN(wdId)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const [wd] = await db.select().from(withdrawalsTable).where(eq(withdrawalsTable.id, wdId)).limit(1);
+  if (!wd) { res.status(404).json({ error: "Withdrawal not found" }); return; }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, wd.userId)).limit(1);
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+  const [allWithdrawals, slots] = await Promise.all([
+    db.select().from(withdrawalsTable).where(eq(withdrawalsTable.userId, wd.userId)),
+    db.select().from(wheelSlotsTable).orderBy(wheelSlotsTable.displayOrder),
+  ]);
+
+  const maxSlotAmount = slots.length > 0 ? Math.max(...slots.map(s => parseFloat(s.amount))) : 4;
+  const avgSlotAmount = slots.length > 0
+    ? slots.reduce((s, sl) => s + parseFloat(sl.amount), 0) / slots.length
+    : 1;
+
+  const balance = parseFloat(String(user.balance));
+  const tonBalance = parseFloat(String(user.tonBalance));
+  const tasksCompleted = user.tasksCompleted || 0;
+  const referralCount = user.referralCount || 0;
+  const rewardedSpins = user.rewardedSpins || 0;
+  const accountAgeMs = Date.now() - new Date(user.createdAt).getTime();
+  const accountAgeDays = accountAgeMs / (1000 * 60 * 60 * 24);
+
+  const referralThresholdRow = await db.select().from(botSettingsTable).where(eq(botSettingsTable.key, "referral_threshold")).limit(1);
+  const referralThreshold = parseInt(referralThresholdRow[0]?.value) || 5;
+
+  const estimatedSpinsEarned = tasksCompleted + Math.floor(referralCount / referralThreshold) + rewardedSpins;
+  const estimatedMaxBalance = estimatedSpinsEarned * maxSlotAmount;
+
+  const pendingWithdrawals = allWithdrawals.filter(w => w.status === "pending");
+  const totalWithdrawn = allWithdrawals
+    .filter(w => w.status === "approved")
+    .reduce((s, w) => s + parseFloat(String(w.amount)), 0);
+
+  let riskScore = 0;
+  const findings: { level: "danger" | "warning" | "info"; text: string }[] = [];
+
+  if (!user.ipVerifiedAt) {
+    riskScore += 20;
+    findings.push({ level: "danger", text: "لم يتحقق المستخدم من جهازه عبر رابط التحقق" });
+  }
+
+  if (accountAgeDays < 2 && balance > 0.5) {
+    riskScore += 20;
+    findings.push({ level: "danger", text: `حساب حديث جداً (${Math.floor(accountAgeDays * 24)} ساعة) مع رصيد ${balance.toFixed(3)} USDT` });
+  } else if (accountAgeDays < 7 && balance > 5) {
+    riskScore += 10;
+    findings.push({ level: "warning", text: `حساب جديد (${Math.floor(accountAgeDays)} يوم) مع رصيد مرتفع ${balance.toFixed(3)} USDT` });
+  }
+
+  if (estimatedSpinsEarned === 0 && (balance > 0.1 || tonBalance > 0.001)) {
+    riskScore += 30;
+    findings.push({ level: "danger", text: `رصيد ${balance.toFixed(3)} USDT بدون أي نشاط مشروع (0 مهام، 0 إحالات، 0 دورات مكافأة)` });
+  } else if (estimatedMaxBalance > 0 && balance > estimatedMaxBalance * 1.8) {
+    riskScore += 25;
+    findings.push({
+      level: "danger",
+      text: `الرصيد (${balance.toFixed(3)}) يتجاوز الحد الأقصى المتوقع (${estimatedMaxBalance.toFixed(3)}) بأكثر من 80% — يُشير إلى رصيد وهمي`,
+    });
+  } else if (estimatedMaxBalance > 0 && balance > estimatedMaxBalance * 1.3) {
+    riskScore += 10;
+    findings.push({
+      level: "warning",
+      text: `الرصيد (${balance.toFixed(3)}) أعلى من المتوقع (${estimatedMaxBalance.toFixed(3)}) — يحتاج مراجعة`,
+    });
+  }
+
+  if (user.isBlockedForLeaving) {
+    riskScore += 10;
+    findings.push({ level: "warning", text: "حاول مغادرة القنوات الإجبارية بعد الحصول على المكافآت" });
+  }
+
+  if (pendingWithdrawals.length > 1) {
+    riskScore += 10;
+    findings.push({ level: "warning", text: `لديه ${pendingWithdrawals.length} طلبات سحب معلقة في نفس الوقت` });
+  }
+
+  if (!user.username && balance > 1) {
+    riskScore += 5;
+    findings.push({ level: "warning", text: "حساب مجهول (بدون يوزرنيم) مع رصيد مرتفع" });
+  }
+
+  const wdAmount = parseFloat(String(wd.amount));
+  const totalEverHad = balance + tonBalance + totalWithdrawn + wdAmount;
+  if (totalEverHad > 0 && wdAmount / totalEverHad > 0.95) {
+    findings.push({ level: "info", text: "يحاول سحب كامل رصيده تقريباً دفعة واحدة" });
+  }
+
+  if (user.ipVerifiedAt) {
+    findings.push({ level: "info", text: `تم التحقق من الجهاز بتاريخ ${new Date(user.ipVerifiedAt).toLocaleDateString("ar-SA")}` });
+    riskScore = Math.max(0, riskScore - 3);
+  }
+
+  if (accountAgeDays >= 30) {
+    findings.push({ level: "info", text: `حساب قديم (${Math.floor(accountAgeDays)} يوم) — درجة مصداقية أعلى` });
+    riskScore = Math.max(0, riskScore - 5);
+  }
+
+  if (tasksCompleted > 0 || referralCount > 0) {
+    findings.push({ level: "info", text: `نشاط مشروع موثق: ${tasksCompleted} مهمة مكتملة، ${referralCount} إحالة ناجحة` });
+  }
+
+  if (totalWithdrawn > 0) {
+    findings.push({ level: "info", text: `سبق وسحب ${totalWithdrawn.toFixed(3)} TON بنجاح من قبل` });
+  }
+
+  riskScore = Math.min(100, Math.max(0, riskScore));
+
+  res.json({
+    withdrawal: wd,
+    user,
+    riskScore,
+    findings,
+    stats: {
+      accountAgeDays: Math.floor(accountAgeDays),
+      balance: balance.toFixed(6),
+      tonBalance: tonBalance.toFixed(6),
+      tasksCompleted,
+      referralCount,
+      rewardedSpins,
+      estimatedSpinsEarned,
+      estimatedMaxBalance: estimatedMaxBalance.toFixed(3),
+      avgExpectedBalance: (estimatedSpinsEarned * avgSlotAmount).toFixed(3),
+      pendingWithdrawalsCount: pendingWithdrawals.length,
+      totalWithdrawn: totalWithdrawn.toFixed(3),
+      allWithdrawalsCount: allWithdrawals.length,
+      isDeviceVerified: !!user.ipVerifiedAt,
+      isBlockedForLeaving: user.isBlockedForLeaving,
+      isBanned: user.isVisible === false,
+    },
+  });
+});
+
+router.put("/withdrawals/:id", async (req, res) => {
+  const wdId = parseInt(req.params.id);
+  if (isNaN(wdId)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+  const { action, txHash } = req.body;
+  if (action !== "approve" && action !== "reject") {
+    res.status(400).json({ error: "action must be 'approve' or 'reject'" }); return;
+  }
+
+  const [wd] = await db.select().from(withdrawalsTable).where(eq(withdrawalsTable.id, wdId)).limit(1);
+  if (!wd) { res.status(404).json({ error: "Withdrawal not found" }); return; }
+  if (wd.status !== "pending") { res.status(400).json({ error: "الطلب ليس في حالة انتظار" }); return; }
+
+  if (action === "reject") {
+    await db.update(usersTable)
+      .set({ tonBalance: sql`ton_balance + ${wd.amount}` })
+      .where(eq(usersTable.id, wd.userId));
+  }
+
+  const [updated] = await db.update(withdrawalsTable)
+    .set({
+      status: action === "approve" ? "approved" : "rejected",
+      processedAt: new Date(),
+      ...(txHash ? { txHash: String(txHash) } : {}),
+    })
+    .where(eq(withdrawalsTable.id, wdId))
+    .returning();
+
+  res.json({ success: true, withdrawal: updated });
+});
+
+router.put("/users/:id/ban", async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+  const { banned } = req.body;
+  const [updated] = await db.update(usersTable)
+    .set({ isVisible: banned === true ? false : true })
+    .where(eq(usersTable.id, id))
+    .returning();
+  if (!updated) { res.status(404).json({ error: "User not found" }); return; }
+  res.json({ success: true, user: updated });
 });
 
 export default router;

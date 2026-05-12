@@ -153,6 +153,11 @@ export const api = {
   adminUpdateUserBalance: (adminId: number, userId: number, balance?: number, spins?: number) =>
     apiCall<User>(`/admin/users/${userId}/balance`, { method: "PUT", body: JSON.stringify({ balance, spins }), headers: { "Content-Type": "application/json", "x-user-id": String(adminId) } }),
   adminGetWithdrawals: (userId: number) => apiCall<Withdrawal[]>("/admin/withdrawals", { headers: { "Content-Type": "application/json", "x-user-id": String(userId) } }),
+  adminAuditWithdrawal: (adminId: number, wdId: number) => apiCall<AuditResult>(`/admin/withdrawals/${wdId}/audit`, { headers: { "Content-Type": "application/json", "x-user-id": String(adminId) } }),
+  adminUpdateWithdrawal: (adminId: number, wdId: number, action: "approve" | "reject", txHash?: string) =>
+    apiCall<{ success: boolean; withdrawal: Withdrawal }>(`/admin/withdrawals/${wdId}`, { method: "PUT", body: JSON.stringify({ action, txHash }), headers: { "Content-Type": "application/json", "x-user-id": String(adminId) } }),
+  adminBanUser: (adminId: number, userId: number, banned: boolean) =>
+    apiCall<{ success: boolean }>(`/admin/users/${userId}/ban`, { method: "PUT", body: JSON.stringify({ banned }), headers: { "Content-Type": "application/json", "x-user-id": String(adminId) } }),
   adminResetVerification: (adminId: number, userId: number) =>
     apiCall<{ success: boolean }>(`/admin/users/${userId}/reset-verification`, { method: "PUT", headers: { "Content-Type": "application/json", "x-user-id": String(adminId) } }),
 
@@ -303,4 +308,33 @@ export interface VerifyAccessResult {
   message?: string;
   missingChannels: SubscriptionChannel[];
   requiredChannels: SubscriptionChannel[];
+}
+
+export interface AuditFinding {
+  level: "danger" | "warning" | "info";
+  text: string;
+}
+
+export interface AuditResult {
+  withdrawal: Withdrawal;
+  user: User;
+  riskScore: number;
+  findings: AuditFinding[];
+  stats: {
+    accountAgeDays: number;
+    balance: string;
+    tonBalance: string;
+    tasksCompleted: number;
+    referralCount: number;
+    rewardedSpins: number;
+    estimatedSpinsEarned: number;
+    estimatedMaxBalance: string;
+    avgExpectedBalance: string;
+    pendingWithdrawalsCount: number;
+    totalWithdrawn: string;
+    allWithdrawalsCount: number;
+    isDeviceVerified: boolean;
+    isBlockedForLeaving: boolean;
+    isBanned: boolean;
+  };
 }

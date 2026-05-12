@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { useUser } from "../lib/userContext";
-import { api, Task, WheelSlot, User, AdminUser, SubscriptionChannel } from "../lib/api";
+import { api, Task, WheelSlot, User, AdminUser, SubscriptionChannel, Withdrawal, AuditResult } from "../lib/api";
 import {
   Shield, Plus, Trash2, Power, PowerOff, RefreshCw,
-  Radio, Cog, Users, LayoutDashboard, ListChecks, Sliders
+  Radio, Cog, Users, LayoutDashboard, ListChecks, Sliders,
+  AlertTriangle, CheckCircle, XCircle, Ban, Search, ChevronDown, ChevronUp, Clock
 } from "lucide-react";
 
-type Tab = "overview" | "channels" | "tasks" | "wheel" | "users" | "settings";
+type Tab = "overview" | "channels" | "tasks" | "wheel" | "users" | "settings" | "withdrawals";
 
 export default function AdminPage() {
   const { user, isAdmin } = useUser();
@@ -16,6 +17,11 @@ export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [requiredChannels, setRequiredChannels] = useState<SubscriptionChannel[]>([]);
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
+  const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
+  const [auditingId, setAuditingId] = useState<number | null>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ text: string; type: "ok" | "err" } | null>(null);
@@ -34,16 +40,18 @@ export default function AdminPage() {
     if (!user) return;
     setLoading(true);
     try {
-      const [t, w, u, s] = await Promise.all([
+      const [t, w, u, s, wds] = await Promise.all([
         api.adminGetTasks(user.id),
         api.adminGetWheel(user.id),
         api.adminGetUsers(user.id),
         api.adminGetSettings(user.id),
+        api.adminGetWithdrawals(user.id),
       ]);
       setTasks(t);
       setWheelSlots(w);
       setUsers(u);
       setSettings(s);
+      setWithdrawals(wds.slice().reverse());
       try {
         setRequiredChannels(s["required_channels"] ? JSON.parse(s["required_channels"]) : []);
       } catch {
@@ -55,6 +63,66 @@ export default function AdminPage() {
       setLoading(false);
     }
   }, [user]);
+
+  const openAudit = async (wdId: number) => {
+    if (!user) return;
+    if (auditingId === wdId) { setAuditingId(null); setAuditResult(null); return; }
+    setAuditingId(wdId);
+    setAuditResult(null);
+    setAuditLoading(true);
+    try {
+      const result = await api.adminAuditWithdrawal(user.id, wdId);
+      setAuditResult(result);
+    } catch {
+      flash("فشل تحميل التحليل", "err");
+      setAuditingId(null);
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  const handleWithdrawalAction = async (wdId: number, action: "approve" | "reject") => {
+    if (!user || actionLoading) return;
+    setActionLoading(true);
+    try {
+      await api.adminUpdateWithdrawal(user.id, wdId, action);
+      flash(action === "approve" ? "تم قبول طلب السحب ✅" : "تم رفض طلب السحب ✅");
+      setAuditingId(null);
+      setAuditResult(null);
+      const wds = await api.adminGetWithdrawals(user.id);
+      setWithdrawals(wds.slice().reverse());
+    } catch {
+      flash("فشل تنفيذ الإجراء", "err");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleBanUser = async (userId: number, banned: boolean) => {
+    if (!user || actionLoading) return;
+    setActionLoading(true);
+    try {
+      await api.adminBanUser(user.id, userId, banned);
+      flash(banned ? "تم حظر المستخدم ✅" : "تم رفع الحظر ✅");
+      if (auditResult) {
+        setAuditResult(prev => prev ? {
+          ...prev,
+          user: { ...prev.user, isVisible: banned ? false : true },
+          stats: { ...prev.stats, isBanned: banned },
+        } : null);
+      }
+      const [wds, us] = await Promise.all([
+        api.adminGetWithdrawals(user.id),
+        api.adminGetUsers(user.id),
+      ]);
+      setWithdrawals(wds.slice().reverse());
+      setUsers(us);
+    } catch {
+      flash("فشل تنفيذ الإجراء", "err");
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (isAdmin) loadData();
@@ -110,12 +178,15 @@ export default function AdminPage() {
   const showUserCount = settings["show_user_count"] === "true";
   const totalProbability = wheelSlots.reduce((s, r) => s + (r.probability || 0), 0);
 
-  const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  const pendingWithdrawalsCount = withdrawals.filter(w => w.status === "pending").length;
+
+  const TABS: { id: Tab; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: "overview", label: "نظرة عامة", icon: <LayoutDashboard size={15} /> },
     { id: "channels", label: "القنوات", icon: <Radio size={15} /> },
     { id: "tasks", label: "المهام", icon: <ListChecks size={15} /> },
     { id: "wheel", label: "العجلة", icon: <Sliders size={15} /> },
     { id: "users", label: "المستخدمون", icon: <Users size={15} /> },
+    { id: "withdrawals", label: "السحوبات", icon: <Search size={15} />, badge: pendingWithdrawalsCount },
     { id: "settings", label: "الإعدادات", icon: <Cog size={15} /> },
   ];
 
@@ -150,7 +221,7 @@ export default function AdminPage() {
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+              className={`relative flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
                 tab === t.id
                   ? "bg-yellow-400 text-black"
                   : "bg-purple-900/40 text-purple-300"
@@ -158,6 +229,11 @@ export default function AdminPage() {
             >
               {t.icon}
               {t.label}
+              {t.badge != null && t.badge > 0 && (
+                <span className={`absolute -top-1 -left-1 w-4 h-4 rounded-full text-[10px] font-black flex items-center justify-center ${tab === t.id ? "bg-red-600 text-white" : "bg-red-500 text-white"}`}>
+                  {t.badge > 9 ? "9+" : t.badge}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -429,6 +505,194 @@ export default function AdminPage() {
                     <p className="text-purple-500 text-xs text-center">عرض أول 50 مستخدم فقط.</p>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* ─── WITHDRAWALS ─── */}
+            {tab === "withdrawals" && (
+              <div className="space-y-3">
+                {/* Summary */}
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: "معلق", value: withdrawals.filter(w => w.status === "pending").length, color: "text-yellow-400" },
+                    { label: "مقبول", value: withdrawals.filter(w => w.status === "approved").length, color: "text-green-400" },
+                    { label: "مرفوض", value: withdrawals.filter(w => w.status === "rejected").length, color: "text-red-400" },
+                  ].map(s => (
+                    <div key={s.label} className="bg-purple-900/30 border border-purple-700/40 rounded-xl p-3 text-center">
+                      <p className={`text-xl font-black ${s.color}`}>{s.value}</p>
+                      <p className="text-purple-400 text-xs">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {withdrawals.length === 0 ? (
+                  <div className="bg-purple-900/20 border border-purple-700/40 rounded-2xl p-8 text-center">
+                    <Clock size={32} className="text-purple-600 mx-auto mb-2" />
+                    <p className="text-purple-400 text-sm">لا توجد طلبات سحب بعد</p>
+                  </div>
+                ) : withdrawals.map((wd) => {
+                  const isPending = wd.status === "pending";
+                  const isExpanded = auditingId === wd.id;
+                  const statusColor = wd.status === "approved" ? "text-green-400 bg-green-900/30 border-green-700/40"
+                    : wd.status === "rejected" ? "text-red-400 bg-red-900/30 border-red-700/40"
+                    : "text-yellow-400 bg-yellow-900/20 border-yellow-700/40";
+                  const statusLabel = wd.status === "approved" ? "مقبول" : wd.status === "rejected" ? "مرفوض" : "معلق";
+
+                  return (
+                    <div key={wd.id} className={`rounded-2xl border overflow-hidden ${isPending ? "border-yellow-700/40 bg-yellow-900/10" : "border-purple-700/30 bg-purple-900/20"}`}>
+                      {/* Withdrawal card header */}
+                      <div className="p-4">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-white font-bold text-sm">طلب سحب #{wd.id}</p>
+                            <p className="text-purple-400 text-xs">المستخدم: {wd.userId}</p>
+                            <p className="text-xs text-purple-500 mt-0.5">{new Date(wd.createdAt).toLocaleString("ar-SA")}</p>
+                          </div>
+                          <span className={`shrink-0 text-xs font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>{statusLabel}</span>
+                        </div>
+                        <div className="bg-black/20 rounded-xl p-2.5 mb-3">
+                          <p className="text-yellow-400 font-black text-lg">{parseFloat(wd.amount).toFixed(4)} TON</p>
+                          <p className="text-purple-400 text-xs font-mono truncate" dir="ltr">{wd.walletAddress}</p>
+                        </div>
+
+                        {/* Audit toggle button */}
+                        <button
+                          onClick={() => openAudit(wd.id)}
+                          className={`w-full py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-95 ${isExpanded ? "bg-purple-700/60 text-purple-200" : "bg-purple-800/60 text-purple-300"}`}
+                        >
+                          <Shield size={13} />
+                          {isExpanded ? "إخفاء تحليل الاحتيال" : "تحليل الاحتيال"}
+                          {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                        </button>
+                      </div>
+
+                      {/* Audit panel */}
+                      {isExpanded && (
+                        <div className="border-t border-purple-700/30 bg-black/20 p-4 space-y-4">
+                          {auditLoading ? (
+                            <div className="flex items-center justify-center py-6">
+                              <RefreshCw size={22} className="animate-spin text-yellow-400" />
+                              <span className="text-purple-400 text-sm mr-2">جارٍ تحليل نشاط المستخدم...</span>
+                            </div>
+                          ) : auditResult && auditResult.withdrawal.id === wd.id ? (
+                            <>
+                              {/* Risk Score Gauge */}
+                              <div className="bg-purple-900/40 rounded-2xl p-4 text-center">
+                                <p className="text-purple-400 text-xs mb-2">درجة الخطورة</p>
+                                <div className="relative w-28 h-28 mx-auto">
+                                  <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                                    <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(88,28,135,0.4)" strokeWidth="12" />
+                                    <circle
+                                      cx="50" cy="50" r="40" fill="none"
+                                      stroke={auditResult.riskScore >= 70 ? "#ef4444" : auditResult.riskScore >= 40 ? "#f59e0b" : "#22c55e"}
+                                      strokeWidth="12"
+                                      strokeDasharray={`${(auditResult.riskScore / 100) * 251} 251`}
+                                      strokeLinecap="round"
+                                    />
+                                  </svg>
+                                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span className={`text-2xl font-black ${auditResult.riskScore >= 70 ? "text-red-400" : auditResult.riskScore >= 40 ? "text-yellow-400" : "text-green-400"}`}>
+                                      {auditResult.riskScore}
+                                    </span>
+                                    <span className="text-purple-400 text-[10px]">/ 100</span>
+                                  </div>
+                                </div>
+                                <p className={`text-sm font-black mt-1 ${auditResult.riskScore >= 70 ? "text-red-400" : auditResult.riskScore >= 40 ? "text-yellow-400" : "text-green-400"}`}>
+                                  {auditResult.riskScore >= 70 ? "⚠️ خطير جداً — احتمال احتيال" : auditResult.riskScore >= 40 ? "⚠️ مشبوه — يحتاج مراجعة" : "✅ آمن — مستخدم عادي"}
+                                </p>
+                              </div>
+
+                              {/* User stats */}
+                              <div className="grid grid-cols-2 gap-2">
+                                {[
+                                  { label: "رصيد USDT", value: `${parseFloat(auditResult.stats.balance).toFixed(3)}` },
+                                  { label: "رصيد TON", value: `${parseFloat(auditResult.stats.tonBalance).toFixed(4)}` },
+                                  { label: "عمر الحساب", value: `${auditResult.stats.accountAgeDays} يوم` },
+                                  { label: "مهام مكتملة", value: String(auditResult.stats.tasksCompleted) },
+                                  { label: "إحالات ناجحة", value: String(auditResult.stats.referralCount) },
+                                  { label: "دورات مكافأة", value: String(auditResult.stats.rewardedSpins) },
+                                  { label: "أقصى رصيد متوقع", value: `${auditResult.stats.estimatedMaxBalance}` },
+                                  { label: "إجمالي السحوبات", value: `${auditResult.stats.totalWithdrawn} TON` },
+                                ].map(s => (
+                                  <div key={s.label} className="bg-purple-900/30 rounded-xl p-2.5">
+                                    <p className="text-purple-400 text-[10px]">{s.label}</p>
+                                    <p className="text-white text-sm font-bold">{s.value}</p>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Findings */}
+                              <div>
+                                <p className="text-white font-bold text-xs mb-2">نتائج التحليل</p>
+                                <div className="space-y-1.5">
+                                  {auditResult.findings.map((f, i) => (
+                                    <div key={i} className={`flex items-start gap-2 rounded-xl px-3 py-2 text-xs ${
+                                      f.level === "danger" ? "bg-red-900/30 border border-red-700/40 text-red-300"
+                                      : f.level === "warning" ? "bg-yellow-900/20 border border-yellow-700/30 text-yellow-300"
+                                      : "bg-purple-900/30 border border-purple-700/30 text-purple-300"
+                                    }`}>
+                                      {f.level === "danger" ? <AlertTriangle size={12} className="shrink-0 mt-0.5 text-red-400" />
+                                        : f.level === "warning" ? <AlertTriangle size={12} className="shrink-0 mt-0.5 text-yellow-400" />
+                                        : <CheckCircle size={12} className="shrink-0 mt-0.5 text-purple-400" />}
+                                      <span>{f.text}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Action buttons — only if still pending */}
+                              {wd.status === "pending" && (
+                                <div className="space-y-2 pt-1">
+                                  <p className="text-purple-400 text-xs font-bold text-center">إجراءات الأدمن</p>
+                                  <div className="flex gap-2">
+                                    <button
+                                      disabled={actionLoading}
+                                      onClick={() => handleWithdrawalAction(wd.id, "approve")}
+                                      className="flex-1 py-2.5 rounded-xl text-sm font-black text-black bg-green-400 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                    >
+                                      <CheckCircle size={15} />
+                                      قبول السحب
+                                    </button>
+                                    <button
+                                      disabled={actionLoading}
+                                      onClick={() => handleWithdrawalAction(wd.id, "reject")}
+                                      className="flex-1 py-2.5 rounded-xl text-sm font-black text-white bg-red-600 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                                    >
+                                      <XCircle size={15} />
+                                      رفض وإعادة
+                                    </button>
+                                  </div>
+                                  <button
+                                    disabled={actionLoading || auditResult.stats.isBanned}
+                                    onClick={() => handleBanUser(auditResult.user.id, !auditResult.stats.isBanned)}
+                                    className={`w-full py-2.5 rounded-xl text-sm font-black flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 ${
+                                      auditResult.stats.isBanned
+                                        ? "bg-purple-700/50 text-purple-300"
+                                        : "bg-orange-900/60 border border-orange-700/50 text-orange-300"
+                                    }`}
+                                  >
+                                    <Ban size={15} />
+                                    {auditResult.stats.isBanned ? "المستخدم محظور بالفعل" : "حظر المستخدم + رفض السحب"}
+                                  </button>
+                                  {!auditResult.stats.isBanned && (
+                                    <p className="text-purple-500 text-[10px] text-center">الحظر يمنع المستخدم من اللعب والسحب مستقبلاً</p>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Already processed */}
+                              {wd.status !== "pending" && (
+                                <div className={`rounded-xl p-3 text-center text-sm font-bold ${wd.status === "approved" ? "bg-green-900/30 text-green-400" : "bg-red-900/30 text-red-400"}`}>
+                                  {wd.status === "approved" ? "✅ تمت الموافقة على هذا السحب" : "❌ تم رفض هذا السحب"}
+                                </div>
+                              )}
+                            </>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
