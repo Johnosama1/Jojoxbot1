@@ -39,6 +39,7 @@ export interface TelegramWebApp {
   };
   colorScheme: "dark" | "light";
   themeParams: Record<string, string>;
+  openTelegramLink(url: string): void;
 }
 
 export function getTelegramWebApp(): TelegramWebApp | null {

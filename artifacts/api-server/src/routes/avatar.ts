@@ -30,22 +30,22 @@ async function fetchBuffer(url: string): Promise<{ data: Buffer; contentType: st
 }
 
 router.get("/avatar/:username", async (req: Request, res: Response) => {
-  const username = req.params.username.replace(/^@/, "");
+  const username = String(req.params.username).replace(/^@/, "");
   const now = Date.now();
 
   if (cache[username] && now - cache[username].ts < TTL) {
     res.setHeader("Content-Type", cache[username].contentType);
     res.setHeader("Cache-Control", "public, max-age=3600");
-    return res.send(cache[username].data);
+    res.send(cache[username].data); return;
   }
 
   try {
     const userId = KNOWN_IDS[username];
-    if (!userId) return res.status(404).json({ error: "unknown user" });
+    if (!userId) { res.status(404).json({ error: "unknown user" }); return; }
 
     const photos = await bot.getUserProfilePhotos(userId, { limit: 1 });
     if (!photos.total_count || !photos.photos[0]?.length) {
-      return res.status(404).json({ error: "no photo" });
+      res.status(404).json({ error: "no photo" }); return;
     }
 
     // Pick the largest size

@@ -234,6 +234,7 @@ export interface User {
   isVerified: boolean;
   rewardedSpins: number;
   isBlockedForLeaving: boolean;
+  isVisible: boolean | null;
 }
 
 export interface ReferralEntry {

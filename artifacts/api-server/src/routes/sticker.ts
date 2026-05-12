@@ -102,9 +102,9 @@ setTimeout(async () => {
 }, 3000);
 
 router.get("/:emojiId", async (req: Request, res: Response) => {
-  const { emojiId } = req.params;
-  if (!/^\d+$/.test(emojiId ?? "")) {
-    return res.status(400).json({ error: "Invalid emoji ID" });
+  const emojiId = String(req.params.emojiId);
+  if (!/^\d+$/.test(emojiId)) {
+    res.status(400).json({ error: "Invalid emoji ID" }); return;
   }
 
   try {

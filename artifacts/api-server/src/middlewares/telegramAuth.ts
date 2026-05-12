@@ -56,7 +56,7 @@ setInterval(() => {
 }, 10 * 60 * 1000);
 
 export function spinRateLimit(req: Request, res: Response, next: NextFunction) {
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id)) { next(); return; }
   const now = Date.now();
   const last = spinTimestamps.get(id);
@@ -104,7 +104,7 @@ export function telegramAuth(req: Request, res: Response, next: NextFunction) {
 
   // Verify userId in initData matches the userId in the request
   const bodyId = req.body?.id ? parseInt(String(req.body.id)) : undefined;
-  const paramId = req.params?.id ? parseInt(req.params.id) : undefined;
+  const paramId = req.params?.id ? parseInt(String(req.params.id)) : undefined;
   const routeUserId = bodyId ?? paramId;
 
   if (routeUserId && userId && routeUserId !== userId) {

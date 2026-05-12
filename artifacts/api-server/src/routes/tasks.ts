@@ -45,7 +45,7 @@ router.get("/", async (_req, res) => {
 router.post("/:taskId/complete", requireSession, verifyAccessMiddleware, async (req, res) => {
   invalidateTasksCache();
 
-  const taskId = parseInt(req.params.taskId);
+  const taskId = parseInt(String(req.params.taskId));
   if (isNaN(taskId) || taskId <= 0) {
     res.status(400).json({ error: "Invalid taskId" });
     return;

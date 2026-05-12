@@ -9,7 +9,7 @@
  *   <TgEmoji id="5226711870492126219" fallback="🎡" size={32} />
  */
 
-declare global {
+declare module "react" {
   namespace JSX {
     interface IntrinsicElements {
       "tg-emoji": React.DetailedHTMLProps<

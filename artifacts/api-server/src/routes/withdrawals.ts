@@ -104,7 +104,7 @@ router.post("/", withdrawLimiter, requireSession, verifyAccessMiddleware, async 
 });
 
 router.get("/:userId", requireSession, async (req, res) => {
-  const userId = parseInt(req.params.userId);
+  const userId = parseInt(String(req.params.userId));
   if (isNaN(userId) || userId <= 0) {
     res.status(400).json({ error: "Invalid userId" }); return;
   }

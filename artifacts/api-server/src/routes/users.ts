@@ -73,7 +73,7 @@ router.post("/init", softTelegramAuth, async (req, res) => {
 });
 
 router.get("/:id", requireSession, async (req, res) => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
   const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
   if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== id) {
@@ -101,7 +101,7 @@ router.get("/:id", requireSession, async (req, res) => {
 
 // GET /users/:id/referrals — list users referred by this user with pending/approved status
 router.get("/:id/referrals", requireSession, async (req, res) => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
   const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
   if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== id) {
@@ -134,7 +134,7 @@ router.get("/:id/referrals", requireSession, async (req, res) => {
 });
 
 router.post("/:id/spin", requireSession, spinRateLimit, verifyAccessMiddleware, async (req, res) => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
   if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== id) {
     res.status(403).json({ error: "Forbidden" }); return;
@@ -199,7 +199,7 @@ router.post("/:id/spin", requireSession, spinRateLimit, verifyAccessMiddleware, 
 
 // ── Swap USDT balance → TON balance (live rate from CoinGecko) ───────
 router.post("/:id/swap", requireSession, verifyAccessMiddleware, async (req, res) => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
   const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
   if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== id) {
@@ -246,7 +246,7 @@ router.post("/:id/swap", requireSession, verifyAccessMiddleware, async (req, res
 const TON_ADDRESS_RE = /^(EQ|UQ|kQ|0Q)[A-Za-z0-9_-]{46}$/;
 
 router.put("/:id/wallet", requireSession, verifyAccessMiddleware, async (req, res) => {
-  const id = parseInt(req.params.id);
+  const id = parseInt(String(req.params.id));
   if (isNaN(id) || id <= 0) { res.status(400).json({ error: "Invalid id" }); return; }
   const sessionReq = req as import("../middlewares/requireSession").SessionRequest;
   if (sessionReq.sessionUserId !== undefined && sessionReq.sessionUserId !== id) {
