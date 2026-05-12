@@ -128,9 +128,9 @@ export default function ReferralPage() {
 
         {/* Progress bar */}
         <div style={{
-          background: "rgba(10,8,28,0.65)",
+          background: "rgba(10,8,28,0.38)",
           backdropFilter: "blur(18px)",
-          border: "1px solid rgba(255,255,255,0.10)",
+          border: "1px solid rgba(255,255,255,0.12)",
           borderRadius: 16,
           padding: "10px 14px",
         }}>

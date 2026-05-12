@@ -1,0 +1,91 @@
+I want you to make these UI and system improvements carefully without breaking anything in the bot, frontend, backend, admin panel, referral system, tasks system, withdrawals, or deployment.
+
+The goal is to improve the design and user experience while keeping the bot fully stable and working exactly as before.
+
+Required changes:
+
+1. Remove the black overlay/background:
+
+- Remove the dark black background/shadow from the top section.
+- Keep only the important information visible cleanly.
+- Make the design look modern, smooth, and consistent with the rest of the bot UI.
+- Use transparent or matching theme colors instead of heavy black.
+- Make sure mobile responsiveness stays perfect.
+
+2. Keep the tasks/channels bar fixed at the top:
+
+- The section showing total tasks and channels must always stay visible at the top.
+- Even if there are many tasks, it should never move, disappear, or break.
+- Use proper sticky/fixed positioning with correct spacing.
+- Prevent overlapping with page content.
+- Maintain smooth scrolling and responsive behavior.
+
+3. Improve referral link appearance:
+
+- The referral link currently looks too long and ugly in the UI.
+- Make it appear shorter and cleaner visually.
+- Example: show only part of the link with “...” or inside a clean modern card.
+- IMPORTANT:
+  When the user clicks “Copy”, the FULL real referral link must still be copied correctly.
+- Do not break existing copy functionality.
+
+4. Upgrade the referrals section:
+   Instead of showing only numbers/statistics, display actual referral users in a clean list.
+
+Each referral item should show:
+
+- User profile picture
+- Username or display name
+- Referral status:
+  • Successful
+  • Pending
+  • Not completed
+
+Additional requirements:
+
+- Use a modern user-list/card design.
+- If the user has no profile picture, show a default avatar.
+- Data must load correctly from the database.
+- Make sure referral status updates correctly in real-time/system logic.
+
+5. Keep the bot fully stable:
+
+- Do NOT remove important files.
+- Do NOT change unrelated logic.
+- Do NOT break:
+  • Admin panel
+  • Spin wheel
+  • Tasks system
+  • Withdraw system
+  • Referral tracking
+  • Authentication
+  • Deploy/build process
+
+After finishing:
+
+- The project must run successfully without errors.
+- No console errors.
+- No server/runtime errors.
+- No broken pages.
+- No failed API requests.
+
+6. UI/UX improvements:
+
+- Make the interface more modern and clean.
+- Improve spacing, alignment, border radius, and light shadows.
+- Keep the design lightweight and fast.
+- Optimize mainly for mobile devices since most users are on phones.
+
+7. Final verification:
+   Before finishing, fully test:
+
+- Frontend pages
+- Backend APIs
+- Admin panel
+- Referral system
+- Copy referral link feature
+- Sticky top section
+- Mobile responsiveness
+- Deployment/build
+
+Make sure everything works perfectly before saving changes.

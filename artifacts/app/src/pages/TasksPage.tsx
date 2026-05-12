@@ -80,11 +80,11 @@ export default function TasksPage() {
         borderRadius: 22,
         overflow: "hidden",
         background:
-          "radial-gradient(120% 100% at 0% 0%, rgba(251,191,36,0.18) 0%, rgba(139,92,246,0.10) 45%, rgba(8,6,22,0.85) 100%)",
-        border: "1px solid rgba(251,191,36,0.22)",
-        backdropFilter: "blur(22px) saturate(160%)",
-        WebkitBackdropFilter: "blur(22px) saturate(160%)",
-        boxShadow: "0 10px 30px rgba(0,0,0,0.40), inset 0 1px 0 rgba(255,255,255,0.06)",
+          "radial-gradient(120% 100% at 0% 0%, rgba(251,191,36,0.22) 0%, rgba(139,92,246,0.08) 45%, rgba(8,6,22,0.45) 100%)",
+        border: "1px solid rgba(251,191,36,0.28)",
+        backdropFilter: "blur(20px) saturate(140%)",
+        WebkitBackdropFilter: "blur(20px) saturate(140%)",
+        boxShadow: "0 6px 20px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.08)",
       }}>
         {/* sheen */}
         <div style={{
