@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useLocation } from "wouter";
 
-const MIN_WITHDRAWAL = 0.2;
+const MIN_WITHDRAWAL = 0.1;
 const TON_IMG  = "https://assets.coingecko.com/coins/images/17980/standard/photo_2024-09-10_17.09.00.jpeg?1725963446";
 const USDT_IMG = "https://assets.coingecko.com/coins/images/325/large/Tether.png";
 
@@ -581,7 +581,7 @@ export default function WalletPage() {
                       className="wallet-input"
                       type="number" value={amount}
                       onChange={e => setAmount(e.target.value)}
-                      placeholder="0.00" step="0.01" min={MIN_WITHDRAWAL} max={tonBalance}
+                      placeholder="0.00" step="any"
                       disabled={!canWithdraw || submitting}
                       style={{
                         flex: 1, background: "none", border: "none", outline: "none",
