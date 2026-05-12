@@ -1,0 +1,167 @@
+Fully fix and stabilize the entire project for Vercel production deployment.
+
+The app currently builds successfully but Vercel fails because of conflicting build/output configurations and missing output directory detection.
+
+Your job is to completely audit, repair, and optimize the whole deployment pipeline so the project deploys successfully with ZERO errors.
+
+IMPORTANT:
+Do NOT stop after one fix.
+Continue debugging automatically until everything works correctly.
+
+====================================
+MAIN GOALS
+====================================
+
+- Fix ALL Vercel deployment issues
+- Make frontend and backend work together correctly
+- Remove ALL config conflicts
+- Ensure production build works perfectly
+- Ensure Vercel detects the correct output directory
+- Ensure API routes and static assets work in production
+
+====================================
+STEP 1 — RESET VERCEL CONFIG
+====================================
+
+Delete the old vercel.json completely.
+
+Create a NEW clean vercel.json with ONLY this content:
+
+{
+  "version": 2,
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm run build",
+  "outputDirectory": "dist/public"
+}
+
+Do not add anything else unless absolutely necessary.
+
+====================================
+STEP 2 — FIX BUILD SYSTEM
+====================================
+
+Audit and fix:
+- vite.config
+- package.json
+- build scripts
+- pnpm config
+- TypeScript config
+- frontend config
+- backend config
+- deployment scripts
+
+Remove:
+- duplicate configs
+- old output folders
+- conflicting adapters
+- broken scripts
+- unused deployment logic
+- legacy Vercel settings
+
+Make ALL tools compatible together.
+
+====================================
+STEP 3 — FIX FRONTEND BUILD
+====================================
+
+Ensure the frontend build outputs EXACTLY here:
+
+dist/public
+
+After running:
+pnpm run build
+
+The folder MUST exist and contain:
+- index.html
+- assets
+- CSS
+- JS
+- static files
+
+Fix any issue preventing this.
+
+====================================
+STEP 4 — FIX SERVER + API
+====================================
+
+Ensure Express/API works correctly with Vercel.
+
+Fix:
+- API routes
+- server paths
+- static serving
+- middleware conflicts
+- environment variable loading
+- production routing
+
+Ensure frontend and backend do NOT conflict.
+
+====================================
+STEP 5 — FIX ALL IMPORTS + PATHS
+====================================
+
+Automatically detect and fix:
+- broken imports
+- wrong aliases
+- invalid asset paths
+- wrong relative paths
+- case-sensitive file issues
+- missing files
+- routing issues
+
+====================================
+STEP 6 — OPTIMIZE FOR PRODUCTION
+====================================
+
+Make the project production-ready:
+- remove unused code
+- remove broken dependencies
+- optimize build stability
+- ensure pnpm compatibility
+- ensure Vercel compatibility
+
+====================================
+STEP 7 — VERIFY EVERYTHING
+====================================
+
+After all fixes:
+
+1. Run:
+pnpm install
+
+2. Run:
+pnpm run build
+
+3. Verify:
+dist/public exists correctly
+
+4. Verify:
+frontend works
+
+5. Verify:
+API/server works
+
+6. Verify:
+no Vercel output errors
+
+7. Verify:
+no missing assets
+
+8. Verify:
+deployment is production-ready
+
+====================================
+FINAL REQUIREMENT
+====================================
+
+Keep debugging and fixing automatically until:
+- build succeeds
+- deployment succeeds
+- no output directory errors exist
+- no configuration conflicts exist
+- app works fully on Vercel
+
+Do NOT leave partial fixes.
+Do NOT stop early.
+Do NOT break existing features.
+Keep the project clean, modern, and stable.
