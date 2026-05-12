@@ -236,7 +236,7 @@ export default function WithdrawPage() {
                     type="number" value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder={`${MIN_WITHDRAWAL}`}
-                    step="0.01" min={MIN_WITHDRAWAL} max={Math.min(balance, MAX_WITHDRAWAL)}
+                    step="any"
                     disabled={!canWithdraw || submitting}
                     className="ton-input" style={{ paddingRight: 56, fontSize: 18, fontWeight: 800 }}
                   />
