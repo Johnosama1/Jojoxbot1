@@ -136,7 +136,7 @@ export default function ReferralPage() {
               overflow: "hidden",
             }}
           >
-            <img src="/sad-icon.png" alt="leaderboard" style={{ width: 40, height: 40, objectFit: "cover", pointerEvents: "none", borderRadius: 12 }} />
+            <div ref={leaderboardStickerRef} style={{ width: 34, height: 34, pointerEvents: "none" }} />
           </button>
         </div>
 
@@ -227,6 +227,14 @@ export default function ReferralPage() {
           borderRadius: 14, background: "rgba(255,255,255,0.04)",
           border: "1px solid rgba(255,255,255,0.10)", backdropFilter: "blur(14px)",
         }}>
+          <img
+            src="/sad-icon.png"
+            alt=""
+            style={{
+              width: 30, height: 30, objectFit: "contain", flexShrink: 0,
+              filter: "brightness(0) invert(1)",
+            }}
+          />
           <p style={{
             color: "rgba(255,255,255,0.50)", fontSize: 11, flex: 1,
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
