@@ -170,50 +170,47 @@ export default function ReferralPage() {
       <div style={{
         flex: 1,
         overflowY: "auto",
-        padding: "8px 16px calc(80px + env(safe-area-inset-bottom, 0px) + 16px)",
+        padding: "4px 16px calc(80px + env(safe-area-inset-bottom, 0px) + 12px)",
         display: "flex",
         flexDirection: "column",
-        gap: 10,
+        gap: 8,
       }}>
-        {/* Lottie + tagline */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-          <div ref={stickerRef} style={{ width: 90, height: 90, flexShrink: 0 }} />
+        {/* Lottie + tagline (compact) */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "2px 0" }}>
+          <div ref={stickerRef} style={{ width: 52, height: 52, flexShrink: 0 }} />
           <p style={{
-            color: "rgba(255,255,255,0.55)", fontSize: 11, fontStyle: "italic",
-            textAlign: "center", margin: 0, lineHeight: 1.5, maxWidth: 230,
+            color: "rgba(255,255,255,0.50)", fontSize: 10.5, fontStyle: "italic",
+            margin: 0, lineHeight: 1.45,
           }}>
             Share your link and earn free spins from your friends' activity
           </p>
         </div>
 
-        {/* Invite button + copy */}
-        <div style={{ display: "flex", gap: 10 }}>
-          <button
-            onClick={shareLink}
-            disabled={!refLink}
-            style={{
-              flex: 1, padding: "14px", borderRadius: 18, border: "none",
-              cursor: refLink ? "pointer" : "not-allowed", fontFamily: "inherit",
-              fontWeight: 900, fontSize: 15,
-              background: "linear-gradient(135deg, #fde68a, #fbbf24, #f59e0b)",
-              color: "#0a0600",
-              boxShadow: "0 6px 24px rgba(251,191,36,0.50)",
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-              animation: refLink ? "pulse-gold 2.4s ease-in-out infinite" : "none",
-              opacity: refLink ? 1 : 0.6,
-            }}
-          >
-            <Share2 size={16} /> Invite Friends
-          </button>
-        </div>
+        {/* Invite button */}
+        <button
+          onClick={shareLink}
+          disabled={!refLink}
+          style={{
+            width: "100%", padding: "12px", borderRadius: 16, border: "none",
+            cursor: refLink ? "pointer" : "not-allowed", fontFamily: "inherit",
+            fontWeight: 900, fontSize: 14,
+            background: "linear-gradient(135deg, #fde68a, #fbbf24, #f59e0b)",
+            color: "#0a0600",
+            boxShadow: "0 4px 18px rgba(251,191,36,0.45)",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+            animation: refLink ? "pulse-gold 2.4s ease-in-out infinite" : "none",
+            opacity: refLink ? 1 : 0.6,
+          }}
+        >
+          <Share2 size={15} /> Invite Friends
+        </button>
 
-        {/* Leaderboard button + Ref link row (separate side by side) */}
-        <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
-          {/* Leaderboard button — separate */}
+        {/* Leaderboard icon + Ref link (compact row) */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <button
             onClick={() => setLocation("/leaderboard")}
             style={{
-              flexShrink: 0, width: 46, borderRadius: 14,
+              flexShrink: 0, width: 38, height: 38, borderRadius: 11,
               border: "1px solid rgba(255,255,255,0.12)",
               cursor: "pointer", padding: 0,
               background: "rgba(255,255,255,0.05)",
@@ -221,45 +218,40 @@ export default function ReferralPage() {
               display: "flex", alignItems: "center", justifyContent: "center",
             }}
           >
-            <img
-              src="/sad-icon.png"
-              alt="leaderboard"
-              style={{ width: 30, height: 30, objectFit: "contain", filter: "brightness(0) invert(1)", pointerEvents: "none" }}
-            />
+            <img src="/sad-icon.png" alt="leaderboard"
+              style={{ width: 24, height: 24, objectFit: "contain", filter: "brightness(0) invert(1)", pointerEvents: "none" }} />
           </button>
 
-          {/* Ref link — separate, shows short preview but copies full link */}
           <div style={{
-            flex: 1, display: "flex", alignItems: "center", gap: 6, padding: "7px 10px",
-            borderRadius: 14, background: "rgba(255,255,255,0.04)",
+            flex: 1, display: "flex", alignItems: "center", gap: 5, padding: "6px 9px",
+            borderRadius: 11, background: "rgba(255,255,255,0.04)",
             border: "1px solid rgba(255,255,255,0.10)", backdropFilter: "blur(14px)",
-            minWidth: 0,
+            minWidth: 0, height: 38,
           }}>
             <p style={{
-              color: "rgba(255,255,255,0.45)", fontSize: 9.5, flex: 1,
+              color: "rgba(255,255,255,0.40)", fontSize: 9, flex: 1,
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-              margin: 0, fontFamily: "monospace", direction: "ltr", textAlign: "left",
-              letterSpacing: 0,
+              margin: 0, fontFamily: "monospace", direction: "ltr",
             }}>
               {refLink
                 ? refLink.replace("https://t.me/", "t.me/").replace(/\?start=.*/, "?start=…")
-                : (loadFailed ? "⚠️ Connection error" : "Loading…")}
+                : (loadFailed ? "⚠️ Error" : "Loading…")}
             </p>
             <button
               onClick={handleCopy}
               disabled={!refLink}
               style={{
-                padding: "5px 10px", borderRadius: 8, border: "none",
+                padding: "4px 8px", borderRadius: 7, border: "none",
                 cursor: refLink ? "pointer" : "not-allowed",
                 background: copied ? "rgba(16,185,129,0.22)" : "rgba(255,255,255,0.10)",
                 flexShrink: 0, transition: "all 0.2s",
                 display: "flex", alignItems: "center", gap: 3,
-                color: copied ? "#34d399" : "rgba(255,255,255,0.70)",
-                fontSize: 10, fontWeight: 700, fontFamily: "inherit",
+                color: copied ? "#34d399" : "rgba(255,255,255,0.65)",
+                fontSize: 9.5, fontWeight: 700, fontFamily: "inherit",
                 opacity: refLink ? 1 : 0.5,
               }}
             >
-              {copied ? <><CheckCheck size={11} /> Copied</> : <><Copy size={11} /> Copy</>}
+              {copied ? <><CheckCheck size={10} /> Copied</> : <><Copy size={10} /> Copy</>}
             </button>
           </div>
         </div>
