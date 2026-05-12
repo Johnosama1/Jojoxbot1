@@ -1,0 +1,39 @@
+There is a serious database/persistence issue in the bot that must be fixed carefully without breaking anything else.
+Current problems:
+Referral invites are not being counted anymore.
+Invite rewards/statuses are not updating.
+Previously saved users/invite states disappeared.
+The leaderboard/reset system started from zero again after deploy/restart.
+Old saved data appears to have been lost, ignored, or replaced by fresh empty data.
+This likely means:
+The bot is using temporary/local memory storage instead of persistent database storage.
+Or the production database connection is failing and the app is silently creating new empty data.
+Or deploy/restart is overwriting the existing database/state.
+Required fixes:
+Fix database persistence completely:
+Ensure all bot data is stored permanently in a real persistent database.
+Prevent all user data from resetting after restart/redeploy.
+Verify production database credentials/environment variables load correctly.
+Stop the app from auto-creating a fresh empty database when connection fails.
+Add safe reconnect/error handling for database failures.
+Restore and fix referral tracking:
+Ensure invited users are correctly linked to inviters.
+Ensure invite counters increase correctly.
+Ensure reward statuses save permanently.
+Ensure invite history is not lost after restart.
+Prevent duplicate/missing referral records.
+Fix leaderboard persistence:
+Ensure leaderboard data saves correctly and survives redeploys/restarts.
+Prevent rankings from resetting to zero.
+Ensure balances/stats load from the real database only.
+Deployment/server stability:
+Verify the server uses the correct production database.
+Ensure all APIs/routes use the same persistent storage source.
+Prevent fallback to temporary storage or in-memory arrays.
+Ensure deployment does not overwrite saved production data.
+Important:
+Do NOT reset existing users again.
+Do NOT break Telegram commands, admin panel, withdrawals, tasks, spins, or frontend pages.
+Keep all existing systems and UI intact.
+Apply only the necessary fixes related to database persistence, referrals, and saved bot state.
+Ensure the bot works normally on the server after deployment without losing data again.

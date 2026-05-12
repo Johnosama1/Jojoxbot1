@@ -1,6 +1,6 @@
 {
   "version": 2,
   "installCommand": "pnpm install",
-  "buildCommand": "pnpm run build",
+  "buildCommand": "pnpm run vercel-build",
   "outputDirectory": "dist/public"
 }

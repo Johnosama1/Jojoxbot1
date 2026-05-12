@@ -43,7 +43,24 @@ async function runStartupMigrations() {
   try {
     await db.execute(sql`SELECT 1`); // warm-up
     console.log("[startup] DB connection OK");
+  } catch (e) {
+    console.error("[startup] CRITICAL: DB connection failed:", e instanceof Error ? e.message : e);
+    console.error("[startup] All user data operations will fail — check NEON_DATABASE_URL in Vercel env vars.");
+    return;
+  }
 
+  try {
+    // Verify critical tables exist (fast schema check)
+    await db.execute(sql`SELECT 1 FROM users LIMIT 0`);
+    console.log("[startup] Schema OK — users table exists");
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[startup] CRITICAL: 'users' table missing:", msg);
+    console.error("[startup] Schema was never pushed to Neon DB. Run: pnpm --filter @workspace/db run push");
+    return;
+  }
+
+  try {
     // Migrate wheel slots to v2 if still on old v1 seed
     const slots = await db.select().from(wheelSlotsTable);
     const amounts = slots.map((s: { amount: string }) => s.amount);
@@ -54,9 +71,11 @@ async function runStartupMigrations() {
       if (slots.length > 0) await db.delete(wheelSlotsTable);
       await db.insert(wheelSlotsTable).values(DEFAULT_SLOTS_V2);
       console.log("[startup] Wheel slots migrated to v2");
+    } else {
+      console.log(`[startup] Wheel slots OK — ${slots.length} slots found`);
     }
   } catch (e) {
-    console.warn("[startup] Migration skipped:", e instanceof Error ? e.message : e);
+    console.warn("[startup] Wheel slot migration skipped:", e instanceof Error ? e.message : e);
   }
 }
 
