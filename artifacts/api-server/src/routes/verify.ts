@@ -291,9 +291,9 @@ router.post("/verify-device", telegramAuth, async (req, res) => {
   const rawIp = normalizeIp(req.ip || req.socket.remoteAddress || "");
   const ipHash = rawIp ? hashIp(rawIp) : null;
 
-  // ── Weighted fingerprint similarity check (ban only if >= 90%) ───────
+  // ── Weighted fingerprint similarity check (ban if >= 70%) ────────────
   // Signals order: userAgent|||language|||screenRes|||timezone|||cores|||memory|||touch|||canvas
-  // Weights: canvas=50%, userAgent=30%, screenRes=10%, cores=5%, memory=5%
+  // Adaptive weights: canvas=50% if present, else weight redistributed to other signals
   function parseSignals(fp: string) {
     const p = fp.split("|||");
     return {
@@ -313,18 +313,24 @@ router.post("/verify-device", telegramAuth, async (req, res) => {
     const a = parseSignals(stored);
     const b = parseSignals(incoming);
 
-    // Canvas is the most discriminating signal (GPU-specific).
-    // Without it, remaining signals (userAgent, screenRes, cores) are too generic
-    // and would produce false positives for users with the same phone model/browser.
-    // So only run the check when BOTH fingerprints have canvas data.
-    if (!a.canvas || !b.canvas) return 0.0;
+    const hasCanvas = !!(a.canvas && b.canvas);
 
+    // Adaptive weights: redistribute canvas weight to other signals if unavailable
+    // With canvas:    canvas=50%, userAgent=30%, screenRes=10%, cores=5%, memory=5%
+    // Without canvas: userAgent=55%, screenRes=25%, cores=12%, memory=8%
     let score = 0;
-    if (a.canvas              === b.canvas)              score += 0.50;
-    if (a.userAgent           === b.userAgent)           score += 0.30;
-    if (a.screenRes           === b.screenRes)           score += 0.10;
-    if (a.hardwareConcurrency === b.hardwareConcurrency) score += 0.05;
-    if (a.deviceMemory        === b.deviceMemory)        score += 0.05;
+    if (hasCanvas) {
+      if (a.canvas              === b.canvas)              score += 0.50;
+      if (a.userAgent           === b.userAgent)           score += 0.30;
+      if (a.screenRes           === b.screenRes)           score += 0.10;
+      if (a.hardwareConcurrency === b.hardwareConcurrency) score += 0.05;
+      if (a.deviceMemory        === b.deviceMemory)        score += 0.05;
+    } else {
+      if (a.userAgent           === b.userAgent)           score += 0.55;
+      if (a.screenRes           === b.screenRes)           score += 0.25;
+      if (a.hardwareConcurrency === b.hardwareConcurrency) score += 0.12;
+      if (a.deviceMemory        === b.deviceMemory)        score += 0.08;
+    }
     return score;
   }
 
@@ -342,12 +348,15 @@ router.post("/verify-device", telegramAuth, async (req, res) => {
     )
     .limit(2000);
 
+  logger.info({ userId, incomingFp: deviceId.slice(0, 40), totalVerifiedUsers: verifiedUsers.length }, "fingerprint-check: starting comparison");
+
   let topMatch: { id: number; score: number } | null = null;
   for (const u of verifiedUsers) {
     if (!u.deviceId) continue;
     if (VERIFY_BYPASS_IDS.has(u.id)) continue;
     const score = fingerprintSimilarity(u.deviceId, deviceId);
-    if (score >= 0.90) {
+    if (score >= 0.70) {
+      logger.warn({ userId, matchedUser: u.id, score: Math.round(score * 100) }, "fingerprint-check: high similarity detected");
       if (!topMatch || score > topMatch.score) {
         topMatch = { id: u.id, score };
       }
@@ -355,11 +364,13 @@ router.post("/verify-device", telegramAuth, async (req, res) => {
   }
 
   if (topMatch) {
-    logger.warn({ userId, duplicateOf: topMatch.id, score: topMatch.score }, "Duplicate device blocked (similarity >= 90%)");
+    logger.warn({ userId, duplicateOf: topMatch.id, score: topMatch.score }, "Duplicate device blocked (similarity >= 70%)");
     await banForDuplicate(topMatch.id, `duplicate_device_${Math.round(topMatch.score * 100)}pct`);
     res.status(403).json({ error: "محظور", banned: true, reason: "duplicate_device" });
     return;
   }
+
+  logger.info({ userId }, "fingerprint-check: no duplicates found — user is clean");
 
   // ── All clear — mark user as verified ──────────────────────────────
   await db

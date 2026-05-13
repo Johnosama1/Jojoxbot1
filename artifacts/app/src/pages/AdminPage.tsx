@@ -98,6 +98,25 @@ export default function AdminPage() {
     }
   };
 
+  const handleResetVerification = async (userId: number) => {
+    if (!user || actionLoading) return;
+    setActionLoading(true);
+    try {
+      await api.adminResetVerification(user.id, userId);
+      flash("تم إعادة التحقق — سيُعاد فحص الجهاز في المرة القادمة ✅");
+      if (auditResult) {
+        setAuditResult(prev => prev ? {
+          ...prev,
+          stats: { ...prev.stats, isDeviceVerified: false },
+        } : null);
+      }
+    } catch {
+      flash("فشل إعادة التحقق", "err");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleBanUser = async (userId: number, banned: boolean) => {
     if (!user || actionLoading) return;
     setActionLoading(true);
@@ -677,6 +696,14 @@ export default function AdminPage() {
                                   {!auditResult.stats.isBanned && (
                                     <p className="text-purple-500 text-[10px] text-center">الحظر يمنع المستخدم من اللعب والسحب مستقبلاً</p>
                                   )}
+                                  <button
+                                    disabled={actionLoading}
+                                    onClick={() => handleResetVerification(auditResult.user.id)}
+                                    className="w-full py-2.5 rounded-xl text-sm font-black flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-50 bg-blue-900/50 border border-blue-700/50 text-blue-300 mt-1"
+                                  >
+                                    🔄 إعادة التحقق
+                                  </button>
+                                  <p className="text-blue-500/60 text-[10px] text-center">يُعيد فحص الجهاز — إذا كان متعدد الحسابات سيُحظر</p>
                                 </div>
                               )}
 
