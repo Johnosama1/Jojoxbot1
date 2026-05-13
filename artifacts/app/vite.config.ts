@@ -9,9 +9,6 @@ const port = rawPort ? Number(rawPort) : 3000;
 const basePath = process.env.BASE_PATH ?? "/";
 const isProduction = process.env.NODE_ENV === "production";
 const isReplit = process.env.REPL_ID !== undefined;
-// When Vercel builds ONLY the app (jojoxbot1-app project), output locally.
-// When building from monorepo root (jojoxbot1-api-server project), output to shared dist/public.
-const isVercelAppOnly = process.env.VERCEL === "1" && !process.env.VERCEL_MONOREPO_BUILD;
 
 export default defineConfig({
   base: basePath,
@@ -41,9 +38,7 @@ export default defineConfig({
   },
   root: path.resolve(import.meta.dirname),
   build: {
-    outDir: isVercelAppOnly
-      ? path.resolve(import.meta.dirname, "dist")
-      : path.resolve(import.meta.dirname, "..", "..", "dist", "public"),
+    outDir: path.resolve(import.meta.dirname, "..", "..", "dist", "public"),
     emptyOutDir: true,
     chunkSizeWarningLimit: 600,
     rollupOptions: {
