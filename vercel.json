@@ -4,6 +4,7 @@
   "buildCommand": "pnpm run vercel-build",
   "outputDirectory": "dist/public",
   "routes": [
+    { "src": "/api/(.*)", "dest": "/api/index.js" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
