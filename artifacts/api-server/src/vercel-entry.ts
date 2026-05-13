@@ -60,6 +60,17 @@ async function runStartupMigrations() {
     return;
   }
 
+  // ── Hide test accounts from leaderboard ────────────────────────────
+  try {
+    await db.execute(sql`
+      UPDATE users SET is_visible = false
+      WHERE id IN (123456789)
+        AND is_visible = true
+    `);
+  } catch (e) {
+    console.warn("[startup] test account cleanup skipped:", e instanceof Error ? e.message : e);
+  }
+
   // ── Backfill referral_count ─────────────────────────────────────────
   // referral_count should equal the number of users who joined via this user's link.
   // Historical accounts have referral_count=0 even though referred_by is set.
