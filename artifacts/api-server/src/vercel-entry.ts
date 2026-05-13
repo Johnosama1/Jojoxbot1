@@ -9,7 +9,7 @@ import app from "./app";
 import { initBotWebhook } from "./bot";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
-import { wheelSlotsTable } from "@workspace/db/schema";
+import { wheelSlotsTable, usersTable } from "@workspace/db/schema";
 
 // ── v2 wheel slots (matches wheel.ts DEFAULT_SLOTS_V2) ───────────────
 const DEFAULT_SLOTS_V2 = [
@@ -58,6 +58,32 @@ async function runStartupMigrations() {
     console.error("[startup] CRITICAL: 'users' table missing:", msg);
     console.error("[startup] Schema was never pushed to Neon DB. Run: pnpm --filter @workspace/db run push");
     return;
+  }
+
+  // ── Backfill referral_count ─────────────────────────────────────────
+  // referral_count should equal the number of users who joined via this user's link.
+  // Historical accounts have referral_count=0 even though referred_by is set.
+  try {
+    const result = await db.execute(sql`
+      WITH actual_counts AS (
+        SELECT referred_by AS referrer_id, COUNT(*) AS cnt
+        FROM users
+        WHERE referred_by IS NOT NULL
+        GROUP BY referred_by
+      )
+      UPDATE users u
+      SET referral_count = ac.cnt
+      FROM actual_counts ac
+      WHERE u.id = ac.referrer_id
+        AND u.referral_count != ac.cnt
+      RETURNING u.id, u.referral_count
+    `);
+    const rows = (result as unknown as { rows?: unknown[] }).rows ?? [];
+    if (rows.length > 0) {
+      console.log(`[startup] Backfilled referral_count for ${rows.length} user(s)`);
+    }
+  } catch (e) {
+    console.warn("[startup] referral_count backfill skipped:", e instanceof Error ? e.message : e);
   }
 
   try {

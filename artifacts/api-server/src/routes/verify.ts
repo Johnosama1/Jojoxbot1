@@ -374,49 +374,9 @@ router.post("/verify-device", telegramAuth, async (req, res) => {
 
   logger.info({ userId, ipHash }, "User verified successfully via mini-app");
 
-  // ── Award referral credit NOW (only for verified, non-duplicate accounts) ──
-  if (user.referredBy) {
-    try {
-      const { getSetting } = await import("../lib/settingsCache");
-      const rawThreshold = await getSetting("referral_threshold").catch(() => null);
-      const threshold = Math.max(1, parseInt(rawThreshold ?? "5") || 5);
-
-      // Atomic increment — avoids race condition if multiple verifications happen concurrently
-      const [updated] = await db
-        .update(usersTable)
-        .set({ referralCount: sql`referral_count + 1` })
-        .where(eq(usersTable.id, user.referredBy))
-        .returning({ id: usersTable.id, referralCount: usersTable.referralCount, isVisible: usersTable.isVisible });
-
-      if (updated && updated.isVisible !== false) {
-        const newCount = updated.referralCount;
-        const extraSpin = newCount % threshold === 0 ? 1 : 0;
-
-        if (extraSpin > 0) {
-          await db
-            .update(usersTable)
-            .set({ spins: sql`spins + 1` })
-            .where(eq(usersTable.id, user.referredBy));
-        }
-
-        logger.info({ referrerId: user.referredBy, newCount, threshold, extraSpin }, "Referral credited after successful verification");
-
-        if (extraSpin > 0) {
-          try {
-            const bot = getBot();
-            if (bot) {
-              await bot.sendMessage(
-                user.referredBy,
-                `🎉 Congrats! You've reached ${newCount} referrals — you earned a free spin!`
-              );
-            }
-          } catch { /* referrer may have blocked bot */ }
-        }
-      }
-    } catch (refErr) {
-      logger.error({ refErr, referrerId: user.referredBy }, "Referral credit failed after verification");
-    }
-  }
+  // NOTE: Referral credit is awarded in bot/index.ts when the referred user
+  // first starts the bot — NOT here. Awarding it here would cause double-counting
+  // (once on /start, once on device verification).
 
   // Send bot confirmation then welcome message
   try {
