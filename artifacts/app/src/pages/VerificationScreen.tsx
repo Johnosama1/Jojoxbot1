@@ -215,16 +215,16 @@ export default function VerificationScreen({ firstName, onVerified, onBanned }: 
             <TgEmoji id="6132089060933505983" fallback="🚫" size={72} />
           </div>
           <h2 className="vf-row-0" style={{ color: "#ef4444", fontSize: 20, fontWeight: 900, margin: "0 0 14px" }}>
-            Multiple accounts detected
+            تم كشف تعدد حسابات وتم حظر حسابك
           </h2>
           <div className="vf-row-1" style={{
             background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.2)",
-            borderRadius: 16, padding: "14px 16px", marginBottom: 18, textAlign: "left",
+            borderRadius: 16, padding: "14px 16px", marginBottom: 18, textAlign: "right",
           }}>
             {[
-              { id: "6127546183830212440", fb: "🛑", text: "This device is linked to another account." },
-              { id: "6132089060933505983", fb: "🚫", text: "This account has been automatically banned." },
-              { id: "5420323339723881652", fb: "⚠️", text: "One device = one account only." },
+              { id: "6127546183830212440", fb: "🛑", text: "هذا الجهاز مرتبط بحساب آخر." },
+              { id: "6132089060933505983", fb: "🚫", text: "تم حظر حسابك تلقائياً." },
+              { id: "5420323339723881652", fb: "⚠️", text: "جهاز واحد = حساب واحد فقط." },
             ].map(({ id, fb, text }, i) => (
               <div key={id} className={`vf-row-${i + 2}`} style={{
                 display: "flex", alignItems: "center", gap: 10,

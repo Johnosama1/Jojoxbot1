@@ -47,10 +47,10 @@ function SecurityOverlay({ state }: { state: "checking" | "banned" }) {
           borderRadius: 22, padding: "28px 24px", maxWidth: 320,
         }}>
           <h2 style={{ color: "#f87171", fontWeight: 900, fontSize: 20, margin: "0 0 14px" }}>
-            نظام الأمان
+            تم كشف تعدد حسابات وتم حظر حسابك
           </h2>
           <p style={{ color: "rgba(255,255,255,0.62)", fontSize: 14, lineHeight: 1.8, margin: 0 }}>
-            تم اكتشاف تعدد حسابات،<br />لا يمكنك الدخول.
+            هذا الجهاز مرتبط بحساب آخر.<br />لا يمكنك الوصول إلى هذا التطبيق.
           </p>
         </div>
       </div>

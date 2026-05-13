@@ -280,7 +280,7 @@ router.post("/verify-device", telegramAuth, async (req, res) => {
       if (bot) {
         const { text: banText, entities: banEntities } = buildMsg([
           { text: "🚫", emojiId: "6132089060933505983" },
-          { text: " تم حظر حسابك بسبب اكتشاف تعدد حسابات من نفس الجهاز/الشبكة." },
+          { text: " تم كشف تعدد حسابات وتم حظر حسابك." },
         ]);
         await bot.sendMessage(userId!, banText, { entities: banEntities });
       }
