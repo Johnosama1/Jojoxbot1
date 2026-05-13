@@ -27,6 +27,12 @@ router.post("/webhook", async (req, res) => {
     const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
     const webhookUrl =
       process.env.BOT_WEBHOOK_URL ||
+      (process.env.VERCEL_PROJECT_PRODUCTION_URL
+        ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}/api/webhook`
+        : null) ||
+      (process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}/api/webhook`
+        : null) ||
       (replitDomain ? `https://${replitDomain}/api/webhook` : null);
     logger.warn({ webhookUrl }, "Bot not initialized at request time — lazy init");
     if (webhookUrl) initBotWebhook(webhookUrl);

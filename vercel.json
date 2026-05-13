@@ -2,5 +2,9 @@
   "version": 2,
   "installCommand": "pnpm install",
   "buildCommand": "pnpm run vercel-build",
-  "outputDirectory": "dist/public"
+  "outputDirectory": "dist/public",
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
 }
