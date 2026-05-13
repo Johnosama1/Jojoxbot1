@@ -291,13 +291,28 @@ router.post("/verify-device", telegramAuth, async (req, res) => {
   const rawIp = normalizeIp(req.ip || req.socket.remoteAddress || "");
   const ipHash = rawIp ? hashIp(rawIp) : null;
 
+  // ── Extract stable device identifier from userAgent ──────────────────
+  // Telegram Android:  "...Telegram-Android/12.7.2 (Vivo V2543; Android 16; SDK 36; HIGH)"
+  //                    → extract "Vivo V2543; Android 16; SDK 36; HIGH" (version-independent)
+  // iOS WebApp:        "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X)..."
+  //                    → extract "iPhone; CPU iPhone OS 18_7 like Mac OS X"
+  // Generic:           fall back to raw userAgent
+  function extractDeviceModel(ua: string): string {
+    const tgMatch = ua.match(/Telegram-(?:Android|iOS)\/[\d.]+\s+\(([^)]+)\)/);
+    if (tgMatch) return tgMatch[1];
+    const firstParen = ua.match(/\(([^)]+)\)/);
+    if (firstParen) return firstParen[1];
+    return ua;
+  }
+
   // ── Weighted fingerprint similarity check (ban if >= 70%) ────────────
   // Signals order: userAgent|||language|||screenRes|||timezone|||cores|||memory|||touch|||canvas
+  // deviceModel (Telegram-version-stripped) replaces raw userAgent in comparison
   // Adaptive weights: canvas=50% if present, else weight redistributed to other signals
   function parseSignals(fp: string) {
     const p = fp.split("|||");
     return {
-      userAgent:           p[0] || "",
+      deviceModel:         extractDeviceModel(p[0] || ""),
       screenRes:           p[2] || "",
       hardwareConcurrency: p[4] || "",
       deviceMemory:        p[5] || "",
@@ -316,17 +331,18 @@ router.post("/verify-device", telegramAuth, async (req, res) => {
     const hasCanvas = !!(a.canvas && b.canvas);
 
     // Adaptive weights: redistribute canvas weight to other signals if unavailable
-    // With canvas:    canvas=50%, userAgent=30%, screenRes=10%, cores=5%, memory=5%
-    // Without canvas: userAgent=55%, screenRes=25%, cores=12%, memory=8%
+    // With canvas:    canvas=50%, deviceModel=30%, screenRes=10%, cores=5%, memory=5%
+    // Without canvas: deviceModel=55%, screenRes=25%, cores=12%, memory=8%
+    // KEY FIX: compare device MODEL not full userAgent, so Telegram version changes don't break detection
     let score = 0;
     if (hasCanvas) {
       if (a.canvas              === b.canvas)              score += 0.50;
-      if (a.userAgent           === b.userAgent)           score += 0.30;
+      if (a.deviceModel         === b.deviceModel)         score += 0.30;
       if (a.screenRes           === b.screenRes)           score += 0.10;
       if (a.hardwareConcurrency === b.hardwareConcurrency) score += 0.05;
       if (a.deviceMemory        === b.deviceMemory)        score += 0.05;
     } else {
-      if (a.userAgent           === b.userAgent)           score += 0.55;
+      if (a.deviceModel         === b.deviceModel)         score += 0.55;
       if (a.screenRes           === b.screenRes)           score += 0.25;
       if (a.hardwareConcurrency === b.hardwareConcurrency) score += 0.12;
       if (a.deviceMemory        === b.deviceMemory)        score += 0.08;
@@ -368,6 +384,31 @@ router.post("/verify-device", telegramAuth, async (req, res) => {
     await banForDuplicate(topMatch.id, `duplicate_device_${Math.round(topMatch.score * 100)}pct`);
     res.status(403).json({ error: "محظور", banned: true, reason: "duplicate_device" });
     return;
+  }
+
+  // ── Referral burst detection — bot farming via same referrer ─────────
+  // If this user was referred AND 4+ other accounts from the same referrer
+  // already verified within the last 24 h → block as farm account
+  if (user.referredBy && !VERIFY_BYPASS_IDS.has(user.referredBy)) {
+    const [burstRow] = await db
+      .select({ cnt: sql<number>`count(*)::int` })
+      .from(usersTable)
+      .where(
+        and(
+          eq(usersTable.referredBy, user.referredBy),
+          ne(usersTable.id, userId),
+          eq(usersTable.isVisible, true),
+          sql`${usersTable.ipVerifiedAt} > NOW() - INTERVAL '24 hours'`,
+        )
+      );
+    const burstCount = Number(burstRow?.cnt ?? 0);
+    logger.info({ userId, referredBy: user.referredBy, burstCount }, "referral-burst-check");
+    if (burstCount >= 4) {
+      logger.warn({ userId, referredBy: user.referredBy, burstCount }, "Referral burst detected — bot farm blocked");
+      await banForDuplicate(user.referredBy, `referral_burst_${burstCount}`);
+      res.status(403).json({ error: "محظور", banned: true, reason: "referral_burst" });
+      return;
+    }
   }
 
   logger.info({ userId }, "fingerprint-check: no duplicates found — user is clean");
