@@ -2,7 +2,7 @@
   "version": 2,
   "installCommand": "pnpm install",
   "buildCommand": "pnpm run vercel-build",
-  "outputDirectory": "dist/public",
+  "outputDirectory": "artifacts/app/dist",
   "routes": [
     { "src": "/api/(.*)", "dest": "/api/index.js" },
     { "handle": "filesystem" },
