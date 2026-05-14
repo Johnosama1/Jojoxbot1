@@ -205,12 +205,15 @@ export async function sendWelcomeMessage(chatId: number, userId: number, firstNa
   const toKeycap = (n: number) => String(n).split("").map(d => `${d}\uFE0F\u20E3`).join("");
   const E = (id: string, emoji: string) => `<tg-emoji emoji-id="${id}">${emoji}</tg-emoji>`;
 
+  const thresh = (n: number) =>
+    n === 5 ? E("6203785577070858514", "5️⃣") : toKeycap(n);
+
   const welcomeHtml =
     `${E("5319007286004299794", "👋")} Welcome to Jo-jokes, ${esc(firstName)}!\n\n` +
     `${E("6129832240303051599", "😀")} The fastest USDT earning bot!\n\n` +
     `${E("6131673419768403090", "✨")} How to earn${E("5436113877181941026", "❓")}\n\n` +
-    `✅ Complete tasks ${E("5215229232476596064", "➡️")} 1 spin per ${toKeycap(taskThresh)} tasks\n\n` +
-    `👥 Invite friends ${E("5215229232476596064", "➡️")} 1 free spin per ${toKeycap(refThresh)} friends\n\n` +
+    `${E("6203840986443944067", "✅")} Complete tasks ${E("5215229232476596064", "➡️")} 1 spin per ${thresh(taskThresh)} tasks\n\n` +
+    `${E("6204118338252049831", "👥")} Invite friends ${E("5215229232476596064", "➡️")} 1 free spin per ${thresh(refThresh)} friends\n\n` +
     `${E("5104986024807760966", "🎰")} Spin the wheel ${E("5215229232476596064", "➡️")} win 0.1 to 10 USDT!`;
 
   await bot.sendMessage(chatId, welcomeHtml, {
