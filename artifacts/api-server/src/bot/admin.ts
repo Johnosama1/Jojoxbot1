@@ -12,6 +12,7 @@ import { eq, desc, sql, count, ilike } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { isBotEnabled, setBotEnabled, clearBotEnabledCache } from "./control";
 import { clearAllSubCache } from "./subscription";
+import { invalidateSetting } from "../lib/settingsCache";
 
 export const OWNER_USERNAME = (process.env.OWNER_USERNAME || "J_O_H_N8").replace(/^@/, "");
 
@@ -420,9 +421,18 @@ async function showWithdrawalsMenu(bot: TelegramBot, chatId: number, messageId?:
 // ─────────────────────────── SETTINGS ───────────────────────────
 
 async function showSettingsMenu(bot: TelegramBot, chatId: number, messageId?: number) {
-  const mode = (await getSetting("withdraw_mode")) || "manual";
-  const modeLabel = mode === "auto" ? "🟢 تلقائي" : "🔴 يدوي";
-  const chRaw = await getSetting("required_channels");
+  const [mode, chRaw, rawRef, rawTask, rawMin] = await Promise.all([
+    getSetting("withdraw_mode"),
+    getSetting("required_channels"),
+    getSetting("referral_threshold"),
+    getSetting("task_threshold"),
+    getSetting("min_withdrawal"),
+  ]);
+  const modeLabel = (mode || "manual") === "auto" ? "🟢 تلقائي" : "🔴 يدوي";
+  const refThresh  = parseInt(rawRef ?? "5") || 5;
+  const taskThresh = parseInt(rawTask ?? "5") || 5;
+  const minWd      = parseFloat(rawMin ?? "0.1") || 0.1;
+
   let chList = "لا توجد قنوات مطلوبة";
   if (chRaw) {
     try {
@@ -430,15 +440,23 @@ async function showSettingsMenu(bot: TelegramBot, chatId: number, messageId?: nu
       chList = chs.length === 0 ? "لا توجد قنوات مطلوبة" : chs.map((c, i) => `${i + 1}. ${esc(c.title || `@${c.username}`)}`).join("\n");
     } catch { /* ignore */ }
   }
+
   const text =
     `⚙️ <b>إعدادات البوت</b>\n\n` +
     `وضع السحب الحالي: ${modeLabel}\n\n` +
     `<b>يدوي</b> ← المالك يوافق يدوياً على كل طلب.\n` +
     `<b>تلقائي</b> ← موافقة وتحويل تلقائي.\n\n` +
+    `👥 <b>إحالات للدورة المجانية:</b> ${refThresh}\n` +
+    `📋 <b>مهام للدورة المجانية:</b> ${taskThresh}\n` +
+    `💸 <b>الحد الأدنى للسحب:</b> ${minWd.toFixed(2)} TON\n\n` +
     `🔒 <b>القنوات المطلوبة للاشتراك:</b>\n${chList}`;
+
   const keyboard: TelegramBot.InlineKeyboardMarkup = {
     inline_keyboard: [
       [{ text: "🔴 يدوي", callback_data: "adm:set:mode:manual" }, { text: "🟢 تلقائي", callback_data: "adm:set:mode:auto" }],
+      [{ text: `✏️ إحالات للدورة: ${refThresh}`, callback_data: "adm:set:ref_thresh" }],
+      [{ text: `✏️ مهام للدورة: ${taskThresh}`, callback_data: "adm:set:task_thresh" }],
+      [{ text: `✏️ حد السحب: ${minWd.toFixed(2)} TON`, callback_data: "adm:set:min_wd" }],
       [{ text: "🔒 إدارة القنوات المطلوبة", callback_data: "adm:set:channels" }],
       [{ text: "◀️ رجوع", callback_data: "adm:main" }],
     ],
@@ -868,6 +886,25 @@ export async function handleAdminCallback(
       if (!info.isOwner) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; }
       if (act === "mode" && p1) { await setSetting("withdraw_mode", p1); await showSettingsMenu(bot, chatId, msgId); return true; }
 
+      if (act === "ref_thresh") {
+        const cur = parseInt((await getSetting("referral_threshold")) ?? "5") || 5;
+        adminConvState.set(userId, { step: "set_ref_threshold", data: { chatId, msgId } });
+        await bot.sendMessage(chatId, `👥 <b>عدد الإحالات للدورة المجانية</b>\n\nالقيمة الحالية: <b>${cur}</b>\n\nأدخل القيمة الجديدة (رقم بين 1 و100):\n\n/cancel للإلغاء`, { parse_mode: "HTML" });
+        return true;
+      }
+      if (act === "task_thresh") {
+        const cur = parseInt((await getSetting("task_threshold")) ?? "5") || 5;
+        adminConvState.set(userId, { step: "set_task_threshold", data: { chatId, msgId } });
+        await bot.sendMessage(chatId, `📋 <b>عدد المهام للدورة المجانية</b>\n\nالقيمة الحالية: <b>${cur}</b>\n\nأدخل القيمة الجديدة (رقم بين 1 و100):\n\n/cancel للإلغاء`, { parse_mode: "HTML" });
+        return true;
+      }
+      if (act === "min_wd") {
+        const cur = parseFloat((await getSetting("min_withdrawal")) ?? "0.1") || 0.1;
+        adminConvState.set(userId, { step: "set_min_withdrawal", data: { chatId, msgId } });
+        await bot.sendMessage(chatId, `💸 <b>الحد الأدنى للسحب (TON)</b>\n\nالقيمة الحالية: <b>${cur.toFixed(2)} TON</b>\n\nأدخل القيمة الجديدة (مثال: 0.5):\n\n/cancel للإلغاء`, { parse_mode: "HTML" });
+        return true;
+      }
+
       if (act === "channels") { await showRequiredChannelsMenu(bot, chatId, msgId); return true; }
 
       if (act === "ch") {
@@ -1226,6 +1263,48 @@ export async function handleAdminText(bot: TelegramBot, msg: TelegramBot.Message
       );
       const tmp = await send("جاري التحميل...");
       await showRequiredChannelsMenu(bot, chatId, tmp.message_id);
+      return true;
+    }
+
+    // ── Settings: referral threshold ──
+    if (state.step === "set_ref_threshold") {
+      if (text === "/cancel") { clearState(); await bot.sendMessage(chatId, "❌ تم الإلغاء"); return true; }
+      const val = parseInt(text);
+      if (isNaN(val) || val < 1 || val > 100) { await send("❌ أدخل رقماً صحيحاً بين 1 و100"); return true; }
+      clearState();
+      await setSetting("referral_threshold", String(val));
+      invalidateSetting("referral_threshold");
+      await send(`✅ تم تحديث عدد الإحالات للدورة المجانية إلى <b>${val}</b>`, { parse_mode: "HTML" });
+      const { chatId: origChat, msgId: origMsg } = state.data as { chatId: number; msgId: number };
+      await showSettingsMenu(bot, origChat, origMsg);
+      return true;
+    }
+
+    // ── Settings: task threshold ──
+    if (state.step === "set_task_threshold") {
+      if (text === "/cancel") { clearState(); await bot.sendMessage(chatId, "❌ تم الإلغاء"); return true; }
+      const val = parseInt(text);
+      if (isNaN(val) || val < 1 || val > 100) { await send("❌ أدخل رقماً صحيحاً بين 1 و100"); return true; }
+      clearState();
+      await setSetting("task_threshold", String(val));
+      invalidateSetting("task_threshold");
+      await send(`✅ تم تحديث عدد المهام للدورة المجانية إلى <b>${val}</b>`, { parse_mode: "HTML" });
+      const { chatId: origChat, msgId: origMsg } = state.data as { chatId: number; msgId: number };
+      await showSettingsMenu(bot, origChat, origMsg);
+      return true;
+    }
+
+    // ── Settings: min withdrawal ──
+    if (state.step === "set_min_withdrawal") {
+      if (text === "/cancel") { clearState(); await bot.sendMessage(chatId, "❌ تم الإلغاء"); return true; }
+      const val = parseFloat(text);
+      if (isNaN(val) || val < 0.01 || val > 10000) { await send("❌ أدخل رقماً صحيحاً (0.01 أو أكبر)"); return true; }
+      clearState();
+      await setSetting("min_withdrawal", val.toFixed(4));
+      invalidateSetting("min_withdrawal");
+      await send(`✅ تم تحديث الحد الأدنى للسحب إلى <b>${val.toFixed(2)} TON</b>`, { parse_mode: "HTML" });
+      const { chatId: origChat, msgId: origMsg } = state.data as { chatId: number; msgId: number };
+      await showSettingsMenu(bot, origChat, origMsg);
       return true;
     }
 
