@@ -89,6 +89,9 @@ async function runStartupMigrations() {
     await db.execute(sql`
       CREATE INDEX IF NOT EXISTS referrals_referrer_id_idx ON referrals(referrer_id)
     `);
+    // Add new columns if they don't exist yet
+    await db.execute(sql`ALTER TABLE referrals ADD COLUMN IF NOT EXISTS warned_at TIMESTAMP`);
+    await db.execute(sql`ALTER TABLE referrals ADD COLUMN IF NOT EXISTS warn_msg_id INTEGER`);
     console.log("[startup] referrals table OK");
   } catch (e) {
     console.warn("[startup] referrals table migration skipped:", e instanceof Error ? e.message : e);

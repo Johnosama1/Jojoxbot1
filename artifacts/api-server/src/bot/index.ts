@@ -26,7 +26,9 @@ import {
   handleSubRecheckCallback,
   clearAllSubCache,
   clearSubCache,
+  getMissingChannels,
 } from "./subscription";
+import { startReferralMonitor } from "./referralMonitor";
 import { isBotEnabled, clearBotEnabledCache, setBotEnabled } from "./control";
 
 const TOKEN =
@@ -116,6 +118,214 @@ export function buildMsg(parts: MsgPart[]): { text: string; entities: TelegramBo
 // ── HTML escape helper ─────────────────────────────────────────────────────
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// ── Referral callback handler ──────────────────────────────────────────────
+async function handleReferralCallback(
+  bot: TelegramBot,
+  q: TelegramBot.CallbackQuery,
+): Promise<boolean> {
+  const data = q.data ?? "";
+  if (!data.startsWith("ref:")) return false;
+
+  const parts = data.split(":");
+  const action = parts[1];
+  const p1 = parts[2];
+  const p2 = parts[3];
+
+  const callerId = q.from.id;
+  const chatId = q.message!.chat.id;
+  const msgId = q.message!.message_id;
+
+  await bot.answerCallbackQuery(q.id).catch(() => {});
+
+  // ── ref:warn:{referredId} — inviter sends warning to referred user ─────────
+  if (action === "warn") {
+    const referredId = parseInt(p1);
+    if (isNaN(referredId)) return true;
+
+    const missing = await getMissingChannels(bot, referredId).catch(() => []);
+    if (missing.length === 0) {
+      try {
+        await bot.editMessageText(
+          "✅ المستخدم عاد للاشتراك في القنوات. لا يوجد ما يلزم.",
+          { chat_id: chatId, message_id: msgId, parse_mode: "HTML", reply_markup: { inline_keyboard: [] } }
+        );
+      } catch {
+        await bot.sendMessage(chatId, "✅ المستخدم عاد للاشتراك في القنوات.", { parse_mode: "HTML" });
+      }
+      return true;
+    }
+
+    const channelNames = missing.map(c => c.title || c.username).join("، ");
+    try {
+      await bot.sendMessage(
+        referredId,
+        `⚠️ لقد غادرت قناة <b>${esc(channelNames)}</b>. يجب العودة للاشتراك للحفاظ على إحالتك. اضغط تحقق بعد الانضمام.`,
+        {
+          parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [
+              ...missing.map(ch => ([{
+                text: `📢 ${ch.title || `@${ch.username}`}`,
+                url: ch.inviteLink || `https://t.me/${ch.username.replace(/^@/, "")}`,
+              }])),
+              [{ text: "✅ تحققت من الاشتراك", callback_data: `ref:check:${callerId}:${referredId}` }],
+            ],
+          },
+        }
+      );
+
+      await db.update(referralsTable)
+        .set({ warnedAt: new Date() })
+        .where(and(
+          eq(referralsTable.referredId, referredId),
+          eq(referralsTable.referrerId, callerId),
+          eq(referralsTable.status, "active"),
+        ));
+
+      try {
+        await bot.editMessageText(
+          `✅ تم إرسال التنبيه للمستخدم. يجب عليه الاشتراك في: <b>${esc(channelNames)}</b>`,
+          { chat_id: chatId, message_id: msgId, parse_mode: "HTML", reply_markup: { inline_keyboard: [] } }
+        );
+      } catch {
+        await bot.sendMessage(chatId, "✅ تم إرسال التنبيه للمستخدم.", { parse_mode: "HTML" });
+      }
+    } catch {
+      await bot.sendMessage(chatId, "⚠️ تعذر إرسال التنبيه — المستخدم ربما حظر البوت.", { parse_mode: "HTML" });
+    }
+    return true;
+  }
+
+  // ── ref:check:{referrerId}:{referredId} — referred user verifying they rejoined ──
+  if (action === "check") {
+    const referrerId = parseInt(p1);
+    const referredId = parseInt(p2);
+    if (isNaN(referrerId) || isNaN(referredId) || callerId !== referredId) {
+      await bot.sendMessage(chatId, "⚠️ هذا الزر ليس لك.", { parse_mode: "HTML" });
+      return true;
+    }
+
+    const missing = await getMissingChannels(bot, referredId).catch(() => null);
+    if (missing === null) {
+      await bot.sendMessage(chatId, "⚠️ تعذر التحقق، حاول مرة أخرى.", { parse_mode: "HTML" });
+      return true;
+    }
+
+    if (missing.length > 0) {
+      await bot.sendMessage(
+        chatId,
+        `❌ لم تنضم بعد إلى: <b>${esc(missing.map(c => c.title || c.username).join("، "))}</b>`,
+        { parse_mode: "HTML" }
+      );
+      return true;
+    }
+
+    await db.update(usersTable).set({ isBlockedForLeaving: false }).where(eq(usersTable.id, referredId));
+
+    try {
+      await bot.editMessageText(
+        "✅ شكراً! تم التحقق من اشتراكك. إحالتك محفوظة.",
+        { chat_id: chatId, message_id: msgId, parse_mode: "HTML", reply_markup: { inline_keyboard: [] } }
+      );
+    } catch {
+      await bot.sendMessage(chatId, "✅ شكراً! تم التحقق من اشتراكك.", { parse_mode: "HTML" });
+    }
+
+    try {
+      const [u] = await db
+        .select({ firstName: usersTable.firstName, username: usersTable.username })
+        .from(usersTable).where(eq(usersTable.id, referredId)).limit(1);
+      const name = u?.username ? `@${esc(u.username)}` : esc(u?.firstName || String(referredId));
+      await bot.sendMessage(referrerId, `✅ المستخدم <b>${name}</b> عاد للاشتراك — إحالته محفوظة.`, { parse_mode: "HTML" });
+    } catch { /* referrer may have blocked bot */ }
+
+    return true;
+  }
+
+  // ── ref:deduct:{referredId} — inviter manually deducts the referral ──────
+  if (action === "deduct") {
+    const referredId = parseInt(p1);
+    if (isNaN(referredId)) return true;
+
+    const [ref] = await db
+      .select()
+      .from(referralsTable)
+      .where(and(
+        eq(referralsTable.referredId, referredId),
+        eq(referralsTable.referrerId, callerId),
+        eq(referralsTable.status, "active"),
+      ))
+      .limit(1);
+
+    if (!ref) {
+      try {
+        await bot.editMessageText("ℹ️ تم خصم هذه الإحالة مسبقاً.", { chat_id: chatId, message_id: msgId, reply_markup: { inline_keyboard: [] } });
+      } catch {
+        await bot.sendMessage(chatId, "ℹ️ تم خصم هذه الإحالة مسبقاً.");
+      }
+      return true;
+    }
+
+    const [referrer] = await db
+      .select({ referralCount: usersTable.referralCount, balance: usersTable.balance })
+      .from(usersTable).where(eq(usersTable.id, callerId)).limit(1);
+    if (!referrer) return true;
+
+    const rawThreshold = await getSetting("referral_threshold").catch(() => null);
+    const refsPerSpin = Math.max(1, parseInt(rawThreshold ?? "5") || 5);
+    const currentCount = referrer.referralCount;
+    const currentBalance = parseFloat(String(referrer.balance ?? "0"));
+
+    const spinsBeforeDeduct = Math.floor(currentCount / refsPerSpin);
+    const spinsAfterDeduct = Math.floor(Math.max(0, currentCount - 1) / refsPerSpin);
+    const spinsLost = spinsBeforeDeduct - spinsAfterDeduct;
+
+    let deductAmount = 0;
+    if (spinsLost > 0 && currentBalance > 0 && spinsBeforeDeduct > 0) {
+      deductAmount = parseFloat((currentBalance / spinsBeforeDeduct).toFixed(6));
+      deductAmount = Math.min(deductAmount, currentBalance);
+    }
+
+    const newCount = Math.max(0, currentCount - 1);
+    const newBalance = parseFloat(Math.max(0, currentBalance - deductAmount).toFixed(6));
+
+    if (spinsLost > 0) {
+      await db.update(usersTable)
+        .set({ referralCount: newCount, balance: String(newBalance), spins: sql`GREATEST(spins - 1, 0)` })
+        .where(eq(usersTable.id, callerId));
+    } else {
+      await db.update(usersTable)
+        .set({ referralCount: newCount, balance: String(newBalance) })
+        .where(eq(usersTable.id, callerId));
+    }
+
+    await db.update(referralsTable)
+      .set({ status: "removed", removedAt: new Date() })
+      .where(eq(referralsTable.id, ref.id));
+
+    await db.update(usersTable)
+      .set({ isBlockedForLeaving: true })
+      .where(eq(usersTable.id, referredId));
+
+    const confirmText =
+      `✅ <b>تم الخصم:</b>\n\n` +
+      `• الإحالات: <b>${newCount}</b>\n` +
+      `• الرصيد المخصوم: <b>${deductAmount.toFixed(6)} TON</b>\n` +
+      `• الرصيد الحالي: <b>${newBalance.toFixed(6)} TON</b>`;
+
+    try {
+      await bot.editMessageText(confirmText, { chat_id: chatId, message_id: msgId, parse_mode: "HTML", reply_markup: { inline_keyboard: [] } });
+    } catch {
+      await bot.sendMessage(chatId, confirmText, { parse_mode: "HTML" });
+    }
+
+    logger.info({ callerId, referredId, deductAmount, newCount }, "Referral deducted by inviter");
+    return true;
+  }
+
+  return false;
+}
 
 // ── Withdrawal notification ────────────────────────────────────────────────
 
@@ -596,13 +806,18 @@ function setupBotHandlers() {
         return;
       }
 
-      // 6. Subscription check for non-admin callbacks
+      // 6. Referral callbacks (ref:* prefix) — available to all users
+      if (data.startsWith("ref:")) {
+        if (await handleReferralCallback(bot, q)) return;
+      }
+
+      // 7. Subscription check for non-admin callbacks
       if (!adminInfo) {
         const blocked = await enforceSubscription(bot, chatId, userId, q.id);
         if (blocked) return;
       }
 
-      // 7. Fallback — answer to remove loading state
+      // 8. Fallback — answer to remove loading state
       await bot.answerCallbackQuery(q.id).catch(() => {});
     } catch (err) {
       logger.error({ err, data, userId }, "callback_query handler error");
@@ -648,22 +863,28 @@ function setupBotHandlers() {
     }
   }));
 
-  // ── Anti-Cheat: chat_member handler — deduct referral when user leaves ────
+  // ── Anti-Cheat: chat_member handler — notify referrer when user leaves ────
   bot.on("chat_member", wrapHandler(async (update) => {
     try {
-      const newStatus = (update as unknown as { new_chat_member: { status: string; user: { id: number } } }).new_chat_member;
-      if (!newStatus) return;
+      const raw = update as unknown as {
+        chat: { id: number; title?: string; username?: string };
+        new_chat_member: { status: string; user: { id: number } };
+      };
+      const newMember = raw.new_chat_member;
+      if (!newMember) return;
 
-      const { status, user } = newStatus;
-
-      // Only act when user left or was kicked
+      const { status, user } = newMember;
       if (status !== "left" && status !== "kicked") return;
 
       const userId = user.id;
+      const channelName = raw.chat.title || raw.chat.username || "القناة";
 
-      // Find the referrer of this user
       const [userData] = await db
-        .select({ referredBy: usersTable.referredBy })
+        .select({
+          referredBy: usersTable.referredBy,
+          firstName: usersTable.firstName,
+          username: usersTable.username,
+        })
         .from(usersTable)
         .where(eq(usersTable.id, userId))
         .limit(1);
@@ -671,9 +892,8 @@ function setupBotHandlers() {
       if (!userData?.referredBy) return;
       const referrerId = userData.referredBy;
 
-      // Find active referral record for this pair
       const [activeRef] = await db
-        .select({ id: referralsTable.id })
+        .select({ id: referralsTable.id, warnedAt: referralsTable.warnedAt })
         .from(referralsTable)
         .where(and(
           eq(referralsTable.referredId, userId),
@@ -684,28 +904,36 @@ function setupBotHandlers() {
 
       if (!activeRef) return;
 
-      // Mark referral as removed
-      await db
-        .update(referralsTable)
-        .set({ status: "removed", removedAt: new Date() })
-        .where(eq(referralsTable.id, activeRef.id));
+      // Cooldown: skip if warned in the last 23 hours
+      const WARN_COOLDOWN_MS = 23 * 3_600_000;
+      if (activeRef.warnedAt && Date.now() - activeRef.warnedAt.getTime() < WARN_COOLDOWN_MS) return;
 
-      // Deduct from referrer's count (minimum 0)
-      await db
-        .update(usersTable)
-        .set({ referralCount: sql`GREATEST(referral_count - 1, 0)` })
-        .where(eq(usersTable.id, referrerId));
+      const userDisplay = userData.username
+        ? `@${esc(userData.username)}`
+        : esc(userData.firstName || String(userId));
 
-      logger.info({ userId, referrerId }, "Anti-cheat: referral removed — user left channel");
+      // Mark user as blocked and update warnedAt
+      await db.update(usersTable).set({ isBlockedForLeaving: true }).where(eq(usersTable.id, userId));
+      await db.update(referralsTable).set({ warnedAt: new Date() }).where(eq(referralsTable.id, activeRef.id));
 
-      // Notify referrer
+      // Notify referrer with action buttons
       try {
         await bot.sendMessage(
           referrerId,
-          `⚠️ <b>تم خصم إحالة من رصيدك!</b>\nالمستخدم خرج من القنوات المطلوبة`,
-          { parse_mode: "HTML" }
+          `⚠️ <b>تنبيه!</b>\nالمستخدم <b>${userDisplay}</b> غادر القناة: <b>${esc(channelName)}</b>`,
+          {
+            parse_mode: "HTML",
+            reply_markup: {
+              inline_keyboard: [[
+                { text: "📤 إرسال تنبيه للشخص", callback_data: `ref:warn:${userId}` },
+                { text: "❌ خصم الإحالة", callback_data: `ref:deduct:${userId}` },
+              ]],
+            },
+          }
         );
       } catch { /* referrer may have blocked the bot */ }
+
+      logger.info({ userId, referrerId, channelName }, "Anti-cheat: leave detected, referrer notified");
     } catch (err) {
       logger.error({ err }, "chat_member anti-cheat handler error");
     }
