@@ -195,6 +195,13 @@ export async function sendWelcomeMessage(chatId: number, userId: number, firstNa
     (replitDomain ? `https://${replitDomain}` : "") ||
     (vercelDomain ? `https://${vercelDomain}` : "");
 
+  const [rawRefThresh, rawTaskThresh] = await Promise.all([
+    getSetting("referral_threshold").catch(() => null),
+    getSetting("task_threshold").catch(() => null),
+  ]);
+  const refThresh  = Math.max(1, parseInt(rawRefThresh  ?? "5") || 5);
+  const taskThresh = Math.max(1, parseInt(rawTaskThresh ?? "5") || 5);
+
   const { text: welcomeText, entities: welcomeEntities } = buildMsg([
     { text: "👋", emojiId: "5319007286004299794" },
     { text: ` Welcome to Jo-jokes, ${firstName}!\n\n` },
@@ -205,17 +212,9 @@ export async function sendWelcomeMessage(chatId: number, userId: number, firstNa
     { text: "❓", emojiId: "5436113877181941026" },
     { text: "\n\n" },
     { text: "✅", emojiId: "6203840986443944067" },
-    { text: " Complete tasks " },
-    { text: "⬅️", emojiId: "6131729520631223468" },
-    { text: " 1 spin per " },
-    { text: "5️⃣", emojiId: "6203785577070858514" },
-    { text: " tasks\n\n" },
+    { text: ` Complete tasks ⬅️ 1 spin per ${taskThresh} tasks\n\n` },
     { text: "👥", emojiId: "6204118338252049831" },
-    { text: " Invite friends " },
-    { text: "⬅️", emojiId: "6131729520631223468" },
-    { text: " 1 free spin per " },
-    { text: "5️⃣", emojiId: "6203785577070858514" },
-    { text: " friends\n\n" },
+    { text: ` Invite friends ⬅️ 1 free spin per ${refThresh} friends\n\n` },
     { text: "🎰", emojiId: "5104986024807760966" },
     { text: " Spin the wheel " },
     { text: "⬅️", emojiId: "6131729520631223468" },
@@ -238,8 +237,8 @@ export async function sendWelcomeMessage(chatId: number, userId: number, firstNa
       `👋 <b>Welcome to Jo-jokes, ${firstName}!</b>\n\n` +
       `🎁 The fastest USDT earning bot!\n\n` +
       `✨ <b>How to earn</b>\n\n` +
-      `✅ Complete tasks « 1 spin per 5 tasks\n\n` +
-      `👥 Invite friends « 1 free spin per 5 friends\n\n` +
+      `✅ Complete tasks « 1 spin per ${taskThresh} tasks\n\n` +
+      `👥 Invite friends « 1 free spin per ${refThresh} friends\n\n` +
       `🎰 Spin the wheel « win 0.1 to 10 USDT!`,
       {
         parse_mode: "HTML",

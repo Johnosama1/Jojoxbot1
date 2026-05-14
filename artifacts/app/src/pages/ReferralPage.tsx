@@ -156,11 +156,11 @@ export default function ReferralPage() {
               color: "#fbbf24", fontSize: 11, fontWeight: 800,
               background: "rgba(251,191,36,0.10)",
             }}>
-              {progress}/5 ✦
+              {progress}/{referralThreshold} ✦
             </div>
           </div>
           <div style={{ display: "flex", gap: 5 }}>
-            {Array.from({ length: 5 }, (_, i) => {
+            {Array.from({ length: referralThreshold }, (_, i) => {
               const done = i < progress;
               return (
                 <div key={i} style={{

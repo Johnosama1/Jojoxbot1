@@ -11,6 +11,13 @@ export default function TasksPage() {
   const [completing, setCompleting] = useState<number | null>(null);
   const [urlOpened, setUrlOpened] = useState<Set<number>>(new Set());
   const [message, setMessage] = useState<{ taskId: number; text: string; type: "success" | "error" } | null>(null);
+  const [taskThreshold, setTaskThreshold] = useState(5);
+
+  useEffect(() => {
+    api.getConfig().then(cfg => {
+      if (cfg.taskThreshold && cfg.taskThreshold > 0) setTaskThreshold(cfg.taskThreshold);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!initialized) return;
@@ -56,9 +63,9 @@ export default function TasksPage() {
     }
   };
 
-  const progressToNextSpin = user ? (user.tasksCompleted % 5) : 0;
-  const remaining = 5 - progressToNextSpin;
-  const pct = (progressToNextSpin / 5) * 100;
+  const progressToNextSpin = user ? (user.tasksCompleted % taskThreshold) : 0;
+  const remaining = taskThreshold - progressToNextSpin;
+  const pct = (progressToNextSpin / taskThreshold) * 100;
 
   const activeTasks = tasks.filter((t) => !completed.includes(t.id));
   const doneTasks = tasks.filter((t) => completed.includes(t.id));
@@ -118,14 +125,14 @@ export default function TasksPage() {
           }}>
             <Zap size={11} color="#fbbf24" fill="#fbbf24" />
             <span style={{ color: "#fbbf24", fontWeight: 900, fontSize: 12, letterSpacing: 0.3 }}>
-              {progressToNextSpin}<span style={{ opacity: 0.5 }}>/5</span>
+              {progressToNextSpin}<span style={{ opacity: 0.5 }}>/{taskThreshold}</span>
             </span>
           </div>
         </div>
 
         {/* Step bubbles */}
         <div style={{ display: "flex", justifyContent: "space-between", gap: 6, marginBottom: 10 }}>
-          {Array.from({ length: 5 }, (_, i) => {
+          {Array.from({ length: taskThreshold }, (_, i) => {
             const done = i < progressToNextSpin;
             return (
               <div key={i} style={{
