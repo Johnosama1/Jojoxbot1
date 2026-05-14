@@ -624,6 +624,7 @@ export default function AdminPage() {
                               {/* User stats */}
                               <div className="grid grid-cols-2 gap-2">
                                 {[
+                                  ...(auditResult.stats.ipSuspicious ? [{ label: "🚨 IP مكرر", value: "نفس IP من حساب آخر" }] : []),
                                   { label: "رصيد USDT", value: `${parseFloat(auditResult.stats.balance).toFixed(3)}` },
                                   { label: "رصيد TON", value: `${parseFloat(auditResult.stats.tonBalance).toFixed(4)}` },
                                   { label: "عمر الحساب", value: `${auditResult.stats.accountAgeDays} يوم` },

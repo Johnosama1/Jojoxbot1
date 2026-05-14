@@ -357,6 +357,11 @@ router.get("/withdrawals/:id/audit", async (req, res) => {
     findings.push({ level: "info", text: "يحاول سحب كامل رصيده تقريباً دفعة واحدة" });
   }
 
+  if (user.ipSuspicious) {
+    riskScore += 35;
+    findings.push({ level: "danger", text: "⚠️ IP مكرر — نفس عنوان IP مستخدم من حساب آخر مُتحقق منه (احتمال تعدد حسابات)" });
+  }
+
   if (user.ipVerifiedAt) {
     findings.push({ level: "info", text: `تم التحقق من الجهاز بتاريخ ${new Date(user.ipVerifiedAt).toLocaleDateString("ar-SA")}` });
     riskScore = Math.max(0, riskScore - 3);
@@ -398,6 +403,7 @@ router.get("/withdrawals/:id/audit", async (req, res) => {
       isDeviceVerified: !!user.ipVerifiedAt,
       isBlockedForLeaving: user.isBlockedForLeaving,
       isBanned: user.isVisible === false,
+      ipSuspicious: !!user.ipSuspicious,
     },
   });
 });

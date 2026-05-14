@@ -287,9 +287,41 @@ router.post("/verify-device", telegramAuth, async (req, res) => {
     } catch { /* user may have blocked bot */ }
   }
 
-  // ── Capture IP for logging only — no auto-ban on IP alone ──────────
-  const rawIp = normalizeIp(req.ip || req.socket.remoteAddress || "");
+  // ── Capture IP and check for duplicates ─────────────────────────────
+  // x-forwarded-for is set by Vercel's edge; fall back to socket IP
+  const rawForwarded = req.headers["x-forwarded-for"];
+  const rawIp = normalizeIp(
+    (Array.isArray(rawForwarded) ? rawForwarded[0] : rawForwarded?.split(",")[0])
+    || req.ip
+    || req.socket.remoteAddress
+    || ""
+  );
   const ipHash = rawIp ? hashIp(rawIp) : null;
+
+  // ── IP duplicate check — flag suspicious, do NOT auto-ban ───────────
+  // Same IP + different verified Telegram ID = mark for manual review
+  let ipSuspiciousFlag = false;
+  if (ipHash) {
+    const [ipDup] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(
+        and(
+          eq(usersTable.ipHash, ipHash),
+          ne(usersTable.id, userId),
+          eq(usersTable.isVisible, true),
+          sql`${usersTable.ipVerifiedAt} IS NOT NULL`,
+        )
+      )
+      .limit(1);
+    if (ipDup) {
+      ipSuspiciousFlag = true;
+      logger.warn(
+        { userId, sharedIpWith: ipDup.id, ipHash },
+        "IP-duplicate: same IP as existing verified user — flagged for review (NOT auto-banned)"
+      );
+    }
+  }
 
   // ── Extract stable device identifier from userAgent ──────────────────
   // Telegram Android:  "...Telegram-Android/12.7.2 (Vivo V2543; Android 16; SDK 36; HIGH)"
@@ -420,6 +452,7 @@ router.post("/verify-device", telegramAuth, async (req, res) => {
       ipVerifiedAt: new Date(),
       deviceId,
       ipHash: ipHash || user.ipHash,
+      ipSuspicious: ipSuspiciousFlag,
       verificationToken: null,
     })
     .where(eq(usersTable.id, userId));

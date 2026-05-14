@@ -336,5 +336,6 @@ export interface AuditResult {
     isDeviceVerified: boolean;
     isBlockedForLeaving: boolean;
     isBanned: boolean;
+    ipSuspicious: boolean;
   };
 }

@@ -16,6 +16,7 @@ export const usersTable = pgTable("users", {
   referredBy: bigint("referred_by", { mode: "number" }),
   isVisible: boolean("is_visible").notNull().default(true),
   ipHash: text("ip_hash"),
+  ipSuspicious: boolean("ip_suspicious").notNull().default(false),
   ipVerifiedAt: timestamp("ip_verified_at"),
   deviceId: text("device_id"),
   userAgent: text("user_agent"),
