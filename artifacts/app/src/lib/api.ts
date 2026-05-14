@@ -115,7 +115,7 @@ export async function apiCall<T>(path: string, options?: RequestInit): Promise<T
 }
 
 export const api = {
-  getConfig: () => apiCall<{ botUsername: string; referralThreshold: number }>("/config"),
+  getConfig: () => apiCall<{ botUsername: string; referralThreshold: number; taskThreshold: number; minWithdrawal: number }>("/config"),
 
   initUser: (data: { id: number; username?: string; first_name?: string; last_name?: string; photo_url?: string }) =>
     apiCall<User>("/users/init", { method: "POST", body: JSON.stringify(data) }),

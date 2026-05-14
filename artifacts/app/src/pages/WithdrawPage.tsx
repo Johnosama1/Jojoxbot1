@@ -5,7 +5,6 @@ import { api, invalidateUserCaches } from "../lib/api";
 import { useTonAddress, useTonConnectUI, TonConnectButton } from "@tonconnect/ui-react";
 import { Wallet, Send, CheckCircle, ArrowLeft } from "lucide-react";
 
-const MIN_WITHDRAWAL = 0.1;
 const MAX_WITHDRAWAL = 10000;
 
 function maskWallet(addr: string): string {
@@ -17,6 +16,13 @@ function maskWallet(addr: string): string {
 export default function WithdrawPage() {
   const { user, refresh } = useUser();
   const [, navigate] = useLocation();
+  const [minWithdrawal, setMinWithdrawal] = useState(0.1);
+
+  useEffect(() => {
+    api.getConfig().then(cfg => {
+      if (cfg.minWithdrawal && cfg.minWithdrawal > 0) setMinWithdrawal(cfg.minWithdrawal);
+    }).catch(() => {});
+  }, []);
 
   useTonConnectUI();
   const connectedAddress = useTonAddress();
@@ -49,7 +55,7 @@ export default function WithdrawPage() {
 
 
   const balance     = parseFloat(user?.balance || "0");
-  const canWithdraw = balance >= MIN_WITHDRAWAL;
+  const canWithdraw = balance >= minWithdrawal;
   const savedWallet = user?.savedWalletAddress ?? null;
 
   const handleWithdraw = async (e: React.FormEvent) => {
@@ -57,7 +63,7 @@ export default function WithdrawPage() {
     if (!user || submitting || !savedWallet) return;
     setError(""); setSuccess(false);
     const amt = parseFloat(amount);
-    if (isNaN(amt) || amt < MIN_WITHDRAWAL) { setError(`Minimum withdrawal: ${MIN_WITHDRAWAL} TON`); return; }
+    if (isNaN(amt) || amt < minWithdrawal) { setError(`Minimum withdrawal: ${minWithdrawal} TON`); return; }
     if (amt > MAX_WITHDRAWAL) { setError(`Maximum withdrawal: ${MAX_WITHDRAWAL} TON`); return; }
     if (amt > balance) { setError("Insufficient balance"); return; }
     setSubmitting(true);
@@ -75,7 +81,7 @@ export default function WithdrawPage() {
   };
 
   const maxAllowed = Math.min(balance, MAX_WITHDRAWAL);
-  const presets = [0.1, 0.5, 1.0, maxAllowed];
+  const presets = [minWithdrawal, 0.5, 1.0, maxAllowed];
 
   return (
     <div className="page-content px-3 pt-3 flex flex-col gap-3">
@@ -199,7 +205,7 @@ export default function WithdrawPage() {
             color: canWithdraw ? "#34d399" : "rgba(255,255,255,0.32)",
             fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999,
           }}>
-            {canWithdraw ? "Eligible" : `Min ${MIN_WITHDRAWAL}`}
+            {canWithdraw ? "Eligible" : `Min ${minWithdrawal}`}
           </span>
         </div>
 
@@ -235,7 +241,7 @@ export default function WithdrawPage() {
                   <input
                     type="number" value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    placeholder={`${MIN_WITHDRAWAL}`}
+                    placeholder={`${minWithdrawal}`}
                     step="any"
                     disabled={!canWithdraw || submitting}
                     className="ton-input" style={{ paddingRight: 56, fontSize: 18, fontWeight: 800 }}
@@ -251,7 +257,7 @@ export default function WithdrawPage() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
                 {presets.map((p, i) => {
                   const v = p > 0 ? p : 0;
-                  const disabled = !canWithdraw || submitting || v > balance || v < MIN_WITHDRAWAL || v > MAX_WITHDRAWAL;
+                  const disabled = !canWithdraw || submitting || v > balance || v < minWithdrawal || v > MAX_WITHDRAWAL;
                   const isMax = i === presets.length - 1;
                   return (
                     <button

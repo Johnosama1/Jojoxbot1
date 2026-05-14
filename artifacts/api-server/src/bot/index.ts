@@ -123,26 +123,36 @@ export async function sendWithdrawalNotification(
   user: { firstName: string; username?: string | null; id: number },
   amount: string,
   walletAddress: string,
-  withdrawalId: number
+  withdrawalId: number,
+  riskScore?: number
 ): Promise<void> {
   if (!bot) return;
   try {
     const userName = user.username
       ? `@${esc(user.username)}`
       : esc(user.firstName || String(user.id));
+
+    const riskLine = riskScore !== undefined
+      ? `\n🎯 درجة الخطر: <b>${riskScore}/100</b> ${riskScore >= 61 ? "🔴" : riskScore >= 31 ? "⚠️" : "✅"}`
+      : "";
+
     await bot.sendMessage(
       ownerId,
       `💸 <b>طلب سحب جديد #${withdrawalId}</b>\n\n` +
       `👤 ${userName} (${user.id})\n` +
       `💰 المبلغ: <b>${parseFloat(amount).toFixed(4)} TON</b>\n` +
-      `📍 العنوان: <code>${esc(walletAddress)}</code>`,
+      `📍 العنوان: <code>${esc(walletAddress)}</code>` +
+      riskLine,
       {
         parse_mode: "HTML",
         reply_markup: {
           inline_keyboard: [
             [
               { text: "✅ قبول وتحويل", callback_data: `withdraw_approve_${withdrawalId}` },
-              { text: "❌ رفض وإرجاع الرصيد", callback_data: `withdraw_reject_${withdrawalId}` },
+              { text: "❌ رفض وإرجاع", callback_data: `withdraw_reject_${withdrawalId}` },
+            ],
+            [
+              { text: "🚫 حظر المستخدم", callback_data: `withdraw_ban_${user.id}_${withdrawalId}` },
             ],
           ],
         },
@@ -258,7 +268,7 @@ async function handleWithdrawalCallback(
   q: TelegramBot.CallbackQuery
 ): Promise<boolean> {
   const data = q.data ?? "";
-  if (!data.startsWith("withdraw_approve_") && !data.startsWith("withdraw_reject_")) return false;
+  if (!data.startsWith("withdraw_approve_") && !data.startsWith("withdraw_reject_") && !data.startsWith("withdraw_ban_")) return false;
 
   const chatId = q.message!.chat.id;
   const msgId = q.message!.message_id;
@@ -348,6 +358,25 @@ async function handleWithdrawalCallback(
     await bot.editMessageText(
       `❌ تم رفض الطلب #${wId}\n💰 أُعيد ${parseFloat(w.amount).toFixed(4)} TON لرصيد المستخدم.`,
       { chat_id: chatId, message_id: msgId }
+    );
+  } else if (data.startsWith("withdraw_ban_")) {
+    const parts = data.replace("withdraw_ban_", "").split("_");
+    const targetUserId = parseInt(parts[0]);
+    const wId = parseInt(parts[1]);
+    if (isNaN(targetUserId) || isNaN(wId)) return true;
+
+    await db.update(usersTable).set({ isVisible: false }).where(eq(usersTable.id, targetUserId));
+
+    const [w] = await db.select().from(withdrawalsTable).where(eq(withdrawalsTable.id, wId)).limit(1);
+    if (w && w.status === "pending") {
+      await db.update(withdrawalsTable).set({ status: "rejected" }).where(eq(withdrawalsTable.id, wId));
+      await db.update(usersTable).set({ tonBalance: sql`ton_balance + ${w.amount}` }).where(eq(usersTable.id, w.userId));
+    }
+
+    await bot.editMessageText(
+      `🚫 <b>تم حظر المستخدم #${targetUserId}</b>\n` +
+      (w ? `❌ الطلب #${wId} مرفوض وأُعيد ${parseFloat(w.amount).toFixed(4)} TON للرصيد.` : `❌ الطلب #${wId} مرفوض.`),
+      { chat_id: chatId, message_id: msgId, parse_mode: "HTML" }
     );
   }
 
@@ -574,7 +603,7 @@ function setupBotHandlers() {
       }
 
       // 5. Withdrawal approval/rejection (admin)
-      if ((data.startsWith("withdraw_approve_") || data.startsWith("withdraw_reject_")) && adminInfo) {
+      if ((data.startsWith("withdraw_approve_") || data.startsWith("withdraw_reject_") || data.startsWith("withdraw_ban_")) && adminInfo) {
         await handleWithdrawalCallback(q);
         return;
       }
