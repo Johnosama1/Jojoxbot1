@@ -7,8 +7,9 @@ import {
   botSettingsTable,
   withdrawalsTable,
   adminsTable,
+  referralsTable,
 } from "@workspace/db/schema";
-import { eq, desc, sql, count, ilike } from "drizzle-orm";
+import { eq, desc, sql, count, ilike, and, inArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { isBotEnabled, setBotEnabled, clearBotEnabledCache } from "./control";
 import { clearAllSubCache } from "./subscription";
@@ -410,9 +411,94 @@ function showUserCard(bot: TelegramBot, chatId: number, u: typeof usersTable.$in
     rows.push([{ text: "🔄 إعادة التحقق", callback_data: `adm:u:resetv:${u.id}` }]);
   }
 
+  if (info.isOwner) {
+    rows.push([{ text: "👥 قائمة إحالاته", callback_data: `adm:u:refs:${u.id}:0` }]);
+  }
   rows.push([{ text: "◀️ رجوع للمستخدمين", callback_data: "adm:users" }]);
 
-  return bot.sendMessage(chatId, infoText, { reply_markup: { inline_keyboard: rows } });
+  return bot.sendMessage(chatId, infoText, { parse_mode: "HTML", reply_markup: { inline_keyboard: rows } });
+}
+
+// ─────────────────────────── USER REFERRALS ───────────────────────────
+
+async function showUserReferrals(
+  bot: TelegramBot,
+  chatId: number,
+  targetUserId: number,
+  page: number,
+  msgId?: number,
+) {
+  const PAGE = 10;
+
+  const [totalRow] = await db
+    .select({ c: count() })
+    .from(usersTable)
+    .where(eq(usersTable.referredBy, targetUserId));
+  const total = Number(totalRow?.c ?? 0);
+
+  const referred = await db
+    .select({
+      id: usersTable.id,
+      firstName: usersTable.firstName,
+      username: usersTable.username,
+      isBlockedForLeaving: usersTable.isBlockedForLeaving,
+    })
+    .from(usersTable)
+    .where(eq(usersTable.referredBy, targetUserId))
+    .orderBy(desc(usersTable.createdAt))
+    .limit(PAGE)
+    .offset(page * PAGE);
+
+  // Fetch referral records for this batch
+  const ids = referred.map((r) => r.id);
+  const refRecords = ids.length > 0
+    ? await db
+        .select({ referredId: referralsTable.referredId, status: referralsTable.status })
+        .from(referralsTable)
+        .where(and(
+          eq(referralsTable.referrerId, targetUserId),
+          inArray(referralsTable.referredId, ids),
+        ))
+    : [];
+  const refMap = new Map(refRecords.map((r) => [r.referredId, r.status]));
+
+  // Count summary
+  let validCount = 0, warnCount = 0, removedCount = 0;
+
+  let text = `👥 <b>إحالات المستخدم ${targetUserId}</b>\n`;
+  text += `الإجمالي: <b>${total}</b> | صفحة ${page + 1}\n\n`;
+
+  if (referred.length === 0) {
+    text += "لا توجد إحالات بعد.";
+  } else {
+    for (const r of referred) {
+      const name = esc(`${r.firstName || "—"} ${r.username ? `@${r.username}` : ""}`.trim());
+      const recStatus = refMap.get(r.id);
+      let icon: string;
+      if (recStatus === "removed") {
+        icon = "❌"; removedCount++;
+      } else if (r.isBlockedForLeaving) {
+        icon = "⚠️"; warnCount++;
+      } else {
+        icon = "✅"; validCount++;
+      }
+      text += `${icon} ${name} (${r.id})\n`;
+    }
+    text += `\n✅ نشط: <b>${validCount}</b> | ⚠️ خرج: <b>${warnCount}</b> | ❌ خُصم: <b>${removedCount}</b>`;
+  }
+
+  const nav: TelegramBot.InlineKeyboardButton[] = [];
+  if (page > 0) nav.push({ text: "◀️ السابق", callback_data: `adm:u:refs:${targetUserId}:${page - 1}` });
+  if ((page + 1) * PAGE < total) nav.push({ text: "التالي ▶️", callback_data: `adm:u:refs:${targetUserId}:${page + 1}` });
+
+  const keyboard: TelegramBot.InlineKeyboardMarkup = {
+    inline_keyboard: [
+      ...(nav.length ? [nav] : []),
+      [{ text: "◀️ رجوع للمستخدم", callback_data: `adm:u:v:${targetUserId}` }],
+    ],
+  };
+
+  await editOrSend(bot, chatId, text, keyboard, msgId);
 }
 
 // ─────────────────────────── WITHDRAWALS ───────────────────────────
@@ -912,6 +998,17 @@ export async function handleAdminCallback(
         await db.update(usersTable).set({ ipVerifiedAt: null, deviceId: null, verificationToken: null }).where(eq(usersTable.id, targetId));
         const [u] = await db.select().from(usersTable).where(eq(usersTable.id, targetId)).limit(1);
         await bot.sendMessage(chatId, `🔄 تمت إعادة التحقق للمستخدم ${esc(u?.firstName || String(targetId))} (${targetId}).`);
+      } else if (act === "v" && p1) {
+        // View user card (used as back-button from referral list)
+        if (!info.isOwner) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; }
+        const [u] = await db.select().from(usersTable).where(eq(usersTable.id, parseInt(p1))).limit(1);
+        if (u) await showUserCard(bot, chatId, u, info);
+      } else if (act === "refs" && p1) {
+        // Referral list with pagination: adm:u:refs:{targetId}:{page}
+        if (!info.isOwner) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; }
+        const targetId = parseInt(p1);
+        const page = p2 !== undefined ? Math.max(0, parseInt(p2)) : 0;
+        await showUserReferrals(bot, chatId, targetId, isNaN(page) ? 0 : page, msgId);
       }
       return true;
     }
