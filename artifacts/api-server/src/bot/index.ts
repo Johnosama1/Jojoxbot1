@@ -204,6 +204,13 @@ export async function sendWelcomeMessage(chatId: number, userId: number, firstNa
 
   const toKeycap = (n: number) => String(n).split("").map(d => `${d}\uFE0F\u20E3`).join("");
 
+  // Returns MsgPart(s) for a threshold number — animated 5️⃣ when value is 5
+  const KEYCAP_IDS: Record<number, string> = { 5: "6203785577070858514" };
+  const threshPart = (n: number): MsgPart[] =>
+    KEYCAP_IDS[n]
+      ? [{ text: toKeycap(n), emojiId: KEYCAP_IDS[n] }]
+      : [{ text: toKeycap(n) }];
+
   const { text: welcomeText, entities: welcomeEntities } = buildMsg([
     { text: "👋", emojiId: "5319007286004299794" },
     { text: ` Welcome to Jo-jokes, ${firstName}!\n\n` },
@@ -213,9 +220,16 @@ export async function sendWelcomeMessage(chatId: number, userId: number, firstNa
     { text: " How to earn" },
     { text: "❓", emojiId: "5436113877181941026" },
     { text: "\n\n" },
-    { text: `1️⃣ Complete tasks «« 1 spin per ${toKeycap(taskThresh)} tasks\n\n` },
-    { text: `2️⃣ Invite friends «« 1 free spin per ${toKeycap(refThresh)} friends\n\n` },
-    { text: `🎡 Spin the wheel «« win 0.1 to 10 USDT!` },
+    { text: "1️⃣" },
+    { text: " Complete tasks «« 1 spin per " },
+    ...threshPart(taskThresh),
+    { text: " tasks\n\n" },
+    { text: "2️⃣" },
+    { text: " Invite friends «« 1 free spin per " },
+    ...threshPart(refThresh),
+    { text: " friends\n\n" },
+    { text: "🎡" },
+    { text: " Spin the wheel «« win 0.1 to 10 USDT!" },
   ]);
 
   try {
