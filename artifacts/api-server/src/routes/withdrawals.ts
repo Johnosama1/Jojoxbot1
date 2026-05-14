@@ -93,23 +93,18 @@ router.post("/", withdrawLimiter, requireSession, verifyAccessMiddleware, async 
 
     if (ownerIdRow.length > 0 && ownerIdRow[0].value) {
       const ownerId = parseInt(ownerIdRow[0].value);
-
-      // Quick risk score from available user data (no extra DB queries)
-      let quickRisk = 0;
-      if (user.ipSuspicious) quickRisk += 35;
-      const accountAgeMs = Date.now() - new Date(user.createdAt).getTime();
-      if (accountAgeMs < 24 * 60 * 60 * 1000) quickRisk += 25;         // < 1 day
-      else if (accountAgeMs < 3 * 24 * 60 * 60 * 1000) quickRisk += 15; // < 3 days
-      if (parseFloat(String(user.tonBalance ?? "0")) === amt) quickRisk += 10; // withdrawing entire balance
-      quickRisk = Math.min(100, quickRisk);
-
       await sendWithdrawalNotification(
         ownerId,
-        { firstName: user.firstName || "", username: user.username, id: numUserId },
+        {
+          firstName: user.firstName || "",
+          username: user.username,
+          id: numUserId,
+          ipHash: user.ipHash,
+          ipSuspicious: user.ipSuspicious,
+        },
         String(amt),
         cleanAddress,
         wd.id,
-        quickRisk
       );
     }
   } catch { /* notification failure is non-critical */ }

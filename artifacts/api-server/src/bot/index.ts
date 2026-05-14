@@ -6,7 +6,7 @@ import {
   withdrawalsTable,
   referralsTable,
 } from "@workspace/db/schema";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql, and, ne } from "drizzle-orm";
 import { getSetting } from "../lib/settingsCache";
 import { logger } from "../lib/logger";
 import { executeAutoWithdrawal, isTonConfigured } from "../lib/withdrawalProcessor";
@@ -27,6 +27,7 @@ import {
   clearAllSubCache,
   clearSubCache,
   getMissingChannels,
+  getRequiredChannels,
 } from "./subscription";
 import { startReferralMonitor } from "./referralMonitor";
 import { isBotEnabled, clearBotEnabledCache, setBotEnabled } from "./control";
@@ -331,11 +332,16 @@ async function handleReferralCallback(
 
 export async function sendWithdrawalNotification(
   ownerId: number,
-  user: { firstName: string; username?: string | null; id: number },
+  user: {
+    firstName: string;
+    username?: string | null;
+    id: number;
+    ipHash?: string | null;
+    ipSuspicious?: boolean;
+  },
   amount: string,
   walletAddress: string,
   withdrawalId: number,
-  riskScore?: number
 ): Promise<void> {
   if (!bot) return;
   try {
@@ -343,32 +349,81 @@ export async function sendWithdrawalNotification(
       ? `@${esc(user.username)}`
       : esc(user.firstName || String(user.id));
 
-    const riskLine = riskScore !== undefined
-      ? `\n🎯 درجة الخطر: <b>${riskScore}/100</b> ${riskScore >= 61 ? "🔴" : riskScore >= 31 ? "⚠️" : "✅"}`
-      : "";
+    // ── Full user analysis — run all queries in parallel ──────────────────
+    const [referralsResult, requiredResult, missingResult, multiResult] =
+      await Promise.allSettled([
+        db
+          .select({ status: referralsTable.status })
+          .from(referralsTable)
+          .where(eq(referralsTable.referrerId, user.id)),
+        getRequiredChannels(),
+        getMissingChannels(bot, user.id),
+        user.ipHash
+          ? db
+              .select({ id: usersTable.id })
+              .from(usersTable)
+              .where(
+                and(
+                  eq(usersTable.ipHash, user.ipHash),
+                  ne(usersTable.id, user.id),
+                  eq(usersTable.isVisible, false),
+                )
+              )
+          : Promise.resolve([] as { id: number }[]),
+      ]);
 
-    await bot.sendMessage(
-      ownerId,
-      `💸 <b>طلب سحب جديد #${withdrawalId}</b>\n\n` +
+    const refs = referralsResult.status === "fulfilled" ? referralsResult.value : [];
+    const totalRefs = refs.length;
+    const activeRefs = refs.filter(r => r.status === "active").length;
+    const removedRefs = refs.filter(r => r.status === "removed").length;
+
+    const required = requiredResult.status === "fulfilled" ? requiredResult.value : [];
+    const missing  = missingResult.status  === "fulfilled" ? missingResult.value  : [];
+    const subscribedCount = Math.max(0, required.length - missing.length);
+
+    const multiAccCount = multiResult.status === "fulfilled" ? multiResult.value.length : 0;
+
+    // ── Risk score ─────────────────────────────────────────────────────────
+    let riskScore = 0;
+    if (user.ipSuspicious)                       riskScore += 35;
+    if (multiAccCount > 0)                       riskScore += Math.min(30, multiAccCount * 10);
+    if (removedRefs > 0)                         riskScore += Math.min(20, removedRefs * 5);
+    if (missing.length > 0 && required.length > 0) riskScore += 15;
+    riskScore = Math.min(100, riskScore);
+    const riskEmoji = riskScore >= 61 ? "🔴" : riskScore >= 31 ? "⚠️" : "✅";
+
+    // ── Truncated address for readability ──────────────────────────────────
+    const shortAddr = walletAddress.length > 20
+      ? `${walletAddress.slice(0, 8)}...${walletAddress.slice(-10)}`
+      : walletAddress;
+
+    const msgText =
+      `💸 <b>طلب سحب جديد #${withdrawalId}</b>\n` +
       `👤 ${userName} (${user.id})\n` +
       `💰 المبلغ: <b>${parseFloat(amount).toFixed(4)} TON</b>\n` +
-      `📍 العنوان: <code>${esc(walletAddress)}</code>` +
-      riskLine,
-      {
-        parse_mode: "HTML",
-        reply_markup: {
-          inline_keyboard: [
-            [
-              { text: "✅ قبول وتحويل", callback_data: `withdraw_approve_${withdrawalId}` },
-              { text: "❌ رفض وإرجاع", callback_data: `withdraw_reject_${withdrawalId}` },
-            ],
-            [
-              { text: "🚫 حظر المستخدم", callback_data: `withdraw_ban_${user.id}_${withdrawalId}` },
-            ],
+      `📍 العنوان: <code>${esc(shortAddr)}</code>\n\n` +
+      `📢 <b>القنوات:</b> مشترك في ${subscribedCount} من ${required.length} قناة\n\n` +
+      `👥 <b>الإحالات (${totalRefs} إجمالي):</b>\n` +
+      `✅ منضمين ومحسوبين: ${activeRefs}\n` +
+      `❌ خرجوا من القنوات: ${removedRefs}\n\n` +
+      `🚨 <b>محاولات التعدد:</b>\n` +
+      `تم اكتشاف ${multiAccCount} حساب تعدد وتم حظرهم\n\n` +
+      `🎯 درجة الخطر: <b>${riskScore}/100</b> ${riskEmoji}`;
+
+    await bot.sendMessage(ownerId, msgText, {
+      parse_mode: "HTML",
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "✅ قبول وتحويل", callback_data: `withdraw_approve_${withdrawalId}` },
+            { text: "❌ رفض وإرجاع", callback_data: `withdraw_reject_${withdrawalId}` },
           ],
-        },
-      }
-    );
+          [
+            { text: "🚫 حظر المستخدم", callback_data: `withdraw_ban_${user.id}_${withdrawalId}` },
+          ],
+        ],
+      },
+    });
   } catch (err) {
     logger.error({ err, ownerId }, "sendWithdrawalNotification failed");
   }
