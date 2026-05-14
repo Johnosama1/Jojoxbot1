@@ -200,6 +200,7 @@ export async function showAdminMenu(bot: TelegramBot, chatId: number, messageId?
     const multiplier = Math.max(1, parseInt(powerRow?.value || "1") || 1);
     const boostLabel = multiplier > 1 ? `⚡ BOOST — ×${multiplier} (مفعّل)` : "⚡ BOOST";
     rows.push([{ text: boostLabel, callback_data: "adm:boost" }]);
+    rows.push([{ text: "🎛️ التحكم في الإعدادات", callback_data: "adm:ctrl_settings" }]);
   }
 
   const keyboard: TelegramBot.InlineKeyboardMarkup = { inline_keyboard: rows };
@@ -269,6 +270,35 @@ async function showBoostDurationMenu(bot: TelegramBot, chatId: number, multiplie
         { text: "♾ مدى الحياة", callback_data: `adm:boost:dur:${multiplier}:0` },
       ],
       [{ text: "◀️ رجوع", callback_data: "adm:boost" }],
+    ],
+  };
+  await editOrSend(bot, chatId, text, keyboard, messageId);
+}
+
+// ─────────────────────────── CONTROL SETTINGS ───────────────────────────
+
+async function showControlSettingsMenu(bot: TelegramBot, chatId: number, messageId?: number) {
+  const [rawRef, rawTask, rawMin] = await Promise.all([
+    getSetting("referral_threshold"),
+    getSetting("task_threshold"),
+    getSetting("min_withdrawal"),
+  ]);
+  const refVal  = parseInt(rawRef ?? "5") || 5;
+  const taskVal = parseInt(rawTask ?? "5") || 5;
+  const minVal  = parseFloat(rawMin ?? "0.1") || 0.1;
+
+  const text =
+    `⚙️ <b>إعدادات البوت الحالية:</b>\n\n` +
+    `🔄 إحالات للفة: <b>${refVal}</b>\n` +
+    `📋 مهام للفة: <b>${taskVal}</b>\n` +
+    `💰 حد السحب: <b>${minVal.toFixed(2)} TON</b>`;
+
+  const keyboard: TelegramBot.InlineKeyboardMarkup = {
+    inline_keyboard: [
+      [{ text: "✏️ تغيير عدد الإحالات للفة", callback_data: "adm:ctrl:ref" }],
+      [{ text: "✏️ تغيير عدد المهام للفة",   callback_data: "adm:ctrl:task" }],
+      [{ text: "✏️ تغيير حد السحب",           callback_data: "adm:ctrl:minwd" }],
+      [{ text: "◀️ رجوع",                      callback_data: "adm:main" }],
     ],
   };
   await editOrSend(bot, chatId, text, keyboard, messageId);
@@ -656,6 +686,33 @@ export async function handleAdminCallback(
         { parse_mode: "HTML" }
       );
       await showBotControlMenu(bot, chatId, msgId); return true;
+    }
+
+    // ── Control Settings ──
+    if (data === "adm:ctrl_settings") {
+      if (!info.isOwner) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; }
+      await showControlSettingsMenu(bot, chatId, msgId); return true;
+    }
+    if (data === "adm:ctrl:ref") {
+      if (!info.isOwner) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; }
+      const cur = parseInt((await getSetting("referral_threshold")) ?? "5") || 5;
+      adminConvState.set(userId, { step: "ctrl_ref", data: { chatId, msgId } });
+      await bot.sendMessage(chatId, `🔄 <b>عدد الإحالات للفة</b>\n\nالقيمة الحالية: <b>${cur}</b>\n\nأرسل الرقم الجديد:`, { parse_mode: "HTML" });
+      return true;
+    }
+    if (data === "adm:ctrl:task") {
+      if (!info.isOwner) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; }
+      const cur = parseInt((await getSetting("task_threshold")) ?? "5") || 5;
+      adminConvState.set(userId, { step: "ctrl_task", data: { chatId, msgId } });
+      await bot.sendMessage(chatId, `📋 <b>عدد المهام للفة</b>\n\nالقيمة الحالية: <b>${cur}</b>\n\nأرسل الرقم الجديد:`, { parse_mode: "HTML" });
+      return true;
+    }
+    if (data === "adm:ctrl:minwd") {
+      if (!info.isOwner) { await bot.sendMessage(chatId, "⛔ ليس لديك صلاحية"); return true; }
+      const cur = parseFloat((await getSetting("min_withdrawal")) ?? "0.1") || 0.1;
+      adminConvState.set(userId, { step: "ctrl_minwd", data: { chatId, msgId } });
+      await bot.sendMessage(chatId, `💰 <b>الحد الأدنى للسحب (TON)</b>\n\nالقيمة الحالية: <b>${cur.toFixed(2)} TON</b>\n\nأرسل الرقم الجديد (مثال: 0.5):`, { parse_mode: "HTML" });
+      return true;
     }
 
     // ── BOOST ──
@@ -1263,6 +1320,43 @@ export async function handleAdminText(bot: TelegramBot, msg: TelegramBot.Message
       );
       const tmp = await send("جاري التحميل...");
       await showRequiredChannelsMenu(bot, chatId, tmp.message_id);
+      return true;
+    }
+
+    // ── Control Settings: referral ──
+    if (state.step === "ctrl_ref") {
+      const val = parseInt(text);
+      if (isNaN(val) || val < 1 || val > 100) { await send("❌ أرسل رقماً صحيحاً بين 1 و100"); return true; }
+      clearState();
+      await setSetting("referral_threshold", String(val));
+      invalidateSetting("referral_threshold");
+      await send(`✅ تم تغيير الإعداد بنجاح! القيمة الجديدة: <b>${val}</b>`, { parse_mode: "HTML" });
+      const { chatId: oc, msgId: om } = state.data as { chatId: number; msgId: number };
+      await showControlSettingsMenu(bot, oc, om);
+      return true;
+    }
+    // ── Control Settings: task ──
+    if (state.step === "ctrl_task") {
+      const val = parseInt(text);
+      if (isNaN(val) || val < 1 || val > 100) { await send("❌ أرسل رقماً صحيحاً بين 1 و100"); return true; }
+      clearState();
+      await setSetting("task_threshold", String(val));
+      invalidateSetting("task_threshold");
+      await send(`✅ تم تغيير الإعداد بنجاح! القيمة الجديدة: <b>${val}</b>`, { parse_mode: "HTML" });
+      const { chatId: oc, msgId: om } = state.data as { chatId: number; msgId: number };
+      await showControlSettingsMenu(bot, oc, om);
+      return true;
+    }
+    // ── Control Settings: min withdrawal ──
+    if (state.step === "ctrl_minwd") {
+      const val = parseFloat(text);
+      if (isNaN(val) || val < 0.01) { await send("❌ أرسل رقماً أكبر من أو يساوي 0.01"); return true; }
+      clearState();
+      await setSetting("min_withdrawal", val.toFixed(4));
+      invalidateSetting("min_withdrawal");
+      await send(`✅ تم تغيير الإعداد بنجاح! القيمة الجديدة: <b>${val.toFixed(2)} TON</b>`, { parse_mode: "HTML" });
+      const { chatId: oc, msgId: om } = state.data as { chatId: number; msgId: number };
+      await showControlSettingsMenu(bot, oc, om);
       return true;
     }
 
