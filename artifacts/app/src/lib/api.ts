@@ -315,11 +315,18 @@ export interface AuditFinding {
   text: string;
 }
 
+export interface ActivityLogEntry {
+  time: string;
+  event: string;
+  type: "info" | "warning" | "danger";
+}
+
 export interface AuditResult {
   withdrawal: Withdrawal;
   user: User;
   riskScore: number;
   findings: AuditFinding[];
+  activityLog: ActivityLogEntry[];
   stats: {
     accountAgeDays: number;
     balance: string;
@@ -337,5 +344,6 @@ export interface AuditResult {
     isBlockedForLeaving: boolean;
     isBanned: boolean;
     ipSuspicious: boolean;
+    referralClusterCount: number;
   };
 }

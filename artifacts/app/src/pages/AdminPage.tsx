@@ -660,6 +660,38 @@ export default function AdminPage() {
                                 </div>
                               </div>
 
+                              {/* Activity Log */}
+                              {auditResult.activityLog && auditResult.activityLog.length > 0 && (
+                                <div>
+                                  <p className="text-white font-bold text-xs mb-2">سجل النشاط الكامل</p>
+                                  <div className="relative pr-4 space-y-0">
+                                    <div className="absolute right-[7px] top-2 bottom-2 w-0.5 bg-purple-700/40" />
+                                    {auditResult.activityLog.map((entry, i) => {
+                                      const d = new Date(entry.time);
+                                      const dateStr = d.toLocaleDateString("ar-SA", { day: "2-digit", month: "2-digit", year: "2-digit" });
+                                      const timeStr = d.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" });
+                                      return (
+                                        <div key={i} className="flex items-start gap-2 pb-2">
+                                          <div className={`w-3.5 h-3.5 rounded-full shrink-0 mt-0.5 z-10 border-2 ${
+                                            entry.type === "danger" ? "bg-red-500 border-red-700"
+                                            : entry.type === "warning" ? "bg-yellow-400 border-yellow-600"
+                                            : "bg-purple-500 border-purple-700"
+                                          }`} />
+                                          <div className="flex-1 min-w-0">
+                                            <p className={`text-xs leading-tight ${
+                                              entry.type === "danger" ? "text-red-300"
+                                              : entry.type === "warning" ? "text-yellow-300"
+                                              : "text-purple-200"
+                                            }`}>{entry.event}</p>
+                                            <p className="text-purple-500 text-[10px]">{dateStr} {timeStr}</p>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+
                               {/* Action buttons — only if still pending */}
                               {wd.status === "pending" && (
                                 <div className="space-y-2 pt-1">

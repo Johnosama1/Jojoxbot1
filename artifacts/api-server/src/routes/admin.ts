@@ -3,13 +3,14 @@ import rateLimit from "express-rate-limit";
 import { db } from "@workspace/db";
 import {
   tasksTable,
+  userTasksTable,
   wheelSlotsTable,
   usersTable,
   adminsTable,
   botSettingsTable,
   withdrawalsTable,
 } from "@workspace/db/schema";
-import { eq, count, sql } from "drizzle-orm";
+import { eq, count, sql, and, ne } from "drizzle-orm";
 import { invalidateWheelCache } from "./wheel";
 import { invalidateTasksCache } from "./tasks";
 import { getBot } from "../bot";
@@ -274,9 +275,23 @@ router.get("/withdrawals/:id/audit", async (req, res) => {
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, wd.userId)).limit(1);
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
 
-  const [allWithdrawals, slots] = await Promise.all([
+  const [allWithdrawals, slots, referredUsers, completedTasks] = await Promise.all([
     db.select().from(withdrawalsTable).where(eq(withdrawalsTable.userId, wd.userId)),
     db.select().from(wheelSlotsTable).orderBy(wheelSlotsTable.displayOrder),
+    db.select({
+      id: usersTable.id,
+      firstName: usersTable.firstName,
+      username: usersTable.username,
+      createdAt: usersTable.createdAt,
+      ipHash: usersTable.ipHash,
+      isVisible: usersTable.isVisible,
+    })
+      .from(usersTable)
+      .where(eq(usersTable.referredBy, wd.userId)),
+    db.select({ taskId: userTasksTable.taskId, completedAt: userTasksTable.completedAt })
+      .from(userTasksTable)
+      .where(eq(userTasksTable.userId, wd.userId))
+      .orderBy(userTasksTable.completedAt),
   ]);
 
   const maxSlotAmount = slots.length > 0 ? Math.max(...slots.map(s => parseFloat(s.amount))) : 4;
@@ -362,6 +377,36 @@ router.get("/withdrawals/:id/audit", async (req, res) => {
     findings.push({ level: "danger", text: "⚠️ IP مكرر — نفس عنوان IP مستخدم من حساب آخر مُتحقق منه (احتمال تعدد حسابات)" });
   }
 
+  // ── Referral IP clustering — same IP across referred accounts ────────
+  const referralSharedIp = user.ipHash
+    ? referredUsers.filter(r => r.ipHash && r.ipHash === user.ipHash)
+    : [];
+  if (referralSharedIp.length >= 1) {
+    riskScore += Math.min(40, referralSharedIp.length * 15);
+    findings.push({ level: "danger", text: `${referralSharedIp.length} حساب مُحال يشترك في نفس الـ IP مع المستخدم — تزوير إحالات شبه مؤكد` });
+  }
+
+  // Count banned referred accounts
+  const bannedReferrals = referredUsers.filter(r => r.isVisible === false);
+  if (bannedReferrals.length >= 2) {
+    riskScore += Math.min(30, bannedReferrals.length * 10);
+    findings.push({ level: "danger", text: `${bannedReferrals.length} من حساباته المُحالة تم حظرها بسبب تعدد الحسابات` });
+  }
+
+  // ── Referral burst timing ─────────────────────────────────────────────
+  if (referredUsers.length >= 3) {
+    const times = referredUsers.map(r => new Date(r.createdAt).getTime()).sort((a, b) => a - b);
+    const windowMs = times[times.length - 1] - times[0];
+    const windowHours = windowMs / (1000 * 60 * 60);
+    if (windowHours < 2 && referredUsers.length >= 5) {
+      riskScore += 30;
+      findings.push({ level: "danger", text: `${referredUsers.length} إحالة خلال ${windowHours.toFixed(1)} ساعة فقط — نمط بوت أوتوماتيكي` });
+    } else if (windowHours < 24 && referredUsers.length >= 8) {
+      riskScore += 20;
+      findings.push({ level: "warning", text: `${referredUsers.length} إحالة في ${Math.floor(windowHours)} ساعة — معدل إحالات مرتفع بشكل مشبوه` });
+    }
+  }
+
   if (user.ipVerifiedAt) {
     findings.push({ level: "info", text: `تم التحقق من الجهاز بتاريخ ${new Date(user.ipVerifiedAt).toLocaleDateString("ar-SA")}` });
     riskScore = Math.max(0, riskScore - 3);
@@ -382,11 +427,50 @@ router.get("/withdrawals/:id/audit", async (req, res) => {
 
   riskScore = Math.min(100, Math.max(0, riskScore));
 
+  // ── Build activity log from all available data ────────────────────────
+  const activityLog: { time: string; event: string; type: "info" | "warning" | "danger" }[] = [];
+
+  activityLog.push({ time: new Date(user.createdAt).toISOString(), event: "انضم إلى البوت", type: "info" });
+
+  if (user.ipVerifiedAt) {
+    activityLog.push({
+      time: new Date(user.ipVerifiedAt).toISOString(),
+      event: user.ipSuspicious ? "تم التحقق من الجهاز ⚠️ (IP مشترك مع حساب آخر)" : "تم التحقق من الجهاز بنجاح",
+      type: user.ipSuspicious ? "warning" : "info",
+    });
+  }
+
+  for (const task of completedTasks) {
+    activityLog.push({ time: new Date(task.completedAt).toISOString(), event: `أكمل مهمة #${task.taskId}`, type: "info" });
+  }
+
+  for (const ref of referredUsers) {
+    const sameIp = ref.ipHash && user.ipHash && ref.ipHash === user.ipHash;
+    const banned = ref.isVisible === false;
+    activityLog.push({
+      time: new Date(ref.createdAt).toISOString(),
+      event: `أحال: ${ref.firstName || ref.username || `#${ref.id}`}${sameIp ? " — ⚠️ نفس IP" : ""}${banned ? " — 🚫 محظور" : ""}`,
+      type: sameIp ? "danger" : banned ? "warning" : "info",
+    });
+  }
+
+  for (const w of allWithdrawals) {
+    const statusLabel = w.status === "approved" ? "موافق عليه ✅" : w.status === "rejected" ? "مرفوض ❌" : "معلق ⏳";
+    activityLog.push({
+      time: new Date(w.createdAt).toISOString(),
+      event: `طلب سحب ${parseFloat(String(w.amount)).toFixed(3)} USDT — ${statusLabel}`,
+      type: w.status === "rejected" ? "warning" : "info",
+    });
+  }
+
+  activityLog.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+
   res.json({
     withdrawal: wd,
     user,
     riskScore,
     findings,
+    activityLog,
     stats: {
       accountAgeDays: Math.floor(accountAgeDays),
       balance: balance.toFixed(6),
@@ -404,6 +488,7 @@ router.get("/withdrawals/:id/audit", async (req, res) => {
       isBlockedForLeaving: user.isBlockedForLeaving,
       isBanned: user.isVisible === false,
       ipSuspicious: !!user.ipSuspicious,
+      referralClusterCount: referralSharedIp.length,
     },
   });
 });
