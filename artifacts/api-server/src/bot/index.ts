@@ -203,64 +203,24 @@ export async function sendWelcomeMessage(chatId: number, userId: number, firstNa
   const taskThresh = Math.max(1, parseInt(rawTaskThresh ?? "5") || 5);
 
   const toKeycap = (n: number) => String(n).split("").map(d => `${d}\uFE0F\u20E3`).join("");
+  const E = (id: string, emoji: string) => `<tg-emoji emoji-id="${id}">${emoji}</tg-emoji>`;
 
-  // Returns MsgPart(s) for a threshold number — animated 5️⃣ when value is 5
-  const KEYCAP_IDS: Record<number, string> = { 5: "6203785577070858514" };
-  const threshPart = (n: number): MsgPart[] =>
-    KEYCAP_IDS[n]
-      ? [{ text: toKeycap(n), emojiId: KEYCAP_IDS[n] }]
-      : [{ text: toKeycap(n) }];
+  const welcomeHtml =
+    `${E("5319007286004299794", "👋")} Welcome to Jo-jokes, ${esc(firstName)}!\n\n` +
+    `${E("6129832240303051599", "😀")} The fastest USDT earning bot!\n\n` +
+    `${E("6131673419768403090", "✨")} How to earn${E("5436113877181941026", "❓")}\n\n` +
+    `✅ Complete tasks ${E("5215229232476596064", "➡️")} 1 spin per ${toKeycap(taskThresh)} tasks\n\n` +
+    `👥 Invite friends ${E("5215229232476596064", "➡️")} 1 free spin per ${toKeycap(refThresh)} friends\n\n` +
+    `${E("5104986024807760966", "🎰")} Spin the wheel ${E("5215229232476596064", "➡️")} win 0.1 to 10 USDT!`;
 
-  const { text: welcomeText, entities: welcomeEntities } = buildMsg([
-    { text: "👋", emojiId: "5319007286004299794" },
-    { text: ` Welcome to Jo-jokes, ${firstName}!\n\n` },
-    { text: "😀", emojiId: "6129832240303051599" },
-    { text: " The fastest USDT earning bot!\n\n" },
-    { text: "✨", emojiId: "6131673419768403090" },
-    { text: " How to earn" },
-    { text: "❓", emojiId: "5436113877181941026" },
-    { text: "\n\n" },
-    { text: "1️⃣" },
-    { text: " Complete tasks «« 1 spin per " },
-    ...threshPart(taskThresh),
-    { text: " tasks\n\n" },
-    { text: "2️⃣" },
-    { text: " Invite friends «« 1 free spin per " },
-    ...threshPart(refThresh),
-    { text: " friends\n\n" },
-    { text: "🎡" },
-    { text: " Spin the wheel «« win 0.1 to 10 USDT!" },
-  ]);
-
-  try {
-    await bot.sendMessage(chatId, welcomeText, {
-      entities: welcomeEntities as never,
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "🎁 Open now", web_app: { url: `${MINI_APP_URL}?uid=${userId}` } }],
-        ],
-      },
-    });
-  } catch {
-    // Fallback: send as plain HTML if custom emoji entities fail
-    await bot.sendMessage(
-      chatId,
-      `👋 <b>Welcome to Jo-jokes, ${firstName}!</b>\n\n` +
-      `🎁 The fastest USDT earning bot!\n\n` +
-      `✨ <b>How to earn</b>\n\n` +
-      `1️⃣ Complete tasks «« 1 spin per ${toKeycap(taskThresh)} tasks\n\n` +
-      `2️⃣ Invite friends «« 1 free spin per ${toKeycap(refThresh)} friends\n\n` +
-      `🎡 Spin the wheel «« win 0.1 to 10 USDT!`,
-      {
-        parse_mode: "HTML",
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: "🎁 Open now", web_app: { url: `${MINI_APP_URL}?uid=${userId}` } }],
-          ],
-        },
-      }
-    );
-  }
+  await bot.sendMessage(chatId, welcomeHtml, {
+    parse_mode: "HTML",
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "🎁 Open now", web_app: { url: `${MINI_APP_URL}?uid=${userId}` } }],
+      ],
+    },
+  });
 }
 
 function setMenuButton() {
