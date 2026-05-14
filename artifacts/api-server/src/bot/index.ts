@@ -202,6 +202,8 @@ export async function sendWelcomeMessage(chatId: number, userId: number, firstNa
   const refThresh  = Math.max(1, parseInt(rawRefThresh  ?? "5") || 5);
   const taskThresh = Math.max(1, parseInt(rawTaskThresh ?? "5") || 5);
 
+  const toKeycap = (n: number) => String(n).split("").map(d => `${d}\uFE0F\u20E3`).join("");
+
   const { text: welcomeText, entities: welcomeEntities } = buildMsg([
     { text: "👋", emojiId: "5319007286004299794" },
     { text: ` Welcome to Jo-jokes, ${firstName}!\n\n` },
@@ -211,14 +213,9 @@ export async function sendWelcomeMessage(chatId: number, userId: number, firstNa
     { text: " How to earn" },
     { text: "❓", emojiId: "5436113877181941026" },
     { text: "\n\n" },
-    { text: "✅", emojiId: "6203840986443944067" },
-    { text: ` Complete tasks ⬅️ 1 spin per ${taskThresh} tasks\n\n` },
-    { text: "👥", emojiId: "6204118338252049831" },
-    { text: ` Invite friends ⬅️ 1 free spin per ${refThresh} friends\n\n` },
-    { text: "🎰", emojiId: "5104986024807760966" },
-    { text: " Spin the wheel " },
-    { text: "⬅️", emojiId: "6131729520631223468" },
-    { text: " win 0.1 to 10 USDT!" },
+    { text: `1️⃣ Complete tasks «« 1 spin per ${toKeycap(taskThresh)} tasks\n\n` },
+    { text: `2️⃣ Invite friends «« 1 free spin per ${toKeycap(refThresh)} friends\n\n` },
+    { text: `🎡 Spin the wheel «« win 0.1 to 10 USDT!` },
   ]);
 
   try {
@@ -237,9 +234,9 @@ export async function sendWelcomeMessage(chatId: number, userId: number, firstNa
       `👋 <b>Welcome to Jo-jokes, ${firstName}!</b>\n\n` +
       `🎁 The fastest USDT earning bot!\n\n` +
       `✨ <b>How to earn</b>\n\n` +
-      `✅ Complete tasks « 1 spin per ${taskThresh} tasks\n\n` +
-      `👥 Invite friends « 1 free spin per ${refThresh} friends\n\n` +
-      `🎰 Spin the wheel « win 0.1 to 10 USDT!`,
+      `1️⃣ Complete tasks «« 1 spin per ${toKeycap(taskThresh)} tasks\n\n` +
+      `2️⃣ Invite friends «« 1 free spin per ${toKeycap(refThresh)} friends\n\n` +
+      `🎡 Spin the wheel «« win 0.1 to 10 USDT!`,
       {
         parse_mode: "HTML",
         reply_markup: {
