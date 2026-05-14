@@ -6,6 +6,90 @@ import WheelCanvas from "../components/WheelCanvas";
 import { setWinModalOpen } from "../lib/winModal";
 import { collectDeviceFingerprint } from "../lib/deviceFingerprint";
 
+// ── No-Spins hint: shows progress toward next spin ─────────────────────────
+function NoSpinsHint({
+  referralCount,
+  tasksCompleted,
+  refThreshold,
+  taskThreshold,
+}: {
+  referralCount: number;
+  tasksCompleted: number;
+  refThreshold: number;
+  taskThreshold: number;
+}) {
+  const refsLeft  = refThreshold  - (referralCount  % refThreshold);
+  const tasksLeft = taskThreshold - (tasksCompleted % taskThreshold);
+
+  const refProgress   = (referralCount  % refThreshold)  / refThreshold;
+  const taskProgress  = (tasksCompleted % taskThreshold) / taskThreshold;
+
+  return (
+    <div style={{
+      width: "100%", maxWidth: 310,
+      background: "rgba(255,255,255,0.04)",
+      border: "1px solid rgba(255,255,255,0.09)",
+      borderRadius: 18, padding: "14px 16px",
+      display: "flex", flexDirection: "column", gap: 10,
+      position: "relative", zIndex: 1,
+    }}>
+      <div style={{
+        color: "rgba(255,255,255,0.45)", fontSize: 11,
+        fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase",
+        textAlign: "center",
+      }}>
+        كيف تحصل على لفة مجانية؟
+      </div>
+
+      {/* Referrals row */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ color: "rgba(255,255,255,0.62)", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}>
+            👥 <span>إحالات</span>
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 800, color: refsLeft === refThreshold ? "rgba(255,255,255,0.28)" : "#a78bfa" }}>
+            {referralCount % refThreshold}/{refThreshold}
+            <span style={{ color: "rgba(255,255,255,0.35)", fontWeight: 400 }}>
+              {" "}— تبقى <b style={{ color: "#a78bfa" }}>{refsLeft}</b>
+            </span>
+          </span>
+        </div>
+        <div style={{ height: 5, borderRadius: 99, background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
+          <div style={{
+            height: "100%", borderRadius: 99,
+            width: `${Math.round(refProgress * 100)}%`,
+            background: "linear-gradient(90deg, #7c3aed, #a78bfa)",
+            transition: "width 0.4s ease",
+          }} />
+        </div>
+      </div>
+
+      {/* Tasks row */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ color: "rgba(255,255,255,0.62)", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}>
+            ✅ <span>مهام</span>
+          </span>
+          <span style={{ fontSize: 12, fontWeight: 800, color: tasksLeft === taskThreshold ? "rgba(255,255,255,0.28)" : "#34d399" }}>
+            {tasksCompleted % taskThreshold}/{taskThreshold}
+            <span style={{ color: "rgba(255,255,255,0.35)", fontWeight: 400 }}>
+              {" "}— تبقى <b style={{ color: "#34d399" }}>{tasksLeft}</b>
+            </span>
+          </span>
+        </div>
+        <div style={{ height: 5, borderRadius: 99, background: "rgba(255,255,255,0.07)", overflow: "hidden" }}>
+          <div style={{
+            height: "100%", borderRadius: 99,
+            width: `${Math.round(taskProgress * 100)}%`,
+            background: "linear-gradient(90deg, #059669, #34d399)",
+            transition: "width 0.4s ease",
+          }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // UsdtSticker: loads its animation JSON on-demand (only when win modal opens)
 function UsdtSticker({ size = 36 }: { size?: number }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -93,6 +177,16 @@ export default function HomePage() {
   const [boostStatus, setBoostStatus] = useState<BoostStatus | null>(null);
   useEffect(() => {
     getBoostStatus().then(setBoostStatus).catch(() => {});
+  }, []);
+
+  /* ── Spin thresholds (for no-spins hint) ── */
+  const [refThreshold,  setRefThreshold]  = useState(5);
+  const [taskThreshold, setTaskThreshold] = useState(5);
+  useEffect(() => {
+    api.getConfig().then(c => {
+      setRefThreshold(c.referralThreshold);
+      setTaskThreshold(c.taskThreshold);
+    }).catch(() => {});
   }, []);
 
   /* ── Auto Spin state ── */
@@ -417,7 +511,7 @@ export default function HomePage() {
               }}>
                 {spins}
               </span>
-              {spinning && !autoSpinning ? "Spinning..." : spins === 0 ? "No spins" : "Spin"}
+              {spinning && !autoSpinning ? "Spinning..." : spins === 0 ? "🔒 No Spins" : "Spin"}
             </div>
           </button>
 
@@ -456,6 +550,16 @@ export default function HomePage() {
             </button>
           )}
         </div>
+
+        {/* No-Spins hint — always visible when spins = 0 */}
+        {spins === 0 && initialized && user && (
+          <NoSpinsHint
+            referralCount={user.referralCount}
+            tasksCompleted={user.tasksCompleted}
+            refThreshold={refThreshold}
+            taskThreshold={taskThreshold}
+          />
+        )}
 
       </div>
     </div>
