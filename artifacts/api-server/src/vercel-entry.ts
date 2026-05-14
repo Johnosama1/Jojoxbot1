@@ -71,6 +71,29 @@ async function runStartupMigrations() {
     console.warn("[startup] test account cleanup skipped:", e instanceof Error ? e.message : e);
   }
 
+  // ── Create referrals table if missing (Anti-Cheat) ─────────────────
+  try {
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS referrals (
+        id         SERIAL PRIMARY KEY,
+        referrer_id BIGINT NOT NULL,
+        referred_id BIGINT NOT NULL,
+        status      TEXT NOT NULL DEFAULT 'active',
+        created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+        removed_at  TIMESTAMP
+      )
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS referrals_referred_id_idx ON referrals(referred_id)
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS referrals_referrer_id_idx ON referrals(referrer_id)
+    `);
+    console.log("[startup] referrals table OK");
+  } catch (e) {
+    console.warn("[startup] referrals table migration skipped:", e instanceof Error ? e.message : e);
+  }
+
   // ── Backfill referral_count ─────────────────────────────────────────
   // referral_count should equal the number of users who joined via this user's link.
   // Historical accounts have referral_count=0 even though referred_by is set.

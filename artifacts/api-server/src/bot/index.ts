@@ -4,8 +4,9 @@ import {
   usersTable,
   botSettingsTable,
   withdrawalsTable,
+  referralsTable,
 } from "@workspace/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { getSetting } from "../lib/settingsCache";
 import { logger } from "../lib/logger";
 import { executeAutoWithdrawal, isTonConfigured } from "../lib/withdrawalProcessor";
@@ -361,7 +362,14 @@ async function handleWithdrawalCallback(
 export function initBotWebhook(webhookUrl: string) {
   if (!TOKEN) return;
   bot = new TelegramBot(TOKEN, {});
-  bot.setWebHook(webhookUrl).catch(err => logger.error({ err }, "Failed to set webhook"));
+  bot.setWebHook(webhookUrl, {
+    allowed_updates: [
+      "message",
+      "callback_query",
+      "chat_member",
+      "my_chat_member",
+    ] as never,
+  }).catch(err => logger.error({ err }, "Failed to set webhook"));
   setupBotHandlers();
   setMenuButton();
 }
@@ -426,6 +434,13 @@ function setupBotHandlers() {
           try {
             const rawThreshold = await getSetting("referral_threshold").catch(() => null);
             const refThreshold = Math.max(1, parseInt(rawThreshold ?? "5") || 5);
+
+            // Record referral in referrals table
+            await db
+              .insert(referralsTable)
+              .values({ referrerId: referredBy, referredId: userId, status: "active" })
+              .onConflictDoNothing()
+              .catch(() => {});
 
             // Atomically increment inviter's referralCount
             const [inviter] = await db
@@ -630,6 +645,69 @@ function setupBotHandlers() {
       }
     } catch (err) {
       logger.error({ err, userId }, "message handler error");
+    }
+  }));
+
+  // ── Anti-Cheat: chat_member handler — deduct referral when user leaves ────
+  bot.on("chat_member", wrapHandler(async (update) => {
+    try {
+      const newStatus = (update as unknown as { new_chat_member: { status: string; user: { id: number } } }).new_chat_member;
+      if (!newStatus) return;
+
+      const { status, user } = newStatus;
+
+      // Only act when user left or was kicked
+      if (status !== "left" && status !== "kicked") return;
+
+      const userId = user.id;
+
+      // Find the referrer of this user
+      const [userData] = await db
+        .select({ referredBy: usersTable.referredBy })
+        .from(usersTable)
+        .where(eq(usersTable.id, userId))
+        .limit(1);
+
+      if (!userData?.referredBy) return;
+      const referrerId = userData.referredBy;
+
+      // Find active referral record for this pair
+      const [activeRef] = await db
+        .select({ id: referralsTable.id })
+        .from(referralsTable)
+        .where(and(
+          eq(referralsTable.referredId, userId),
+          eq(referralsTable.referrerId, referrerId),
+          eq(referralsTable.status, "active"),
+        ))
+        .limit(1);
+
+      if (!activeRef) return;
+
+      // Mark referral as removed
+      await db
+        .update(referralsTable)
+        .set({ status: "removed", removedAt: new Date() })
+        .where(eq(referralsTable.id, activeRef.id));
+
+      // Deduct from referrer's count (minimum 0)
+      await db
+        .update(usersTable)
+        .set({ referralCount: sql`GREATEST(referral_count - 1, 0)` })
+        .where(eq(usersTable.id, referrerId));
+
+      logger.info({ userId, referrerId }, "Anti-cheat: referral removed — user left channel");
+
+      // Notify referrer
+      try {
+        await bot.sendMessage(
+          referrerId,
+          `⚠️ <b>تم خصم إحالة من رصيدك!</b>\nالمستخدم خرج من القنوات المطلوبة`,
+          { parse_mode: "HTML" }
+        );
+      } catch { /* referrer may have blocked the bot */ }
+    } catch (err) {
+      logger.error({ err }, "chat_member anti-cheat handler error");
     }
   }));
 }
