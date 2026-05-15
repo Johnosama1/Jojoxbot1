@@ -406,13 +406,49 @@ export async function runReferralMonitor(bot: TelegramBot): Promise<void> {
   logger.info("referralMonitor: full scan complete");
 }
 
-// ── One-time deployment security scan ────────────────────────────────────────
+// ── One-time initial security scan (runs on server startup) ──────────────────
+// Loops through ALL existing users: recalculates referral validity, sends
+// admin alerts for 0%-valid spam accounts, and risk warnings for score ≥ 80.
+let _initialScanDone = false;
+export async function runInitialSecurityScan(bot: TelegramBot): Promise<void> {
+  if (_initialScanDone) return;
+  _initialScanDone = true;
+  logger.info("initialScan: starting full scan of ALL existing users");
+  // Phase 1: activate any pending referrals whose users are now subscribed
+  try {
+    const activated = await activatePendingReferrals(bot);
+    logger.info({ activated }, "initialScan: phase1 (pending→active) done");
+  } catch (err) { logger.error({ err }, "initialScan: phase1 error"); }
+  // Phase 2: check all active referrals — immediately invalidate if user left
+  try {
+    const { removed, skipped } = await scanActiveReferrals(bot);
+    logger.info({ removed, skipped }, "initialScan: phase2 (active scan) done");
+  } catch (err) { logger.error({ err }, "initialScan: phase2 error"); }
+  // Phase 3: alert admin for 0%-valid spam referral accounts (10+ refs)
+  try {
+    await detectReferralSpam(bot);
+    logger.info("initialScan: phase3 (spam detection) done");
+  } catch (err) { logger.error({ err }, "initialScan: phase3 error"); }
+  // Phase 4: send risk warnings to users with risk score ≥ 80
+  try {
+    await sendRiskWarnings(bot);
+    logger.info("initialScan: phase4 (risk warnings) done");
+  } catch (err) { logger.error({ err }, "initialScan: phase4 error"); }
+  // Phase 5: detect multi-account groups sharing the same IP
+  try {
+    await detectMultiAccounts(bot);
+    logger.info("initialScan: phase5 (multi-account) done");
+  } catch (err) { logger.error({ err }, "initialScan: phase5 error"); }
+  logger.info("initialScan: complete");
+}
+
+// ── One-time deployment security scan (Vercel cold-start) ────────────────────
 let _deploymentScanDone = false;
 export async function runDeploymentSecurityScan(bot: TelegramBot): Promise<void> {
   if (_deploymentScanDone) return;
   _deploymentScanDone = true;
-  logger.info("deploymentScan: starting one-time security scan");
-  await runReferralMonitor(bot);
+  logger.info("deploymentScan: starting");
+  await runInitialSecurityScan(bot);
   logger.info("deploymentScan: complete");
 }
 
@@ -420,11 +456,10 @@ export function startReferralMonitor(bot: TelegramBot): void {
   const FIVE_MIN = 5 * 60_000;
   const ONE_HOUR = 60 * 60_000;
 
-  // Fast scan (Phase 1+2) every 5 minutes — first run after 30s
-  setTimeout(
-    () => runFastScan(bot).catch(err =>
-      logger.error({ err }, "fastScan: initial run error")),
-    30_000,
+  // Fast scan (Phase 1+2) — run immediately on startup, then every 5 minutes
+  setImmediate(() =>
+    runFastScan(bot).catch(err =>
+      logger.error({ err }, "fastScan: startup run error"))
   );
   setInterval(
     () => runFastScan(bot).catch(err =>
@@ -432,11 +467,11 @@ export function startReferralMonitor(bot: TelegramBot): void {
     FIVE_MIN,
   );
 
-  // Full scan (all 5 phases) hourly — first run after 90s
+  // Full scan (all 5 phases) hourly — first run after 2 min
   setTimeout(
     () => runReferralMonitor(bot).catch(err =>
       logger.error({ err }, "referralMonitor: initial full run error")),
-    90_000,
+    2 * 60_000,
   );
   setInterval(
     () => runReferralMonitor(bot).catch(err =>
@@ -444,5 +479,5 @@ export function startReferralMonitor(bot: TelegramBot): void {
     ONE_HOUR,
   );
 
-  logger.info("referralMonitor: fast scan every 5min (first in 30s), full scan hourly (first in 90s)");
+  logger.info("referralMonitor: fast scan NOW + every 5min, full scan hourly (first in 2min)");
 }

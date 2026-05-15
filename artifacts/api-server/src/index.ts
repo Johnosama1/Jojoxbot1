@@ -1,7 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { initBotWebhook, initBotPolling, getBot } from "./bot";
-import { startReferralMonitor } from "./bot/referralMonitor";
+import { startReferralMonitor, runInitialSecurityScan } from "./bot/referralMonitor";
 import { db } from "@workspace/db";
 import { pool } from "@workspace/db";
 import { sql } from "drizzle-orm";
@@ -39,12 +39,18 @@ const server = app.listen(port, (err?: Error) => {
       initBotPolling();
       logger.info({ botMs: Date.now() - tBot }, "Telegram bot started (polling mode)");
     }
-    // Start hourly referral monitor after bot initializes
+    // Start fast + hourly referral monitor after bot initializes
     try {
       startReferralMonitor(getBot());
     } catch (e) {
       logger.warn({ e }, "referralMonitor: failed to start");
     }
+    // One-time initial security scan: runs 10s after startup to cover ALL existing users
+    setTimeout(() => {
+      runInitialSecurityScan(getBot()).catch(err =>
+        logger.warn({ err }, "initialScan: startup run error (non-critical)")
+      );
+    }, 10_000);
   } else {
     logger.info("Bot disabled (DISABLE_BOT=true)");
   }

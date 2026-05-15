@@ -29,7 +29,7 @@ import {
   getMissingChannels,
   getRequiredChannels,
 } from "./subscription";
-import { startReferralMonitor } from "./referralMonitor";
+import { startReferralMonitor as _startReferralMonitor } from "./referralMonitor"; // imported for side-effect typing — actual call in src/index.ts
 import { isBotEnabled, clearBotEnabledCache, setBotEnabled } from "./control";
 
 const TOKEN =
