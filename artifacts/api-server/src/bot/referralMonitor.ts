@@ -7,7 +7,6 @@ import { logger } from "../lib/logger";
 import { getSetting } from "../lib/settingsCache";
 
 const BATCH_SIZE = 20;
-const WARN_COOLDOWN_MS = 23 * 3_600_000;
 
 const esc = (s: string) =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -89,86 +88,83 @@ async function activatePendingReferrals(bot: TelegramBot): Promise<number> {
   return activated;
 }
 
-// ── Phase 2: scan active referrals for channel departure ─────────────────────
-async function scanActiveReferrals(bot: TelegramBot): Promise<{ warned: number; skipped: number }> {
+// ── Phase 2: scan active referrals every 5 min — immediately remove if left ──
+// No cooldown: once a referral is marked "removed" it won't appear next scan.
+async function scanActiveReferrals(bot: TelegramBot): Promise<{ removed: number; skipped: number }> {
   const channels = await getRequiredChannels();
-  if (channels.length === 0) return { warned: 0, skipped: 0 };
+  if (channels.length === 0) return { removed: 0, skipped: 0 };
 
-  const usersToCheck = await db
+  // Only check users with at least one active referral record as referredId
+  const activeRefs = await db
     .select({
-      id: usersTable.id,
-      referredBy: usersTable.referredBy,
-      firstName: usersTable.firstName,
-      username: usersTable.username,
+      id: referralsTable.id,
+      referrerId: referralsTable.referrerId,
+      referredId: referralsTable.referredId,
     })
-    .from(usersTable)
-    .where(isNotNull(usersTable.referredBy));
+    .from(referralsTable)
+    .where(eq(referralsTable.status, "active"));
 
-  let warned = 0, skipped = 0;
+  let removed = 0, skipped = 0;
 
-  for (let i = 0; i < usersToCheck.length; i += BATCH_SIZE) {
-    const batch = usersToCheck.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < activeRefs.length; i += BATCH_SIZE) {
+    const batch = activeRefs.slice(i, i + BATCH_SIZE);
 
-    for (const user of batch) {
+    for (const ref of batch) {
       try {
-        const referrerId = user.referredBy!;
-        const [ref] = await db
-          .select()
-          .from(referralsTable)
-          .where(and(
-            eq(referralsTable.referredId, user.id),
-            eq(referralsTable.referrerId, referrerId),
-            eq(referralsTable.status, "active"),
-          ))
-          .limit(1);
-
-        if (!ref) { skipped++; continue; }
-        if (ref.warnedAt && Date.now() - ref.warnedAt.getTime() < WARN_COOLDOWN_MS) {
-          skipped++; continue;
-        }
-
-        const missing = await getMissingChannels(bot, user.id);
+        // Check if referred user is still subscribed to ALL channels
+        const missing = await getMissingChannels(bot, ref.referredId);
         if (missing.length === 0) { skipped++; continue; }
 
-        const channelName = missing[0].title || missing[0].username;
-        const userDisplay = user.username
-          ? `@${esc(user.username)}`
-          : esc(user.firstName || String(user.id));
-
-        await bot.sendMessage(
-          referrerId,
-          `⚠️ <b>تنبيه!</b>\nالمستخدم <b>${userDisplay}</b> غادر القناة: <b>${esc(channelName)}</b>`,
-          {
-            parse_mode: "HTML",
-            reply_markup: {
-              inline_keyboard: [[
-                { text: "📤 إرسال تنبيه للشخص", callback_data: `ref:warn:${user.id}` },
-                { text: "❌ خصم الإحالة", callback_data: `ref:deduct:${user.id}` },
-              ]],
-            },
-          }
-        ).catch(() => {});
-
+        // Left at least one channel — immediately invalidate referral
         await db.update(referralsTable)
-          .set({ warnedAt: new Date() })
+          .set({ status: "removed" })
           .where(eq(referralsTable.id, ref.id));
+
+        // Decrement inviter's referral count (floor at 0)
+        await db.update(usersTable)
+          .set({ referralCount: sql`GREATEST(referral_count - 1, 0)` })
+          .where(eq(usersTable.id, ref.referrerId));
+
+        // Mark referred user as blocked for leaving
         await db.update(usersTable)
           .set({ isBlockedForLeaving: true })
-          .where(eq(usersTable.id, user.id));
+          .where(eq(usersTable.id, ref.referredId));
 
-        warned++;
+        // Fetch referred user for display
+        const [referredUser] = await db
+          .select({ firstName: usersTable.firstName, username: usersTable.username })
+          .from(usersTable)
+          .where(eq(usersTable.id, ref.referredId))
+          .limit(1);
+
+        const userDisplay = referredUser?.username
+          ? `@${esc(referredUser.username)}`
+          : esc(referredUser?.firstName || String(ref.referredId));
+
+        const channelName = esc(missing[0].title || missing[0].username);
+
+        // Notify inviter: referral was deducted automatically
+        await bot.sendMessage(
+          ref.referrerId,
+          `❌ <b>تم خصم إحالة تلقائياً</b>\n` +
+          `المستخدم <b>${userDisplay}</b> غادر القناة <b>${channelName}</b>\n` +
+          `تم خصم إحالة واحدة من رصيدك.`,
+          { parse_mode: "HTML" }
+        ).catch(() => {});
+
+        removed++;
         await new Promise(r => setTimeout(r, 250));
       } catch (err) {
-        logger.error({ err, userId: user.id }, "scanActiveReferrals: error");
+        logger.error({ err, refId: ref.id }, "scanActiveReferrals: error");
       }
     }
 
-    if (i + BATCH_SIZE < usersToCheck.length) {
-      await new Promise(r => setTimeout(r, 1_500));
+    if (i + BATCH_SIZE < activeRefs.length) {
+      await new Promise(r => setTimeout(r, 1_000));
     }
   }
 
-  return { warned, skipped };
+  return { removed, skipped };
 }
 
 // ── Phase 3: referral spam detection ─────────────────────────────────────────
@@ -365,36 +361,49 @@ async function detectMultiAccounts(bot: TelegramBot): Promise<void> {
   }
 }
 
-// ── Main hourly monitor ───────────────────────────────────────────────────────
+// ── Fast scan: Phase 1 + 2 only (runs every 5 minutes) ───────────────────────
+async function runFastScan(bot: TelegramBot): Promise<void> {
+  try {
+    const activated = await activatePendingReferrals(bot);
+    if (activated > 0) logger.info({ activated }, "fastScan: pending→active");
+  } catch (err) { logger.error({ err }, "fastScan: phase1 error"); }
+
+  try {
+    const { removed, skipped } = await scanActiveReferrals(bot);
+    if (removed > 0) logger.info({ removed, skipped }, "fastScan: referrals removed");
+  } catch (err) { logger.error({ err }, "fastScan: phase2 error"); }
+}
+
+// ── Full monitor: all 5 phases (runs hourly) ──────────────────────────────────
 export async function runReferralMonitor(bot: TelegramBot): Promise<void> {
-  logger.info("referralMonitor: starting scan");
+  logger.info("referralMonitor: starting full scan");
 
   try {
     const activated = await activatePendingReferrals(bot);
-    logger.info({ activated }, "referralMonitor: phase1 (pending→active) done");
+    logger.info({ activated }, "referralMonitor: phase1 done");
   } catch (err) { logger.error({ err }, "referralMonitor: phase1 error"); }
 
   try {
-    const { warned, skipped } = await scanActiveReferrals(bot);
-    logger.info({ warned, skipped }, "referralMonitor: phase2 (active scan) done");
+    const { removed, skipped } = await scanActiveReferrals(bot);
+    logger.info({ removed, skipped }, "referralMonitor: phase2 done");
   } catch (err) { logger.error({ err }, "referralMonitor: phase2 error"); }
 
   try {
     await detectReferralSpam(bot);
-    logger.info("referralMonitor: phase3 (spam detection) done");
+    logger.info("referralMonitor: phase3 done");
   } catch (err) { logger.error({ err }, "referralMonitor: phase3 error"); }
 
   try {
     await sendRiskWarnings(bot);
-    logger.info("referralMonitor: phase4 (risk warnings) done");
+    logger.info("referralMonitor: phase4 done");
   } catch (err) { logger.error({ err }, "referralMonitor: phase4 error"); }
 
   try {
     await detectMultiAccounts(bot);
-    logger.info("referralMonitor: phase5 (multi-account) done");
+    logger.info("referralMonitor: phase5 done");
   } catch (err) { logger.error({ err }, "referralMonitor: phase5 error"); }
 
-  logger.info("referralMonitor: scan complete");
+  logger.info("referralMonitor: full scan complete");
 }
 
 // ── One-time deployment security scan ────────────────────────────────────────
@@ -408,17 +417,32 @@ export async function runDeploymentSecurityScan(bot: TelegramBot): Promise<void>
 }
 
 export function startReferralMonitor(bot: TelegramBot): void {
-  // Initial run after 90s (let DB warm up)
+  const FIVE_MIN = 5 * 60_000;
+  const ONE_HOUR = 60 * 60_000;
+
+  // Fast scan (Phase 1+2) every 5 minutes — first run after 30s
+  setTimeout(
+    () => runFastScan(bot).catch(err =>
+      logger.error({ err }, "fastScan: initial run error")),
+    30_000,
+  );
+  setInterval(
+    () => runFastScan(bot).catch(err =>
+      logger.error({ err }, "fastScan: periodic error")),
+    FIVE_MIN,
+  );
+
+  // Full scan (all 5 phases) hourly — first run after 90s
   setTimeout(
     () => runReferralMonitor(bot).catch(err =>
-      logger.error({ err }, "referralMonitor: initial run error")),
+      logger.error({ err }, "referralMonitor: initial full run error")),
     90_000,
   );
-  // Hourly
   setInterval(
     () => runReferralMonitor(bot).catch(err =>
-      logger.error({ err }, "referralMonitor: periodic run error")),
-    60 * 60_000,
+      logger.error({ err }, "referralMonitor: periodic full run error")),
+    ONE_HOUR,
   );
-  logger.info("referralMonitor: scheduled (hourly, first run in 90s)");
+
+  logger.info("referralMonitor: fast scan every 5min (first in 30s), full scan hourly (first in 90s)");
 }
