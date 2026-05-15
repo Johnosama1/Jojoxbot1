@@ -6,7 +6,8 @@
  * Bot runs in webhook mode — no polling, no persistent process needed.
  */
 import app from "./app";
-import { initBotWebhook } from "./bot";
+import { initBotWebhook, getBot } from "./bot";
+import { runDeploymentSecurityScan } from "./bot/referralMonitor";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { wheelSlotsTable, usersTable } from "@workspace/db/schema";
@@ -159,6 +160,14 @@ const webhookUrl =
 
 if (webhookUrl) {
   initBotWebhook(webhookUrl);
+  // One-time deployment security scan: runs 5s after cold start
+  setTimeout(() => {
+    try {
+      runDeploymentSecurityScan(getBot()).catch(e =>
+        console.warn("[startup] deploymentScan error:", e instanceof Error ? e.message : e)
+      );
+    } catch { /* ignore if bot not ready */ }
+  }, 5_000);
 }
 
 export default app;

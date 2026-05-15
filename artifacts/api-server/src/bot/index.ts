@@ -501,6 +501,97 @@ function setMenuButton() {
   }).catch(() => {});
 }
 
+// ── Security callback handler (spam: / multi:) — admin only ──────────────────
+
+async function handleSecurityCallback(
+  q: TelegramBot.CallbackQuery
+): Promise<boolean> {
+  const data = q.data ?? "";
+  if (!data.startsWith("spam:") && !data.startsWith("multi:")) return false;
+
+  const chatId = q.message!.chat.id;
+  const msgId  = q.message!.message_id;
+
+  const adminInfo = await getAdminInfo(q.from.id, q.from.username);
+  if (!adminInfo) {
+    await bot.answerCallbackQuery(q.id, { text: "⛔ غير مصرح" }).catch(() => {});
+    return true;
+  }
+  await bot.answerCallbackQuery(q.id).catch(() => {});
+
+  const parts  = data.split(":");
+  const prefix = parts[0]; // "spam" | "multi"
+  const action = parts[1]; // "warn" | "ban" | "ignore" | "banall" | "bannew"
+  const param  = parts[2]; // userId or comma-separated IDs
+
+  if (prefix === "spam") {
+    const targetId = parseInt(param);
+    if (isNaN(targetId)) return true;
+
+    if (action === "ban") {
+      await db.update(usersTable)
+        .set({ isVisible: false })
+        .where(eq(usersTable.id, targetId));
+      await bot.editMessageText(
+        `🚫 <b>تم حظر المستخدم #${targetId}</b>`,
+        { chat_id: chatId, message_id: msgId, parse_mode: "HTML" }
+      ).catch(() => {});
+
+    } else if (action === "warn") {
+      await bot.sendMessage(
+        targetId,
+        `⚠️ <b>تحذير من الإدارة:</b> تم رصد نشاط مشبوه على حسابك.\nيرجى الالتزام بشروط الاستخدام وإلا سيتم حظرك.`,
+        { parse_mode: "HTML" }
+      ).catch(() => {});
+      await bot.editMessageText(
+        `⚠️ تم إرسال تحذير للمستخدم #${targetId}`,
+        { chat_id: chatId, message_id: msgId }
+      ).catch(() => {});
+
+    } else if (action === "ignore") {
+      await bot.editMessageText(
+        `👁️ تم وضع المستخدم #${targetId} قيد المراقبة`,
+        { chat_id: chatId, message_id: msgId }
+      ).catch(() => {});
+    }
+
+  } else if (prefix === "multi") {
+    if (action === "banall") {
+      const ids = param.split(",").map(Number).filter(n => !isNaN(n));
+      for (const uid of ids) {
+        await db.update(usersTable)
+          .set({ isVisible: false })
+          .where(eq(usersTable.id, uid))
+          .catch(() => {});
+      }
+      await bot.editMessageText(
+        `🚫 <b>تم حظر ${ids.length} حساب بتهمة التعدد</b>`,
+        { chat_id: chatId, message_id: msgId, parse_mode: "HTML" }
+      ).catch(() => {});
+
+    } else if (action === "bannew") {
+      const uid = parseInt(param);
+      if (!isNaN(uid)) {
+        await db.update(usersTable)
+          .set({ isVisible: false })
+          .where(eq(usersTable.id, uid));
+      }
+      await bot.editMessageText(
+        `🚫 تم حظر الحساب الجديد #${uid}`,
+        { chat_id: chatId, message_id: msgId }
+      ).catch(() => {});
+
+    } else if (action === "ignore") {
+      await bot.editMessageText(
+        `👁️ تم تجاهل تنبيه التعدد`,
+        { chat_id: chatId, message_id: msgId }
+      ).catch(() => {});
+    }
+  }
+
+  return true;
+}
+
 // ── Withdrawal callback handler ─────────────────────────────────────────────
 
 async function handleWithdrawalCallback(
@@ -694,47 +785,24 @@ function setupBotHandlers() {
           })
           .onConflictDoNothing();
 
-        // ── Referral reward for inviter ───────────────────────────────────────
+        // ── Register referral as PENDING ─────────────────────────────────────
+        // Counted only after the referred user is verified subscribed to all channels
         if (referredBy) {
           try {
-            const rawThreshold = await getSetting("referral_threshold").catch(() => null);
-            const refThreshold = Math.max(1, parseInt(rawThreshold ?? "5") || 5);
-
-            // Record referral in referrals table
             await db
               .insert(referralsTable)
-              .values({ referrerId: referredBy, referredId: userId, status: "active" })
+              .values({ referrerId: referredBy, referredId: userId, status: "pending" })
               .onConflictDoNothing()
               .catch(() => {});
 
-            // Atomically increment inviter's referralCount
-            const [inviter] = await db
-              .update(usersTable)
-              .set({ referralCount: sql`referral_count + 1` })
-              .where(eq(usersTable.id, referredBy))
-              .returning({ id: usersTable.id, referralCount: usersTable.referralCount });
-
-            if (inviter) {
-              const newCount = inviter.referralCount;
-              const earnedSpin = newCount % refThreshold === 0;
-
-              if (earnedSpin) {
-                await db
-                  .update(usersTable)
-                  .set({ spins: sql`spins + 1` })
-                  .where(eq(usersTable.id, referredBy));
-              }
-
-              // Notify inviter
-              try {
-                const notifyText = earnedSpin
-                  ? `🎉 <b>مبروك!</b> صديق جديد انضم عبر رابطك!\n🎰 حصلت على لفة مجانية! (${newCount}/${refThreshold} إحالة)`
-                  : `👥 صديق جديد انضم عبر رابطك! (${newCount}/${refThreshold} إحالة)`;
-                await bot.sendMessage(referredBy, notifyText, { parse_mode: "HTML" });
-              } catch { /* inviter may have blocked the bot */ }
-            }
+            // Notify inviter — referral is pending channel verification
+            await bot.sendMessage(
+              referredBy,
+              `👥 صديق جديد انضم عبر رابطك!\n⏳ سيتم احتساب الإحالة بعد التحقق من اشتراكه في القنوات.`,
+              { parse_mode: "HTML" }
+            ).catch(() => {});
           } catch (refErr) {
-            logger.error({ refErr }, "Referral reward processing error");
+            logger.error({ refErr }, "Referral registration error");
           }
         }
       } else {
@@ -858,6 +926,12 @@ function setupBotHandlers() {
       // 5. Withdrawal approval/rejection (admin)
       if ((data.startsWith("withdraw_approve_") || data.startsWith("withdraw_reject_") || data.startsWith("withdraw_ban_")) && adminInfo) {
         await handleWithdrawalCallback(q);
+        return;
+      }
+
+      // 5.5 Security alerts: spam detection + multi-account (admin only)
+      if ((data.startsWith("spam:") || data.startsWith("multi:")) && adminInfo) {
+        await handleSecurityCallback(q);
         return;
       }
 
