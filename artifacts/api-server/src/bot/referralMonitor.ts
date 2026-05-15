@@ -53,7 +53,37 @@ async function activatePendingReferrals(bot: TelegramBot): Promise<number> {
         continue;
       }
 
-      // Subscribed — activate referral and credit inviter
+      // Condition 3: Mini App must be opened (ipHash set) AND IP must differ from inviter
+      const [referredUserIp, inviterUserIp] = await Promise.all([
+        db.select({ ipHash: usersTable.ipHash })
+          .from(usersTable).where(eq(usersTable.id, ref.referredId)).limit(1).then(r => r[0]),
+        db.select({ ipHash: usersTable.ipHash })
+          .from(usersTable).where(eq(usersTable.id, ref.referrerId)).limit(1).then(r => r[0]),
+      ]);
+
+      // Mini App not opened yet (ipHash is null) — keep pending, check again later
+      if (!referredUserIp?.ipHash) {
+        await new Promise(r => setTimeout(r, 150));
+        continue;
+      }
+
+      // Same IP/device as inviter — self-referral attempt → reject immediately
+      if (referredUserIp.ipHash === inviterUserIp?.ipHash) {
+        await db.update(referralsTable)
+          .set({ status: "removed" })
+          .where(eq(referralsTable.id, ref.id));
+        await db.update(usersTable)
+          .set({ ipSuspicious: true })
+          .where(eq(usersTable.id, ref.referredId));
+        await bot.sendMessage(
+          ref.referrerId,
+          `⚠️ تم رفض إحالة: تطابق عنوان الجهاز/الشبكة مع حسابك.\nالإحالات من نفس الجهاز غير مسموحة.`,
+        ).catch(() => {});
+        await new Promise(r => setTimeout(r, 150));
+        continue;
+      }
+
+      // All 3 conditions met — activate referral and credit inviter
       await db.update(referralsTable)
         .set({ status: "active" })
         .where(eq(referralsTable.id, ref.id));
@@ -111,49 +141,80 @@ async function scanActiveReferrals(bot: TelegramBot): Promise<{ removed: number;
 
     for (const ref of batch) {
       try {
-        // Check if referred user is still subscribed to ALL channels
+        // ── Check 1: channel subscription ──────────────────────────────────
         const missing = await getMissingChannels(bot, ref.referredId);
-        if (missing.length === 0) { skipped++; continue; }
+        if (missing.length > 0) {
+          // Left at least one channel — immediately invalidate referral
+          await db.update(referralsTable)
+            .set({ status: "removed" })
+            .where(eq(referralsTable.id, ref.id));
+          await db.update(usersTable)
+            .set({ referralCount: sql`GREATEST(referral_count - 1, 0)` })
+            .where(eq(usersTable.id, ref.referrerId));
+          await db.update(usersTable)
+            .set({ isBlockedForLeaving: true })
+            .where(eq(usersTable.id, ref.referredId));
 
-        // Left at least one channel — immediately invalidate referral
-        await db.update(referralsTable)
-          .set({ status: "removed" })
-          .where(eq(referralsTable.id, ref.id));
+          const [referredUser] = await db
+            .select({ firstName: usersTable.firstName, username: usersTable.username })
+            .from(usersTable).where(eq(usersTable.id, ref.referredId)).limit(1);
 
-        // Decrement inviter's referral count (floor at 0)
-        await db.update(usersTable)
-          .set({ referralCount: sql`GREATEST(referral_count - 1, 0)` })
-          .where(eq(usersTable.id, ref.referrerId));
+          const userDisplay = referredUser?.username
+            ? `@${esc(referredUser.username)}`
+            : esc(referredUser?.firstName || String(ref.referredId));
+          const channelName = esc(missing[0].title || missing[0].username);
 
-        // Mark referred user as blocked for leaving
-        await db.update(usersTable)
-          .set({ isBlockedForLeaving: true })
-          .where(eq(usersTable.id, ref.referredId));
+          await bot.sendMessage(
+            ref.referrerId,
+            `❌ <b>تم خصم إحالة تلقائياً</b>\n` +
+            `المستخدم <b>${userDisplay}</b> غادر القناة <b>${channelName}</b>\n` +
+            `تم خصم إحالة واحدة من رصيدك.`,
+            { parse_mode: "HTML" }
+          ).catch(() => {});
 
-        // Fetch referred user for display
-        const [referredUser] = await db
-          .select({ firstName: usersTable.firstName, username: usersTable.username })
-          .from(usersTable)
-          .where(eq(usersTable.id, ref.referredId))
-          .limit(1);
+          removed++;
+          await new Promise(r => setTimeout(r, 250));
+          continue;
+        }
 
-        const userDisplay = referredUser?.username
-          ? `@${esc(referredUser.username)}`
-          : esc(referredUser?.firstName || String(ref.referredId));
+        // ── Check 2 (retroactive): IP uniqueness — condition 3 ─────────────
+        // If both users have ipHash and they match, this is a self-referral
+        const [referredUserData, inviterUserData] = await Promise.all([
+          db.select({ ipHash: usersTable.ipHash })
+            .from(usersTable).where(eq(usersTable.id, ref.referredId)).limit(1).then(r => r[0]),
+          db.select({ ipHash: usersTable.ipHash })
+            .from(usersTable).where(eq(usersTable.id, ref.referrerId)).limit(1).then(r => r[0]),
+        ]);
 
-        const channelName = esc(missing[0].title || missing[0].username);
+        if (referredUserData?.ipHash && inviterUserData?.ipHash &&
+            referredUserData.ipHash === inviterUserData.ipHash) {
+          // Same IP/device — retroactively invalidate existing active referral
+          await db.update(referralsTable)
+            .set({ status: "removed" })
+            .where(eq(referralsTable.id, ref.id));
+          await db.update(usersTable)
+            .set({ referralCount: sql`GREATEST(referral_count - 1, 0)` })
+            .where(eq(usersTable.id, ref.referrerId));
+          await db.update(usersTable)
+            .set({ ipSuspicious: true })
+            .where(eq(usersTable.id, ref.referredId));
 
-        // Notify inviter: referral was deducted automatically
-        await bot.sendMessage(
-          ref.referrerId,
-          `❌ <b>تم خصم إحالة تلقائياً</b>\n` +
-          `المستخدم <b>${userDisplay}</b> غادر القناة <b>${channelName}</b>\n` +
-          `تم خصم إحالة واحدة من رصيدك.`,
-          { parse_mode: "HTML" }
-        ).catch(() => {});
+          await bot.sendMessage(
+            ref.referrerId,
+            `❌ <b>تم إلغاء إحالة:</b> نشاط مشبوه\n` +
+            `تطابق عنوان الجهاز/الشبكة بين المُحيل والمُحال.\n` +
+            `تم خصم إحالة واحدة من رصيدك.`,
+            { parse_mode: "HTML" }
+          ).catch(() => {});
 
-        removed++;
-        await new Promise(r => setTimeout(r, 250));
+          removed++;
+          await new Promise(r => setTimeout(r, 250));
+          continue;
+        }
+
+        // All checks passed — referral is still valid
+        skipped++;
+        await new Promise(r => setTimeout(r, 100));
       } catch (err) {
         logger.error({ err, refId: ref.id }, "scanActiveReferrals: error");
       }
